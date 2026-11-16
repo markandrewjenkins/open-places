@@ -1,0 +1,212 @@
+/* Public Transit: the network-wide topics (tmap.js, tnext.js, talerts.js, tnet.js). The Route 95 spotlight keeps its
+   own styles in blink.css; the console layout lives in ../shared/console.css. Route colours come from each agency's
+   open timetable; the page's own palette is neutral and isn't any agency's. */
+
+body.blink { --t-map: #0d8a80; --t-next: #2a63d6; --t-alert: #c2410c; --t-net: #6d4fc2; }
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) body.blink { --t-map: #2bb3a7; --t-next: #5b8ff0; --t-alert: #f08a4b; --t-net: #a38cf0; }
+}
+:root[data-theme="dark"] body.blink { --t-map: #2bb3a7; --t-next: #5b8ff0; --t-alert: #f08a4b; --t-net: #a38cf0; }
+:root[data-skin="alt"] body.blink { --t-map: #0a9aa8; --t-next: #6a3fd6; --t-alert: #e0480f; --t-net: #c41f8f; }
+@media (prefers-color-scheme: dark) {
+  :root[data-skin="alt"]:not([data-theme="light"]) body.blink { --t-map: #3ee6f0; --t-next: #a98bff; --t-alert: #ff8a4c; --t-net: #ff4fc3; }
+}
+:root[data-skin="alt"][data-theme="dark"] body.blink { --t-map: #3ee6f0; --t-next: #a98bff; --t-alert: #ff8a4c; --t-net: #ff4fc3; }
+
+html.embed .topbar { display: none; }
+.tr-region .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.tr-region select { font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); max-width: 44vw; }
+
+/* ---------- small shared bits */
+.tr-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 22px; padding: 0 6px; border-radius: 5px;
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0; white-space: nowrap; flex: none;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12); }
+.tr-badge.sm { min-width: 26px; height: 18px; font-size: 11px; padding: 0 5px; border-radius: 4px; }
+.tr-badge-none { background: var(--surface-2); color: var(--muted); }
+.tr-btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+  border-radius: 8px; padding: 6px 11px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; text-decoration: none; }
+.tr-btn:hover { border-color: var(--t-map); color: var(--t-map); }
+.tr-btn.sm { padding: 3px 9px; font-size: 12px; }
+.tr-btn.ghost { background: transparent; border-style: dashed; }
+.tr-h4 { margin: 4px 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.tr-cardhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap; }
+.tr-cardhead .seg button { padding: 4px 10px; font-size: 12px; }
+.tr-ctl { display: flex; gap: 6px; flex-wrap: wrap; }
+.tr-missing { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border-left: 3px solid var(--t-alert); font-size: 12.5px; }
+.tr-tilenote { margin: 6px 0 0; font-size: 12.5px; }
+.tr-gap { margin-top: 14px; }
+.tr-dhead { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink-2); margin-bottom: 4px; }
+
+/* ---------- live map + side panel */
+.tr-mapcard { padding: 0 !important; overflow: hidden; }
+.tr-mapbody { display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-height: 480px; }
+.tr-map { min-height: 480px; }
+.tr-panel { border-left: 1px solid var(--border); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; overflow: auto; min-height: 0; }
+.tr-live { font-size: 11px; font-weight: 650; letter-spacing: 0.08em; color: var(--ink-2); display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.tr-live b { letter-spacing: 0; font-variant-numeric: tabular-nums; color: var(--ink); }
+.tr-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--t-map); box-shadow: 0 0 0 0 color-mix(in oklab, var(--t-map) 60%, transparent); animation: tr-pulse 2s infinite; flex: none; }
+.tr-dot.bad { background: var(--late, #d43a2f); animation: none; }
+.tr-dot.off { background: var(--muted); animation: none; }
+@keyframes tr-pulse { 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .tr-dot { animation: none; } }
+.tr-counts { display: grid; grid-template-columns: auto 1fr; gap: 0 8px; align-items: baseline; }
+.tr-counts b { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.tr-counts span { color: var(--ink-2); font-size: 12.5px; }
+.tr-panel .legend { margin: 0; gap: 4px 10px; font-size: 11.5px; }
+.tr-key { display: inline-flex; align-items: center; gap: 6px; }
+.tr-key img { display: block; }
+.tr-rlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.tr-rlist a { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 7px;
+  text-decoration: none; color: var(--ink-2); font-size: 12.5px; border-bottom: 1px dotted var(--border); }
+.tr-rlist a:hover { background: var(--surface-2); color: var(--ink); }
+.tr-rlist li.on a { background: color-mix(in oklab, var(--t-map) 14%, transparent); color: var(--ink); }
+.tr-rlist b { font-variant-numeric: tabular-nums; color: var(--ink); }
+.tr-rname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tr-modes { display: flex; flex-direction: column; gap: 8px; overflow: auto; }
+.tr-mode { display: grid; grid-template-columns: 40px auto 1fr; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px dotted var(--border); }
+.tr-mode b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.tr-mode span { color: var(--ink-2); font-size: 13px; }
+
+/* ---------- departure boards */
+.tr-boards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; overflow: auto; align-content: start; }
+.tr-stop { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--surface); min-width: 0; }
+.tr-stop header { display: flex; flex-direction: column; gap: 1px; margin-bottom: 6px; }
+.tr-stop header a { color: var(--ink); font-weight: 650; font-size: 13.5px; text-decoration: none; }
+.tr-stop header a:hover { text-decoration: underline; }
+.tr-stop header small { color: var(--muted); font-size: 11.5px; }
+.tr-board { display: flex; flex-direction: column; }
+.tr-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 4px 0; border-top: 1px dotted var(--border); font-size: 12.5px; }
+.tr-row:first-child { border-top: 0; }
+.tr-row.off { opacity: 0.55; }
+.tr-head { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); min-width: 0; }
+.tr-times { font-variant-numeric: tabular-nums; color: var(--ink-2); text-align: right; white-space: nowrap; font-size: 12px; }
+.tr-times.live { display: inline-flex; gap: 6px; align-items: baseline; }
+.tr-times.live b { color: var(--ink); font-weight: 650; }
+.tr-times.live b:first-child::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--t-map); margin-right: 5px; vertical-align: 1px; }
+.tr-times.live b + b { color: var(--ink-2); font-weight: 500; }
+.tr-times b.late { color: var(--late, #d43a2f) !important; }
+.tr-times b.early { color: var(--early, #7c4ae0) !important; }
+.tr-livedot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--t-map); }
+.tr-board.mini .tr-row { padding: 3px 0; font-size: 12px; }
+.tr-sched { display: flex; flex-direction: column; gap: 8px; }
+.tr-schrow { border-top: 1px dotted var(--border); padding-top: 6px; }
+.tr-schh { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 3px; }
+.tr-schd { display: grid; grid-template-columns: 82px 1fr; gap: 8px; font-size: 12px; color: var(--ink-2); padding: 1px 0; }
+.tr-schd small { color: var(--muted); font-size: 12px; }
+.tr-schd.today span { color: var(--ink); font-weight: 650; }
+.tr-schd.today small { color: var(--ink-2); }
+
+/* ---------- alerts */
+.tr-alist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; overflow: auto; }
+.tr-alist li > a { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; gap: 2px 10px; padding: 7px 6px; border-radius: 8px;
+  text-decoration: none; color: var(--ink); border-bottom: 1px dotted var(--border); }
+.tr-alist li > a > .tr-abadges { grid-row: 1 / span 2; align-self: start; }
+.tr-alist li > a b { font-weight: 600; font-size: 13px; }
+.tr-alist li > a small { color: var(--muted); font-size: 11.5px; }
+.tr-alist li > a:hover { background: var(--surface-2); }
+.tr-alist li.on > a { background: color-mix(in oklab, var(--t-alert) 12%, transparent); }
+.tr-alist li.later > a { opacity: 0.7; }
+.tr-alist.mini li { display: flex; gap: 8px; align-items: center; font-size: 12.5px; padding: 3px 0; border-bottom: 1px dotted var(--border); white-space: nowrap; overflow: hidden; }
+.tr-alist.mini li > span:last-child { overflow: hidden; text-overflow: ellipsis; min-width: 0; color: var(--ink-2); }
+.tr-abadges { display: inline-flex; gap: 3px; flex-wrap: wrap; max-width: 120px; }
+.tr-abadges:empty { min-width: 26px; }
+.tr-abadges.big { max-width: none; gap: 5px; margin-bottom: 6px; }
+.tr-abadges small { color: var(--muted); font-size: 11px; align-self: center; }
+.tr-adesc { white-space: pre-line; font-size: 13px; color: var(--ink-2); line-height: 1.5; }
+
+/* ---------- network */
+.tr-rtable { overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+.tr-fgroup h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.tr-fgroup h4 small { font-weight: 500; letter-spacing: 0; }
+.tr-rgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 10px; }
+.tr-rcell { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; gap: 0 8px; align-items: center; padding: 5px 6px;
+  border-radius: 7px; text-decoration: none; color: var(--ink); font-size: 12.5px; border-bottom: 1px dotted var(--border); min-width: 0; }
+.tr-rcell .tr-badge { grid-row: 1 / span 2; }
+.tr-rcell span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tr-rcell small { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tr-rcell:hover { background: var(--surface-2); }
+.tr-rcell.on { background: color-mix(in oklab, var(--t-net) 14%, transparent); }
+
+/* ==================================================================================================
+   DESKTOP ≥ 1100px: each sub-topic's pane fills the panel.
+   ================================================================================================== */
+@media (min-width: 1100px) {
+  /* five tiles (the Route 95 spotlight added) in three columns: the spotlight takes the last two cells */
+  body.blink .cx-tiles > .cx-tile:nth-child(5):last-child { grid-column: span 2; }
+  .pane-trmap { grid-template-rows: minmax(0, 1fr); }
+  .pane-trmap .tr-mapcard { display: flex; min-height: 0; }
+  .pane-trmap .tr-mapbody, .pane-trmap .tr-map { flex: 1; min-height: 0; height: 100%; }
+  .pane-trrun, .pane-trnext, .pane-tralerts, .pane-trroutes, .pane-trhours { grid-template-rows: minmax(0, 1fr); }
+  .pane-trnext .cx-row, .pane-tralerts .cx-row, .pane-trrun .cx-row, .pane-trhours .cx-row { min-height: 0; }
+}
+
+/* ==================================================================================================
+   MOBILE / TABLET < 1100px
+   ================================================================================================== */
+@media (max-width: 1099.98px) {
+  .tr-mapbody { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .tr-map { min-height: 380px; height: 380px; }
+  .tr-panel { border-left: 0; border-top: 1px solid var(--border); max-height: none; }
+  .tr-rlist { max-height: 340px; overflow: auto; }
+  .tr-boards { grid-template-columns: minmax(0, 1fr); }
+  .tr-alist { max-height: 70vh; }
+  .cx-app #tr-hr { height: 220px; }
+  .tr-region select { max-width: 40vw; }
+}
+@media (max-width: 560px) {
+  .tr-cardhead { flex-direction: column; }
+  body.blink .topbar { gap: 8px; }
+  .tr-region select { max-width: 28vw; font-size: 12px; padding: 4px 6px; }
+  body.blink .topbar .title { display: none; }   /* the rail names the page; the region picker needs the room */
+  .tr-rgrid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------- live map: selected vehicle card, road speeds (estimated from bus movements) */
+.tr-vhead { display: flex; flex-direction: column; font-weight: 650; color: var(--ink); line-height: 1.25; }
+.tr-vhead small { font-weight: 500; color: var(--muted); font-size: 11.5px; }
+.tr-vnext { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 10px; align-items: baseline; padding: 8px 10px; margin: 6px 0;
+  border-radius: 8px; background: var(--surface-2); border-left: 3px solid var(--t-map); font-size: 13px; }
+.tr-vnext span { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; grid-row: span 2; }
+.tr-vnext b { font-weight: 650; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-vnext em { font-style: normal; color: var(--ink-2); font-variant-numeric: tabular-nums; font-size: 12px; }
+.tr-vstops { list-style: none; margin: 0 0 6px; padding: 0; font-size: 12.5px; }
+.tr-vstops li { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-bottom: 1px dotted var(--border); color: var(--ink-2); }
+.tr-vstops li b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tr-speeds { display: flex; flex-direction: column; gap: 4px; }
+.tr-speeds .note { margin: 0; font-size: 11.5px; }
+.tr-est { font-style: normal; font-size: 9.5px; letter-spacing: 0.08em; padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border); color: var(--muted); vertical-align: 1px; }
+.tr-slist { list-style: none; margin: 0; padding: 0; }
+.tr-slist li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto auto; gap: 8px; align-items: baseline; padding: 3px 0; border-bottom: 1px dotted var(--border); font-size: 12.5px; }
+.tr-slist li i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); align-self: center; }
+.tr-slist li.lv-normal i { background: var(--t-map); }
+.tr-slist li.lv-busy i { background: var(--warn, #c98a12); }
+.tr-slist li.lv-slow i { background: var(--bad, var(--late, #d43a2f)); }
+.tr-slist li span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); }
+.tr-slist li b { font-variant-numeric: tabular-nums; font-weight: 650; }
+.tr-slist li small { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.tr-links { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.tr-slist li a { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); text-decoration: none; }
+.tr-slist li a:hover { color: var(--t-map); text-decoration: underline; }
+.tr-slist li.on { background: color-mix(in oklab, var(--t-map) 12%, transparent); border-radius: 6px; }
+.tr-slist li.lv-none i { background: var(--muted); opacity: 0.5; }
+
+/* ---------- Road Speed card (speed.js): drawer over the live map, or a popup on an Open Places map stage */
+.tr-spd { display: flex; flex-direction: column; gap: 8px; }
+.tr-spd-head { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.tr-spd-head b { font-weight: 650; color: var(--ink); }
+.tr-spd-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.tr-spd-long { margin: 0; font-size: 12px; }
+.tr-spd-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: 11px; color: var(--ink-2); }
+.tr-spd-legend span { display: flex; align-items: center; gap: 6px; }
+.tr-spd-legend i { width: 18px; height: 5px; border-radius: 3px; flex: none; }
+.tr-spd-legend i.faint { opacity: 0.55; }
+.tr-spd-how { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); padding: 8px 10px; border-radius: 8px; background: var(--surface-2); }
+.tr-spd-cams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.tr-spd-cam { display: flex; flex-direction: column; gap: 3px; text-decoration: none; color: var(--ink-2); font-size: 11.5px; min-width: 0; }
+.tr-spd-cam img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); }
+.tr-spd-cam span { display: flex; flex-direction: column; min-width: 0; }
+.tr-spd-cam b { font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tr-spd-cam small { color: var(--muted); }
+.tr-spd-cam:hover b { color: var(--t-map); }
+.tr-spd-credit { margin: 0; font-size: 11px; }
+.tr-vcard { display: flex; flex-direction: column; gap: 4px; }

@@ -1,0 +1,104 @@
+/* "Kodachrome" design skin for Fall Foliage Watch. Every rule is scoped under :root[data-skin="alt"].
+   A quiet take on Kodachrome: the Classic layout and colours with a warmer paper tint and the Kodachrome red accent,
+   set in Kodachrome's type (Fraunces headings and figures, Jost text). Flat hairline surfaces, soft shadows, small
+   radius; no textures, stamps, glows or animations. CSS only.
+   Leaf colours (--leaf-*) are never overridden, so the colour forecast ramp, the map leaves and the tier badges read
+   exactly as in Classic. Day/night differences live in tokens only. */
+
+/* ================================================================== tokens: day */
+:root[data-skin="alt"] body.foliage {
+  --page: #f3e9d8;
+  --surface: #fbf6ec;
+  --surface-2: #eee2cd;
+  --ink: #2a211b;
+  --ink-2: #5c4d41;
+  --muted: #716253;
+  --grid: #e8dcc8;
+  --axis: #cdbda5;
+  --border: rgba(90, 55, 25, 0.13);
+  --shadow: 0 1px 2px rgba(90, 55, 25, 0.06), 0 6px 18px rgba(90, 55, 25, 0.06);
+  --accent: #b2321d;
+  --accent-2: #2f6b4f;
+  --radius: 8px;
+  --font: "Jost", "Futura", system-ui, "Segoe UI", sans-serif;
+  --kc-display: "Fraunces", Georgia, serif;
+}
+
+/* ================================================================== tokens: night */
+@media (prefers-color-scheme: dark) {
+  :root[data-skin="alt"]:not([data-theme="light"]) body.foliage {
+    --page: #221b16; --surface: #2c241e; --surface-2: #372d26;
+    --ink: #f5ece2; --ink-2: #d2c4b6; --muted: #a39385;
+    --grid: #433a34; --axis: #5a4f47; --border: rgba(255, 235, 215, 0.10);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.22);
+    --accent: #e8743a; --accent-2: #5fae86;
+  }
+}
+:root[data-skin="alt"][data-theme="dark"] body.foliage {
+  --page: #221b16; --surface: #2c241e; --surface-2: #372d26;
+  --ink: #f5ece2; --ink-2: #d2c4b6; --muted: #a39385;
+  --grid: #433a34; --axis: #5a4f47; --border: rgba(255, 235, 215, 0.10);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.22);
+  --accent: #e8743a; --accent-2: #5fae86;
+}
+
+/* ================================================================== rules (both halves; colours via tokens) */
+:root[data-skin="alt"] body.foliage {
+  background: var(--page);
+  font: 15px/1.55 var(--font);
+  font-feature-settings: normal;
+
+  & h1, & h2, & h3 { letter-spacing: 0; }
+  & ::selection { background: color-mix(in oklab, var(--accent) 24%, transparent); color: var(--ink); }
+
+  /* ---------- top bar: flat, hairline */
+  .topbar { background: color-mix(in oklab, var(--page) 94%, transparent); backdrop-filter: none; border-bottom: 1px solid var(--border); }
+  .topbar .title { font: 600 17px/1 var(--kc-display); color: var(--ink); }
+  .skin-btn, .icon-btn { border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); }
+  .skin-btn:hover, .icon-btn:hover { color: var(--ink); border-color: var(--axis); background: var(--surface); }
+  .skin-dot { border-radius: 2px; background: linear-gradient(90deg, #c8281e 0 50%, #e2a417 50%); }
+
+  /* ---------- type */
+  .eyebrow { font-size: 11.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .side-title { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); }
+  .hero-main .label, .stat .label { font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+  table.data th { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .hero-title, .section-head h2 { font-family: var(--kc-display); font-weight: 600; letter-spacing: -0.01em; }
+  .hero-title { font-size: clamp(30px, 4.4vw, 50px); max-width: 22ch; }
+  .card-title, .prose h3, .trip h3, .pf-name, .tier-label b { font-family: var(--kc-display); font-weight: 600; letter-spacing: 0; }
+  .hero-figure { font: 600 clamp(42px, 5.6vw, 66px)/1 var(--kc-display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .stat .value { font: 600 24px/1.15 var(--kc-display); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .slider-date b, .streets .s-val, .pl-stats b, .tl-n { font-family: var(--kc-display); font-variant-numeric: tabular-nums; }
+
+  /* ---------- surfaces: flat, hairline, small radius */
+  .hero { background: none; }
+  .card { border-radius: var(--radius); box-shadow: var(--shadow); }
+  .sp-card { border-radius: var(--radius); }
+  .sp-card:hover { transform: none; border-color: var(--axis); box-shadow: none; }
+  .tooltip, .maplibregl-popup-content { border-radius: var(--radius) !important; }
+  .streets li button, .tl-list, .tl-search, .pl-btn, .pl-arm, .pl-preset, .planner select, .pl-stats div { border-radius: 4px; }
+  footer.site { border-top: 1px solid var(--border); margin-top: 40px; padding-top: 28px; }
+
+  /* ---------- controls */
+  .seg { border-radius: var(--radius); background: transparent; }
+  .seg button { border-radius: 4px; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--border); }
+  .chip { border-radius: 4px; }
+  .pl-arm[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+}
+
+/* ---------- mobile */
+@media (max-width: 640px) {
+  :root[data-skin="alt"] body.foliage {
+    .topbar { gap: 12px; }
+    .topbar .crumb { max-width: 14px; overflow: hidden; }   /* just the ← so the title fits */
+    .topbar .title { font-size: 15px; }
+    .hero-figure { font-size: 44px; }
+    .stat .value { font-size: 21px; }
+  }
+}
+
+/* ---------- Open Places look (the default design, no data-skin="alt"; shared chrome in ../shared/theme.css).
+   Nothing below touches this page's themed skin. */
+/* the shared Open Places tokens instead of the Classic warm-paper palette */
+:root:not([data-skin="alt"]) body.foliage { --page: inherit; --surface: inherit; --surface-2: inherit; --ink: inherit; --ink-2: inherit; --muted: inherit; --grid: inherit; --axis: inherit; --border: inherit; --shadow: inherit; }

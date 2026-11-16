@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en" data-page="home">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    // Apply saved theme and design skin before first paint. <html data-skins="alt herbarium …"> lists this page's
+    // themed designs; ?skin=<id>|classic overrides and is remembered. "alt" is shared across pages; other ids per page.
+    (function () { try { var r = document.documentElement, q = new URLSearchParams(location.search).get("skin");
+      var t = localStorage.getItem("odp-theme"); if (t) r.dataset.theme = t;
+      var multi = !!r.dataset.skins, ok = (r.dataset.skins || "alt").split(" ").concat("grey"), pk = "odp-skin:" + (r.dataset.page || location.pathname);
+      if (q) { if (multi) localStorage.setItem(pk, q); if (q === "alt" || q === "classic" || q === "grey") localStorage.setItem("odp-skin", q); }
+      var s = q || (multi && localStorage.getItem(pk)) || localStorage.getItem("odp-skin");
+      if (ok.indexOf(s) >= 0) r.dataset.skin = s; } catch (e) {} })();
+  </script>
+  <title>All Dashboards · Open Places</title>
+  <meta name="description" content="Interactive forecasting dashboards built entirely on free, open government and citizen-science data from British Columbia, Ontario, California and Arizona." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰️</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Cinzel:wght@500;700&family=Saira+Stencil+One&family=Limelight&family=Share+Tech+Mono&family=Bebas+Neue&family=B612:wght@400;700&family=JetBrains+Mono:wght@500;700&family=Fraunces:opsz,wght@9..144,800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/shared/theme.css" />
+  <style>
+    .home-hero { padding: 72px 0 24px; }
+    .home-hero h1 { font-size: clamp(34px, 5.4vw, 60px); max-width: 16ch; margin: 10px 0 16px; }
+    .projects { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); padding: 24px 0 8px; }
+    .proj { display: flex; flex-direction: column; gap: 10px; text-decoration: none; position: relative; overflow: hidden; min-height: 210px; transition: transform .15s, box-shadow .15s; }
+    a.proj:hover { transform: translateY(-2px); }
+    .proj .num { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .proj h2 { font-size: 21px; }
+    .proj p { color: var(--ink-2); font-size: 14px; }
+    .proj .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+    .proj .glow { position: absolute; inset: auto -40px -60px auto; width: 180px; height: 180px; border-radius: 50%; filter: blur(30px); opacity: .22; pointer-events: none; }
+    .status { position: absolute; top: 18px; right: 18px; font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
+    .status.live { background: color-mix(in oklab, #0ca30c 16%, transparent); color: var(--ink); }
+    .status.live::before { content: "●"; color: #0ca30c; margin-right: 5px; }
+    .status.soon { background: var(--surface-2); color: var(--ink-2); }
+    div.proj { opacity: .78; }
+    .proj .skin-name { display: none; font-size: 12px; color: var(--muted); }
+    /* ---------- Open Places look (default): each card carries its topic colour (--m-<topic>) as a tinted head, no glow */
+    .proj[data-p="blossom"] { --tc: var(--m-blossom); } .proj[data-p="darksky"] { --tc: var(--m-darksky); } .proj[data-p="hazards"] { --tc: var(--m-hazards); }
+    .proj[data-p="water"] { --tc: var(--m-water); } .proj[data-p="salish"] { --tc: var(--m-salish); } .proj[data-p="toronto"] { --tc: var(--m-ttc); }
+    .proj[data-p="grid"] { --tc: var(--m-grid); } .proj[data-p="foliage"] { --tc: var(--m-foliage); } .proj[data-p="sunday"] { --tc: var(--m-sunday); }
+    .proj[data-p="langford"] { --tc: var(--m-langford); } .proj[data-p="blink"] { --tc: var(--m-transit); } .proj[data-p="golf"] { --tc: var(--m-golf); }
+    .proj[data-p="air"] { --tc: var(--m-weather); } .proj[data-p="ships"] { --tc: var(--m-ferries); }
+    :root:not([data-skin="alt"]) .proj { background: linear-gradient(180deg, color-mix(in oklab, var(--tc, var(--accent)) 11%, transparent), transparent 96px), var(--glass); }
+    :root:not([data-skin="alt"]) a.proj:hover { transform: none; box-shadow: inset 0 1px 0 var(--glass-hi), 0 0 0 1px color-mix(in oklab, var(--tc, var(--accent)) 55%, transparent), var(--shadow); }
+    :root:not([data-skin="alt"]) .proj .glow { display: none; }
+    :root:not([data-skin="alt"]) .proj .num { font-weight: 600; letter-spacing: 0.08em; color: var(--muted); }
+    :root:not([data-skin="alt"]) .proj .num::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 7px; background: var(--tc, var(--accent)); vertical-align: 0.04em; }
+    :root:not([data-skin="alt"]) .status { font: 600 9.5px/1 var(--font); letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 7px; border-radius: var(--pill); }
+    :root:not([data-skin="alt"]) .status.live { background: var(--surface); color: var(--live); box-shadow: 0 0 0 1px var(--border); }
+    :root:not([data-skin="alt"]) .status.live::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--live); margin-right: 5px; vertical-align: 0.05em; }
+    :root:not([data-skin="alt"]) .status.soon { background: var(--surface); color: var(--ink-2); box-shadow: 0 0 0 1px var(--border); }
+    :root[data-skin="alt"] .proj .skin-name { display: block; }
+    /* ---------- themed-skins gallery: each card previews its project's skin */
+    :root[data-skin="alt"] .home-hero .eyebrow, :root[data-skin="alt"] .proj .num, :root[data-skin="alt"] .proj .skin-name {
+      font-family: "JetBrains Mono", var(--mono); text-transform: uppercase; letter-spacing: .08em; }
+    :root[data-skin="alt"] .proj { border-radius: 6px; border: 1px solid var(--pv-line, var(--border)); background: var(--pv-bg); color: var(--pv-ink); box-shadow: none; }
+    :root[data-skin="alt"] .proj h2 { font-family: var(--pv-font); color: var(--pv-head, var(--pv-ink)); letter-spacing: var(--pv-track, 0); text-transform: var(--pv-case, none); font-weight: var(--pv-weight, 400); }
+    :root[data-skin="alt"] .proj p, :root[data-skin="alt"] .proj .num, :root[data-skin="alt"] .proj .skin-name { color: var(--pv-ink-2); }
+    :root[data-skin="alt"] .proj .pill { background: transparent; border: 1px solid var(--pv-line); color: var(--pv-ink-2); border-radius: 2px; }
+    :root[data-skin="alt"] .proj .skin-name { color: var(--pv-head, var(--pv-ink)); font-weight: 700; }
+    :root[data-skin="alt"] .proj .glow { display: none; }
+    :root[data-skin="alt"] .proj .status { background: transparent; border: 1px solid var(--pv-line); color: var(--pv-head, var(--pv-ink)); border-radius: 2px;
+      font-family: "JetBrains Mono", var(--mono); text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+    :root[data-skin="alt"] .proj::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--pv-band); }
+    :root[data-skin="alt"] .proj[data-p="blossom"] { --pv-bg: #e4e0ee; --pv-ink: #2a2440; --pv-ink-2: #514a68; --pv-head: #b02a62; --pv-line: #9d93b8; --pv-font: "DotGothic16"; --pv-band: linear-gradient(90deg, #f4b6cf, #b9aef0); box-shadow: inset -2px -2px 0 #8a83a3, inset 2px 2px 0 #fff; }
+    :root[data-skin="alt"] .proj[data-p="darksky"] { --pv-bg: #efe6d2; --pv-ink: #1d2a4a; --pv-ink-2: #45506b; --pv-line: #b7a77f; --pv-font: "Cinzel"; --pv-weight: 700; --pv-band: linear-gradient(90deg, #1d2a4a, #a8823a, #1d2a4a); }
+    :root[data-skin="alt"] .proj[data-p="hazards"] { --pv-bg: #efe6bf; --pv-ink: #1c1d17; --pv-ink-2: #4a4a3a; --pv-line: #1c1d17; --pv-font: "Saira Stencil One"; --pv-band: repeating-linear-gradient(45deg, #1c1d17 0 8px, #f2b705 8px 16px); }
+    :root[data-skin="alt"] .proj[data-p="water"] { --pv-bg: #f2e9d6; --pv-ink: #1b2433; --pv-ink-2: #4a5160; --pv-head: #1f5a60; --pv-line: #b0853a; --pv-font: "Limelight"; --pv-band: linear-gradient(90deg, #1f5a60 0 33%, #b0853a 33% 66%, #bf5b39 66%); }
+    :root[data-skin="alt"] .proj[data-p="salish"] { --pv-bg: #04121a; --pv-ink: #c9f7ea; --pv-ink-2: #7fcab6; --pv-head: #5ef2c8; --pv-line: #1f4a4a; --pv-font: "Share Tech Mono"; --pv-case: uppercase; --pv-band: linear-gradient(90deg, transparent, #5ef2c8, transparent); }
+    :root[data-skin="alt"] .proj[data-p="toronto"] { --pv-bg: #16171a; --pv-ink: #f2f0e8; --pv-ink-2: #b8b6ad; --pv-head: #F8C300; --pv-line: #3a3b3f; --pv-font: "Bebas Neue"; --pv-track: .02em; --pv-band: linear-gradient(90deg, #F8C300 0 25%, #00923F 25% 50%, #A21A68 50% 75%, #FF8000 75%); }
+    :root[data-skin="alt"] .proj[data-p="toronto"] h2 { font-size: 28px; }
+    :root[data-skin="alt"] .proj[data-p="foliage"] { --pv-bg: #f6ecd9; --pv-ink: #2a1d14; --pv-ink-2: #5a4636; --pv-head: #b2321d; --pv-line: #c9ad86; --pv-font: "Fraunces"; --pv-weight: 800; --pv-band: linear-gradient(90deg, #e8a317 0 50%, #b2321d 50%); }
+    :root[data-skin="alt"] .proj[data-p="grid"] { --pv-bg: #10161b; --pv-ink: #dfe8ec; --pv-ink-2: #9fb0b9; --pv-head: #39e07a; --pv-line: #2a3640; --pv-font: "B612"; --pv-weight: 700; --pv-case: uppercase; --pv-band: linear-gradient(90deg, #a593ff, #2fcfbf, #4c9dff, #ff6fae, #ffe066, #71818c, #ff7a3d); }
+
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="title" href="../places/" style="color:inherit;text-decoration:none">Open Places</a>
+    <span class="spacer"></span>
+    <button class="skin-btn" id="skin" type="button" data-skin-name="Themed skins"></button>
+    <button class="icon-btn" id="theme" type="button"></button>
+  </header>
+  <main class="wrap">
+    <section class="home-hero">
+      <div class="eyebrow">Data science portfolio</div>
+      <h1>Open Places</h1>
+      <p class="lede"><a href="../places/">Open the live console →</a><br />Forecasts and live views from open public data. Every project runs only on public government and citizen-science data, with a live pipeline and, where it forecasts, a model that has been honestly validated.</p>
+    </section>
+    <section class="projects" id="projects"></section>
+  </main>
+  <footer class="site"><div class="wrap">Every pipeline, model and chart is open source. Data licences are listed on each project page.</div></footer>
+  <script type="module">
+    import { initTheme, initSkin, el } from "../src/shared/ui.js";
+    initTheme(document.getElementById("theme"));
+    initSkin(document.getElementById("skin"));
+    const SKIN = { "blossom/": "Sakura.exe", "darksky/": "Planetarium", "hazards/": "Field Ops", "water/": "Hoover Deco",
+      "salish/": "Sonar Room", "toronto/": "Departure Board", "grid/": "Control Room", "foliage/": "Kodachrome", "sunday/": "Road Atlas",
+      "langford/": "Blueprint", "blink/": "Night Run", "golf/": "Clubhouse", "air/": "Flight Strip", "ships/": "Chart Room" };
+    const projects = [
+      { n: "01", slug: "blossom/", live: true, title: "Cherry Blossom Watch", hue: "#d6336c",
+        text: "Cherry blossom forecasts for every public cherry and plum tree in Victoria, Esquimalt and Vancouver, plus community sightings up-Island. Includes a cultivar tier list.",
+        tags: ["Phenology model", "36k trees", "125 years of weather"] },
+      { n: "02", slug: "darksky/", live: true, title: "Dark Sky Finder", hue: "#4a3aa7", text: "Where and when to stargaze in BC and Arizona: live cloud, moon, aurora and ISS passes over a light-pollution model trained on NASA night lights.", tags: ["Gradient boosting", "Spatial CV", "Live NOAA data"] },
+      { n: "03", slug: "hazards/", live: true, title: "Fire, Water & Rock", hue: "#eb6834", text: "A live hazard twin for BC: every wildfire, river gauge, earthquake and highway closure. Includes a wildfire-starts forecast, 2021 flood return periods and earthquake odds.", tags: ["Poisson GBM", "Extreme-value stats", "Cat risk"] },
+      { n: "04", slug: "water/", live: true, title: "Snowpack to Tap", hue: "#1baf7a", text: "Rocky Mountain and Sierra snowpack, Lake Powell and Lake Mead projections, a Colorado River inflow forecaster and California's reservoirs.", tags: ["Regression", "Analog ensembles", "Interactive scenario"] },
+      { n: "05", slug: "salish/", live: true, title: "Salish Sea Live", hue: "#2a78d6", text: "Listen live to seven hydrophones with a live spectrogram, see this week's whale reports over the shipping lanes, and explore orca seasonality and an AI-triage model.", tags: ["Live audio", "Classification", "AIS"] },
+      { n: "06", slug: "toronto/", live: true, title: "Toronto City Pulse", hue: "#eda100", text: "Island ferry crowd forecasts for the week, live Bike Share stations with a trip forecast, and when and why the TTC subway gets delayed.", tags: ["Demand forecasting", "Live GBFS", "Transit"] },
+      { n: "07", slug: "grid/", live: true, title: "California Duck Curve", hue: "#008300", text: "Tomorrow's California demand and net-demand forecast, scored against the grid operator's own forecast, plus the deepening duck curve and the rise of batteries.", tags: ["Time series", "Benchmarking", "Energy"] },
+      { n: "08", slug: "foliage/", live: true, title: "Fall Foliage Watch", hue: "#c2481a",
+        text: "When the leaves peak in Greater Victoria, Vancouver and Toronto: nearly 800,000 street trees on a scrubbable map, a fall-colour tier list, cottage-country day trips and 25 autumns from space.",
+        tags: ["Phenology model", "Satellite (MODIS)", "800k trees"] },
+      { n: "09", slug: "sunday/", live: true, title: "Sunday Wander", hue: "#c92a2a",
+        text: "Where to wander on a Sunday, by car, bike or on foot, in Greater Victoria and Greater Vancouver: every road rated for views, trees, sights and ice-cream stops, with a trip planner.",
+        tags: ["Routing", "OpenStreetMap", "Trip planner"] },
+      { n: "10", slug: "langford/", live: true, badge: "New", title: "Langford Boom Tracker", hue: "#e8590c",
+        text: "How fast BC's boomtown is building: permits and new homes against its neighbours, population growth, a backtested 12-month forecast and, locally, 19 years of aerial photos.",
+        tags: ["Forecast backtests", "BC Stats", "Survival curves"] },
+      { n: "11", slug: "blink/", live: true, badge: "New", title: "Public Transit", hue: "#ae3ec9",
+        text: "Public transit wherever the feeds are open: every vehicle live on the map, the next departures near you, service alerts and the network: 42 agencies live, TransLink's timetables too. Greater Victoria adds a Route 95 reliability spotlight.",
+        tags: ["GTFS-Realtime", "GTFS", "Transit"] },
+      { n: "12", slug: "golf/", live: true, badge: "New", title: "Fairway Forecast", hue: "#2b8a3e",
+        text: "Which course this week, and which are worth it: playable hours and best tee times for Victoria and Vancouver, and an adjustable course tier list built from mapped holes and hazards.",
+        tags: ["OpenStreetMap", "Forecast backtest", "Tier list"] },
+      { n: "13", slug: "air/", live: true, badge: "Collecting", title: "Air Traffic", hue: "#2563c9",
+        text: "What's flying over Greater Victoria (or anywhere) right now: live aircraft on a map, arrivals and departures at YYJ and the Harbour, flying weather, runways and the busiest hours from a logged history.",
+        tags: ["Live ADS-B", "METAR/TAF", "OurAirports"] },
+      { n: "14", slug: "ships/", live: true, badge: "New", title: "Waterways", hue: "#0b78a8",
+        text: "Ships, ferries, tugs and river traffic around Greater Victoria, Vancouver and the Fraser, and Seattle: a real day of shipping replayed on the map, the busiest hours, tides and the Fraser's flow, and Coast Guard notices.",
+        tags: ["AIS", "Tides & river levels", "Replay"] },
+    ];
+    document.getElementById("projects").append(...projects.map((p) => {
+      const inner = [
+        el("span", { class: `status ${p.live && !p.badge ? "live" : "soon"}` }, p.badge || (p.live ? "Live" : "In progress")),
+        el("div", { class: "num" }, p.n), el("h2", {}, p.title), el("p", {}, p.text),
+        el("div", { class: "tags" }, ...p.tags.map((t) => el("span", { class: "pill" }, t))),
+        el("div", { class: "skin-name" }, `Themed skin: ${SKIN[p.slug]}`),
+        el("i", { class: "glow", style: { background: p.hue } }),
+      ];
+      return p.live ? el("a", { class: "card proj", "data-p": p.slug.replace("/", ""), href: `../${p.slug}` }, ...inner) : el("div", { class: "card proj" }, ...inner);
+    }));
+  </script>
+</body>
+</html>

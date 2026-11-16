@@ -1,0 +1,17 @@
+name = "bct-relay"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+# Pages allowed to read the relay from a browser (comma-separated origins, no trailing slash).
+ALLOWED_ORIGINS = "https://markandrewjenkins.github.io,http://localhost:5173,http://localhost:4173"
+
+# The live hub (src/hub.js): one Durable Object per live source, polling on a fixed clock while someone watches.
+# Needs Workers Paid. The migration below creates the class on the first `npx.cmd wrangler deploy`.
+[[durable_objects.bindings]]
+name = "HUB"
+class_name = "LiveHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LiveHub"]

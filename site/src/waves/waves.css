@@ -1,0 +1,235 @@
+/* West Coast Water: page tokens and the views' own pieces. The console layout (rail, views, tiles, drawer) lives in
+   ../shared/console.css. Tiers S–D share one ordinal ramp (deep sea → pale) with a matching ink for text on each. */
+body.waves {
+  --accent: #1d78a8;
+  --surf: #1d78a8; --calm: #23926b; --live: #d0612a; --trust: #7357c2;
+  --s2: #c97d0c; --s3: #a0459a; --s4: #5f8f2e; --s5: #c0392b;
+  --t-S: #0b6283; --t-A: #23879f; --t-B: #7cc6c4; --t-C: #d6e2ab; --t-D: #e4e1d9;
+  --ti-S: #ffffff; --ti-A: #ffffff; --ti-B: #0d2a2e; --ti-C: #2f3416; --ti-D: #6b6a62;
+  --ww-heat: #3d9ccf;
+  --ww-night: rgba(17, 17, 16, 0.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) body.waves {
+    --accent: #4aa8dc; --surf: #4aa8dc; --calm: #3cbf8f; --live: #f08a4b; --trust: #9d86e8;
+    --s2: #f0a83a; --s3: #e07cc6; --s4: #8fc25a; --s5: #ef6b5b;
+    --t-S: #3fbbdc; --t-A: #2a8aa6; --t-B: #2a6266; --t-C: #4a4f34; --t-D: #34333a;
+    --ti-S: #062430; --ti-A: #f1fbff; --ti-B: #d8f1ef; --ti-C: #e4e8c8; --ti-D: #a19ea8;
+    --ww-heat: #2b6f9c; --ww-night: rgba(0, 0, 0, 0.28);
+  }
+}
+:root[data-theme="dark"] body.waves {
+  --accent: #4aa8dc; --surf: #4aa8dc; --calm: #3cbf8f; --live: #f08a4b; --trust: #9d86e8;
+  --s2: #f0a83a; --s3: #e07cc6; --s4: #8fc25a; --s5: #ef6b5b;
+  --t-S: #3fbbdc; --t-A: #2a8aa6; --t-B: #2a6266; --t-C: #4a4f34; --t-D: #34333a;
+  --ti-S: #062430; --ti-A: #f1fbff; --ti-B: #d8f1ef; --ti-C: #e4e8c8; --ti-D: #a19ea8;
+  --ww-heat: #2b6f9c; --ww-night: rgba(0, 0, 0, 0.28);
+}
+
+/* tier colour pair on any element: --tb background, --ti text */
+.waves .tier-S { --tb: var(--t-S); --ti: var(--ti-S); }
+.waves .tier-A { --tb: var(--t-A); --ti: var(--ti-A); }
+.waves .tier-B { --tb: var(--t-B); --ti: var(--ti-B); }
+.waves .tier-C { --tb: var(--t-C); --ti: var(--ti-C); }
+.waves .tier-D, .waves .tier-none, .waves .tier-null, .waves .tier-undefined { --tb: var(--t-D); --ti: var(--ti-D); }
+.waves .ww-tier-ink { fill: var(--ti); pointer-events: none; }
+.waves .legend .line.dash { background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px) !important; color: var(--ink-2); height: 2px; }
+
+/* clickable cards built as buttons */
+.waves button.card, .waves .ww-card, .waves .ww-mx-name, .waves .ww-sz-name {
+  font: inherit; color: inherit; text-align: left; cursor: pointer; appearance: none;
+}
+.waves button.card { width: 100%; }
+.waves button.card:hover { border-color: color-mix(in oklab, var(--tc, var(--accent)) 45%, var(--border)); }
+.waves button.card.sel { outline: 2px solid var(--tc, var(--accent)); outline-offset: -1px; }
+
+/* ---------- spot × day matrix */
+.ww-mx { display: grid; gap: 4px; }
+.ww-mx-row { display: grid; grid-template-columns: minmax(118px, 168px) repeat(var(--cols, 8), minmax(0, 1fr)); gap: 4px; align-items: stretch; }
+.ww-mx-head { font-size: 11.5px; color: var(--muted); }
+.ww-mx-day { display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+.ww-mx-day b { color: var(--ink-2); font-weight: 650; }
+.ww-mx-day small { font-size: 10.5px; }
+.ww-mx-name { display: flex; flex-direction: column; justify-content: center; background: none; border: 0; padding: 2px 6px; border-radius: 6px; min-width: 0; }
+.ww-mx-name b { font-size: 13px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ww-mx-name small { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ww-mx-name:hover { background: var(--surface-2); }
+.ww-mx-row.on .ww-mx-name { background: color-mix(in oklab, var(--tc, var(--accent)) 12%, transparent); box-shadow: inset 3px 0 0 var(--tc, var(--accent)); }
+.ww-mx-cell { display: flex; align-items: baseline; justify-content: center; gap: 5px; min-height: 30px; padding: 5px 2px; border: 0; border-radius: 6px;
+  background: var(--tb); color: var(--ti); font: inherit; cursor: pointer; font-variant-numeric: tabular-nums; }
+.ww-mx-cell b { font-size: 14px; font-weight: 800; }
+.ww-mx-cell small { font-size: 10.5px; opacity: 0.85; }
+.ww-mx-cell.go { box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--ink) 72%, transparent); }
+.ww-mx-cell.none { background: var(--surface-2); color: var(--muted); cursor: default; align-items: center; }
+.ww-mx-cell:hover:not(.none) { filter: brightness(1.08); }
+.ww-mx-cell.sel { outline: 2px solid var(--accent-2); outline-offset: 1px; }
+
+/* ---------- right now */
+.ww-now { display: flex; flex-direction: column; overflow: auto; }
+.ww-now-row { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: center; padding: 5px 4px; border-bottom: 1px dotted var(--border);
+  color: var(--ink-2); text-decoration: none; border-radius: 6px; }
+a.ww-now-row:hover { background: var(--surface-2); }
+.ww-now-row b { color: var(--ink); font-size: 13px; font-weight: 650; }
+.ww-now-row small { display: block; font-size: 11.5px; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ww-tier { width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; background: var(--tb); color: var(--ti); font-weight: 800; font-size: 15px; }
+.waves .ww-stale { color: var(--accent-2); }
+
+/* ---------- tier board of windows */
+.ww-board { display: flex; flex-direction: column; gap: 8px; overflow: auto; }
+.ww-tb-row { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.ww-tb-tier { display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; background: var(--tb); color: var(--ti); min-height: 64px; }
+.ww-tb-tier b { font-size: 22px; font-weight: 800; line-height: 1; }
+.ww-tb-tier small { font-size: 11px; opacity: 0.85; }
+.ww-tb-cards { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; align-items: stretch; }
+.ww-tb-cards > .note { align-self: center; }
+.ww-card { flex: 0 0 236px; display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border);
+  border-left: 4px solid var(--tb); border-radius: 10px; box-shadow: var(--shadow); min-width: 0; }
+.ww-card:hover { border-color: color-mix(in oklab, var(--tb) 70%, var(--border)); border-left-color: var(--tb); }
+.ww-card.sel { outline: 2px solid var(--tc, var(--accent)); }
+.ww-card-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ww-card-h b { font-size: 13.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ww-score { font-weight: 800; font-size: 12px; padding: 1px 7px; border-radius: 999px; background: var(--tb); color: var(--ti); font-variant-numeric: tabular-nums; }
+.ww-card-t { font-size: 12.5px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ww-card-c { font-size: 11.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* trust chip: skill + false alarms lead; small samples flagged */
+.ww-trust { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 2px 7px; margin-top: 4px; font-size: 11px; color: var(--muted); }
+.ww-trust b { color: var(--trust); font-weight: 700; font-variant-numeric: tabular-nums; }
+.ww-trust em { font-style: normal; color: var(--accent-2); font-weight: 600; }
+.ww-trust.small b { color: var(--muted); }
+.ww-trust.none { font-style: italic; }
+
+/* ---------- seasons heat table */
+.ww-sz { display: grid; gap: 3px; overflow-x: auto; }
+.ww-sz-row { display: grid; grid-template-columns: minmax(118px, 168px) repeat(12, minmax(34px, 1fr)); gap: 3px; align-items: stretch; }
+.ww-sz-head { font-size: 11px; color: var(--muted); text-align: center; }
+.ww-sz-name { display: flex; flex-direction: column; justify-content: center; background: none; border: 0; padding: 2px 6px; border-radius: 6px; min-width: 0; }
+.ww-sz-name b { font-size: 13px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ww-sz-name small { font-size: 11px; color: var(--muted); }
+.ww-sz-name:hover { background: var(--surface-2); }
+.ww-sz-row.on .ww-sz-name { box-shadow: inset 3px 0 0 var(--surf); background: color-mix(in oklab, var(--surf) 10%, transparent); }
+.ww-sz-cell { display: grid; place-items: center; min-height: 28px; border-radius: 5px; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--ink);
+  background: color-mix(in oklab, var(--ww-heat) calc(min(var(--v, 0), 0.9) * 110%), var(--surface-2)); }
+.ww-notes ul { font-size: 13px; margin: 0; }
+
+/* ---------- spot rules */
+.ww-spots { display: grid; grid-template-columns: repeat(auto-fit, minmax(172px, 1fr)); gap: 12px; overflow: auto; align-content: start; }
+.ww-spot { display: flex; flex-direction: column; gap: 8px; }
+.ww-spot-h { display: flex; gap: 10px; align-items: center; }
+.ww-spot-h svg { flex: 0 0 auto; width: 48px; height: 48px; }
+.ww-spot-h b { display: block; font-size: 14px; font-weight: 650; }
+.ww-spot-h small { font-size: 11.5px; color: var(--muted); }
+.ww-rule { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; margin: 0; font-size: 12.5px; }
+.ww-rule dt { color: var(--muted); }
+.ww-rule dd { margin: 0; color: var(--ink-2); }
+.ww-spot-f { margin-top: auto; font-size: 11.5px; color: var(--muted); border-top: 1px dotted var(--border); padding-top: 6px; }
+
+/* ---------- calm thresholds */
+.ww-prules { display: flex; flex-direction: column; overflow: auto; }
+.ww-prule { padding: 6px 8px; border-bottom: 1px dotted var(--border); border-left: 3px solid transparent; }
+.ww-prule.on { border-left-color: var(--calm); background: color-mix(in oklab, var(--calm) 8%, transparent); }
+.ww-prule b { display: block; font-size: 13px; font-weight: 650; }
+.ww-prule small { font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* ---------- live: buoys, wind, tides */
+.ww-buoys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 12px; min-height: 0; }
+.ww-winds, .ww-tides { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 12px; min-height: 0; }
+.ww-buoy-h { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.ww-buoy-h b { font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ww-buoy-h small { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.ww-age { margin-left: auto; font-size: 11.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ww-age.stale { color: var(--accent-2); font-weight: 600; }
+.ww-buoy-v { display: flex; align-items: baseline; gap: 10px; margin: 2px 0 4px; }
+.ww-buoy-v b { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.ww-buoy-v span { font-size: 12.5px; color: var(--ink-2); }
+.ww-hilo { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--ink-2); }
+.ww-hilo > div { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; }
+.ww-hilo b { color: var(--ink); font-weight: 600; }
+
+/* ---------- drawer factor bars */
+.ww-factors { display: flex; flex-direction: column; gap: 6px; }
+.ww-factor { display: grid; grid-template-columns: 74px minmax(0, 1fr) 36px; gap: 2px 10px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
+.ww-factor .cx-fillbar { margin-top: 0; }
+.ww-factor b { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+.ww-factor small { grid-column: 2 / -1; font-size: 11px; color: var(--muted); }
+
+/* ---------- tables (trust, freshness) */
+.ww-tcard-t { overflow: auto; }
+.ww-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ww-table th { font-size: 11px; font-weight: 600; color: var(--muted); text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.ww-table th[colspan] { text-align: center; border-left: 1px solid var(--border); }
+.ww-table .ww-th2 th { font-weight: 500; font-size: 10.5px; }
+.ww-table td { padding: 4px 6px; border-bottom: 1px dotted var(--border); color: var(--ink-2); white-space: nowrap; }
+.ww-table td b { color: var(--ink); font-weight: 650; }
+.ww-table td em { font-style: normal; color: var(--accent-2); font-size: 11px; }
+.ww-table tbody tr[tabindex] { cursor: pointer; }
+.ww-table tbody tr[tabindex]:hover { background: var(--surface-2); }
+.ww-table tbody tr.on { background: color-mix(in oklab, var(--trust) 12%, transparent); }
+.ww-table .ww-num { text-align: right; font-variant-numeric: tabular-nums; }
+.ww-table .strong { color: var(--trust); font-weight: 700; }
+.ww-table tr.bad td { color: var(--accent-2); }
+.ww-fresh td { white-space: normal; }
+.waves .cx-kpi.ww-small .cx-kpi-s { color: var(--accent-2); }
+
+/* about */
+.waves .prose p, .waves .prose ul { color: var(--ink-2); font-size: 13.5px; margin: 0 0 10px; }
+.waves .prose ul { padding-left: 18px; }
+.waves .prose li { margin-bottom: 5px; }
+.waves .prose h3 { font-size: 15.5px; margin: 4px 0 8px; }
+.waves .prose b { color: var(--ink); font-weight: 600; }
+.waves .prose code { font: 12px var(--mono); background: var(--surface-2); padding: 0 4px; border-radius: 4px; }
+.waves .sources a { color: var(--ink); }
+
+/* ==================================================================================================
+   DESKTOP ≥ 1100px: each sub-topic's pane fills the panel
+   ================================================================================================== */
+@media (min-width: 1100px) {
+  .pane-sweek, .pane-cweek { grid-template-rows: auto minmax(0, 1fr); }
+  .pane-swin, .pane-cwin { grid-template-rows: auto minmax(0, 1fr); }
+  .pane-sseason { grid-template-rows: auto minmax(0, 1fr); }
+  .pane-sspots { grid-template-rows: auto minmax(0, 1fr); }
+  .pane-lbuoys { grid-template-rows: minmax(0, 1fr); }
+  .pane-lwind, .pane-ltides { grid-template-rows: auto minmax(0, 1fr); }
+  .pane-tspots, .pane-tcalm { grid-template-rows: auto minmax(0, 1fr) auto; }
+  .pane-tvars { grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+  .pane-about { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  .pane-about .card { max-height: 100%; overflow: auto; }
+  .ww-buoys .chart, .ww-winds .chart, .ww-tides .chart { flex: 1 1 0; min-height: 0; }
+}
+@media (min-width: 1100px) and (max-height: 860px) {
+  .ww-mx-cell { min-height: 26px; padding: 3px 2px; }
+  .ww-mx-cell b { font-size: 13px; }
+  .ww-tb-tier { min-height: 56px; }
+  .ww-buoy-v b { font-size: 20px; }
+  .ww-sz-cell { min-height: 24px; }
+  .ww-sz-name small, .ww-mx-name small { display: none; }
+  .pane-sseason .cx-card-sub { font-size: 12px; }
+  .ww-rule { font-size: 12px; }
+}
+
+/* ==================================================================================================
+   MOBILE / TABLET < 1100px
+   ================================================================================================== */
+@media (max-width: 1099.98px) {
+  .ww-buoys { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: auto; }
+  .ww-winds, .ww-tides { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: auto; }
+  .cx-app .ww-buoys .chart, .cx-app .ww-winds .chart, .cx-app .ww-tides .chart { height: 170px; }
+  .ww-now, .ww-board, .ww-prules, .ww-spots { overflow: visible; }
+  .ww-tcard-t { overflow-x: auto; }
+}
+@media (max-width: 700px) {
+  .ww-buoys, .ww-winds, .ww-tides { grid-template-columns: minmax(0, 1fr); }
+  .ww-mx, .ww-mx-row { gap: 3px; }
+  .ww-mx-row { grid-template-columns: 78px repeat(var(--cols, 8), minmax(0, 1fr)); }
+  .ww-mx-name { padding: 2px 2px; }
+  .ww-mx-name b { font-size: 11.5px; }
+  .ww-mx-name small { display: none; }
+  .ww-mx-cell { flex-direction: column; align-items: center; gap: 0; padding: 3px 0; min-height: 34px; }
+  .ww-mx-cell b { font-size: 12.5px; }
+  .ww-mx-cell small { font-size: 9.5px; }
+  .ww-mx-day small { display: none; }
+  .ww-sz-row { grid-template-columns: 92px repeat(12, minmax(34px, 1fr)); }
+  .ww-sz-name small { display: none; }
+  .ww-card { flex-basis: 210px; }
+  .ww-tb-row { grid-template-columns: 34px minmax(0, 1fr); gap: 6px; }
+}

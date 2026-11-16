@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Theme Lab</title>
+<!-- Review only: grey / black variants of the Default look, and sans-serif candidates. Nothing here is wired into the site. -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=Atkinson+Hyperlegible:wght@400;700&family=Public+Sans:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Figtree:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+/* ---------- themes: the Default structure, only the neutrals change ---------- */
+:root, [data-t="default-dark"] {
+  color-scheme: dark;
+  --page: #0a1220; --surface: #0f1a2c; --surface-2: #16243a; --rail: #0c1627; --top: #111d31;
+  --ink: #ece5d3; --ink-2: #b4b8c3; --muted: #8590a6; --border: rgba(200,215,240,.13); --grid: #1e2d44;
+  --accent: #f0b13f; --live: #4fd08a; --mock: #f0b13f; --bad: #ff7d63;
+  --now-bg: #050b15; --now-ink: #e9dfc6; --now-hi: #f0b13f;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 26px -14px rgba(0,0,0,.8); --hi: rgba(190,215,255,.09);
+  --map-land: #0e1828; --map-water: #060c17;
+  --m-weather: #6fa8ef; --m-air: #5cc7a1; --m-transit: #a68cf0; --m-roads: #f0a050; --m-alerts: #ff7d63; --m-langford: #d29a6e;
+}
+[data-t="graphite"] {   /* neutral dark grey, no blue cast */
+  --page: #121314; --surface: #1a1b1d; --surface-2: #242629; --rail: #161718; --top: #1c1d1f;
+  --ink: #ece7dc; --ink-2: #b9b9b6; --muted: #8b8c8f; --border: rgba(255,255,255,.09); --grid: #2a2c2f;
+  --now-bg: #0a0a0b; --hi: rgba(255,255,255,.06); --map-land: #1d1e20; --map-water: #0f1011;
+}
+[data-t="charcoal"] {   /* warm dark grey */
+  --page: #151413; --surface: #1e1c1a; --surface-2: #2a2724; --rail: #191716; --top: #201e1c;
+  --ink: #efe6d6; --ink-2: #bdb5a8; --muted: #8f877c; --border: rgba(255,240,220,.09); --grid: #302c28;
+  --now-bg: #0b0a09; --hi: rgba(255,240,220,.06); --map-land: #211f1c; --map-water: #11100f;
+}
+[data-t="slate"] {      /* cool grey, a hint of the old navy */
+  --page: #13161b; --surface: #1a1f26; --surface-2: #242a33; --rail: #161a20; --top: #1c2129;
+  --ink: #e9e6de; --ink-2: #b3b8c1; --muted: #858d99; --border: rgba(210,225,245,.10); --grid: #29303a;
+  --now-bg: #0a0c10; --hi: rgba(210,225,245,.06); --map-land: #1d222a; --map-water: #0e1116;
+}
+[data-t="onyx"] {       /* true black, best on OLED phones */
+  --page: #000000; --surface: #0d0d0e; --surface-2: #18181a; --rail: #060606; --top: #0a0a0b;
+  --ink: #f0ebe1; --ink-2: #bdbcb8; --muted: #8a8a8d; --border: rgba(255,255,255,.12); --grid: #222224;
+  --now-bg: #141414; --hi: rgba(255,255,255,.05); --map-land: #121213; --map-water: #000000;
+}
+[data-t="default-light"] {
+  color-scheme: light;
+  --page: #f3f5f8; --surface: #ffffff; --surface-2: #e8ecf1; --rail: #eef2f6; --top: #fbfcfd;
+  --ink: #18222f; --ink-2: #465163; --muted: #5f6878; --border: rgba(24,40,62,.13); --grid: #e2e6ec;
+  --accent: #b8432b; --live: #1a7d44; --mock: #865c00; --bad: #b8432b;
+  --now-bg: #18222f; --now-ink: #efe7d4; --now-hi: #ffb08f;
+  --shadow: 0 1px 2px rgba(24,34,47,.06), 0 8px 22px -14px rgba(24,40,62,.3); --hi: rgba(255,255,255,.9);
+  --map-land: #f1f3f5; --map-water: #c6d9e2;
+  --m-weather: #2f6db5; --m-air: #2b8a6a; --m-transit: #6a4bb5; --m-roads: #b8661a; --m-alerts: #b8432b; --m-langford: #8a5634;
+}
+[data-t="fog"] {        /* light grey page, white cards */
+  color-scheme: light;
+  --page: #e8e9eb; --surface: #f8f8f9; --surface-2: #dedfe2; --rail: #e0e1e4; --top: #f2f2f3;
+  --ink: #1b1d21; --ink-2: #474a51; --muted: #63666d; --border: rgba(0,0,0,.11); --grid: #d9dadd;
+  --accent: #b8432b; --live: #1a7d44; --mock: #865c00; --bad: #b8432b;
+  --now-bg: #1e1f22; --now-ink: #ece7dc; --now-hi: #ffb08f;
+  --shadow: 0 1px 2px rgba(0,0,0,.06), 0 8px 22px -14px rgba(0,0,0,.28); --hi: rgba(255,255,255,.8);
+  --map-land: #efeff0; --map-water: #c9d3d8;
+  --m-weather: #2f6db5; --m-air: #2b8a6a; --m-transit: #6a4bb5; --m-roads: #b8661a; --m-alerts: #b8432b; --m-langford: #8a5634;
+}
+[data-t="concrete"] {   /* mid grey page, the darkest a light theme should go */
+  color-scheme: light;
+  --page: #d3d5d8; --surface: #eceef0; --surface-2: #c9ccd0; --rail: #c8cbcf; --top: #e2e4e6;
+  --ink: #16181b; --ink-2: #3e4248; --muted: #565a61; --border: rgba(0,0,0,.13); --grid: #c6c9cd;
+  --accent: #a83a24; --live: #146b39; --mock: #6f4c00; --bad: #a83a24;
+  --now-bg: #1b1c1f; --now-ink: #ece7dc; --now-hi: #ffb08f;
+  --shadow: 0 1px 2px rgba(0,0,0,.08), 0 8px 22px -14px rgba(0,0,0,.32); --hi: rgba(255,255,255,.6);
+  --map-land: #e6e7e9; --map-water: #b7c3c9;
+  --m-weather: #285fa0; --m-air: #237559; --m-transit: #5c3fa3; --m-roads: #9c5614; --m-alerts: #a83a24; --m-langford: #774a2c;
+}
+
+/* ---------- fonts ---------- */
+:root { --font: "Inter", system-ui, sans-serif; }
+[data-f="system"]   { --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+[data-f="plex"]     { --font: "IBM Plex Sans", system-ui, sans-serif; }
+[data-f="source"]   { --font: "Source Sans 3", system-ui, sans-serif; }
+[data-f="atkinson"] { --font: "Atkinson Hyperlegible", system-ui, sans-serif; }
+[data-f="public"]   { --font: "Public Sans", system-ui, sans-serif; }
+[data-f="dm"]       { --font: "DM Sans", system-ui, sans-serif; }
+[data-f="figtree"]  { --font: "Figtree", system-ui, sans-serif; }
+[data-f="manrope"]  { --font: "Manrope", system-ui, sans-serif; }
+[data-f="verdana"]  { --font: Verdana, Geneva, "DejaVu Sans", sans-serif; }
+
+/* ---------- page ---------- */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--page); color: var(--ink); font: 14px/1.45 var(--font); font-variant-numeric: tabular-nums; }
+.lab { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; padding: 8px 16px;
+  background: #ffffff; color: #222; border-bottom: 1px solid #ccc; font: 12px/1.3 system-ui, sans-serif; }
+.lab b { font-weight: 700; margin-right: 2px; }
+.lab button { font: inherit; border: 1px solid #bbb; background: #f4f4f4; color: #222; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+.lab button[aria-pressed="true"] { background: #222; color: #fff; border-color: #222; }
+.lab .note { color: #666; flex-basis: 100%; }
+.top { display: flex; align-items: center; gap: 18px; padding: 10px 18px; background: var(--top); border-bottom: 1px solid var(--border); }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 19px; letter-spacing: -.01em; }
+.globe { width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #9fd3f2, #2479b8 60%, #134a73); box-shadow: inset -4px -3px 0 rgba(0,0,0,.25); position: relative; }
+.globe::after { content: ""; position: absolute; left: 9px; top: 7px; width: 7px; height: 9px; background: #86bf6e; border-radius: 40% 60% 50% 50%; }
+.crumbs { color: var(--ink-2); font-size: 13px; display: flex; gap: 8px; }
+.crumbs b { color: var(--ink); border: 1px solid var(--border); background: var(--surface); border-radius: 6px; padding: 2px 8px; font-weight: 600; }
+.search { margin-left: auto; width: 220px; padding: 6px 10px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 13px; }
+.now { display: flex; gap: 16px; padding: 7px 18px; background: var(--now-bg); color: var(--now-ink); font-size: 12px; white-space: nowrap; overflow: hidden; }
+.now b { color: var(--now-hi); letter-spacing: .06em; }
+.shell { display: grid; grid-template-columns: 210px 1fr; min-height: calc(100vh - 140px); }
+.rail { background: var(--rail); border-right: 1px solid var(--border); padding: 14px 10px; font-size: 13px; }
+.rail h6 { margin: 14px 8px 6px; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.rail a { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 7px; color: var(--ink-2); text-decoration: none; }
+.rail a i { width: 8px; height: 8px; border-radius: 2px; background: var(--c); }
+.rail a.on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: inset 0 0 0 1px var(--border); }
+.rail a small { margin-left: auto; color: var(--muted); }
+main { padding: 16px 22px 30px; min-width: 0; }
+.leaves { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.leaf { flex: none; display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--ink-2); font: 600 13px var(--font); cursor: pointer; box-shadow: var(--shadow); }
+.leaf i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.leaf.on { background: color-mix(in srgb, var(--c) 18%, var(--surface)); color: var(--ink); border-color: var(--c); box-shadow: inset 0 -3px 0 var(--c), var(--shadow); }
+.leaf small { color: var(--muted); font-weight: 500; }
+.eyebrow { margin: 18px 0 2px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+h1 { margin: 0 0 14px; font-size: 26px; font-weight: 650; letter-spacing: -.015em; }
+.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow), inset 0 1px 0 var(--hi); padding: 12px 14px; border-top: 3px solid var(--c); min-width: 0; }
+.card.wide { grid-column: span 2; }
+.card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13.5px; font-weight: 600; }
+.tag { margin-left: auto; font-size: 10px; letter-spacing: .08em; font-weight: 700; padding: 2px 6px; border-radius: 5px; color: var(--live); background: color-mix(in srgb, var(--live) 15%, transparent); }
+.tag.mock { color: var(--mock); background: color-mix(in srgb, var(--mock) 15%, transparent); }
+.kpis { display: flex; gap: 16px; }
+.kv { font-size: 24px; font-weight: 650; letter-spacing: -.03em; line-height: 1.1; }
+.kl { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+.src { margin-top: 10px; font-size: 10.5px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+svg.spark { width: 100%; height: 44px; margin-top: 8px; display: block; }
+.list { margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.list li { display: flex; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); }
+.list li:first-child { border-top: 0; }
+.rt { min-width: 34px; text-align: center; font-weight: 700; font-size: 12px; padding: 2px 6px; border-radius: 5px; background: var(--m-transit); color: #fff; }
+.list .t { margin-left: auto; font-weight: 600; }
+.list .t.late { color: var(--bad); }
+.map { height: 168px; border-radius: 8px; overflow: hidden; background: var(--map-water); border: 1px solid var(--border); }
+.spec { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.spec .card { border-top-color: var(--border); }
+.spec p { margin: 0 0 6px; color: var(--ink-2); }
+.big { font-size: 30px; font-weight: 650; letter-spacing: -.02em; }
+@media (max-width: 900px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .shell { grid-template-columns: 1fr; } .rail { display: none; } .search, .crumbs { display: none; } .spec { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .grid { grid-template-columns: 1fr; } .card.wide { grid-column: auto; } main { padding: 12px 16px 24px; } }
+</style>
+</head>
+<body>
+<div class="lab" id="lab">
+  <span><b>Theme</b> <span id="themes"></span></span>
+  <span><b>Font</b> <span id="fonts"></span></span>
+  <span class="note" id="note"></span>
+</div>
+
+<header class="top">
+  <div class="brand"><span class="globe"></span>Open Places</div>
+  <div class="crumbs">World › Canada › BC › Greater Victoria › <b>Langford</b></div>
+  <div class="search">Find a place…</div>
+</header>
+<div class="now"><b>ALERTS · 2</b><span>Coastal flooding statement · Greater Victoria coastline</span><span>Wind warning · Juan de Fuca Strait</span></div>
+
+<div class="shell">
+  <nav class="rail">
+    <a style="--c:var(--accent)"><i></i>Overview</a>
+    <h6>Every day</h6>
+    <a style="--c:var(--m-alerts)"><i></i>Right now<small>2</small></a>
+    <a style="--c:var(--m-weather)"><i></i>Weather &amp; air<small>12°</small></a>
+    <a class="on" style="--c:var(--m-transit)"><i></i>Getting around<small>now</small></a>
+    <a style="--c:var(--m-roads)"><i></i>Hazards</a>
+    <h6>This place</h6>
+    <a style="--c:var(--m-langford)"><i></i>Your municipality</a>
+    <a style="--c:var(--m-air)"><i></i>Seasons &amp; nature</a>
+    <a style="--c:var(--m-air)"><i></i>Outdoors &amp; leisure</a>
+    <h6>Bigger picture</h6>
+    <a style="--c:var(--m-weather)"><i></i>Climate &amp; patterns</a>
+    <a style="--c:var(--muted)"><i></i>About &amp; Methodology</a>
+  </nav>
+
+  <main>
+    <div class="leaves" role="tablist">
+      <button class="leaf on" style="--c:var(--m-transit)"><i></i>Summary</button>
+      <button class="leaf" style="--c:var(--m-transit)"><i></i>Transit <small>27</small></button>
+      <button class="leaf" style="--c:var(--m-roads)"><i></i>Roads &amp; Cameras <small>9</small></button>
+      <button class="leaf" style="--c:var(--m-transit)"><i></i>Route 95 <small>97%</small></button>
+      <button class="leaf" style="--c:var(--m-weather)"><i></i>Air Traffic <small>2</small></button>
+      <button class="leaf" style="--c:var(--m-air)"><i></i>Waterways <small>40</small></button>
+    </div>
+
+    <div class="eyebrow">Getting around · Langford</div>
+    <h1>Transport Summary</h1>
+
+    <div class="grid">
+      <section class="card" style="--c:var(--m-transit)">
+        <h3>Next Departures <span class="tag">LIVE</span></h3>
+        <div class="kpis"><div><div class="kv">now</div><div class="kl">Route 49 · Jacklin Rd</div></div><div><div class="kv">27</div><div class="kl">vehicles nearby</div></div></div>
+        <div class="src">BC Transit · live</div>
+      </section>
+      <section class="card" style="--c:var(--m-roads)">
+        <h3>Road Events <span class="tag">LIVE</span></h3>
+        <div class="kpis"><div><div class="kv">9</div><div class="kl">within 40 km</div></div><div><div class="kv">1</div><div class="kl">closure</div></div></div>
+        <div class="src">DriveBC Open511</div>
+      </section>
+      <section class="card" style="--c:var(--m-transit)">
+        <h3>Route 95 On-Time <span class="tag">LIVE</span></h3>
+        <div class="kpis"><div><div class="kv">97%</div><div class="kl">trips on time</div></div><div><div class="kv">1.1</div><div class="kl">min median delay</div></div></div>
+        <svg class="spark" viewBox="0 0 200 44" preserveAspectRatio="none"><g fill="var(--m-transit)"><rect x="2" y="14" width="18" height="30" rx="2"/><rect x="26" y="8" width="18" height="36" rx="2"/><rect x="50" y="18" width="18" height="26" rx="2"/><rect x="74" y="5" width="18" height="39" rx="2"/><rect x="98" y="12" width="18" height="32" rx="2" opacity=".55"/><rect x="122" y="22" width="18" height="22" rx="2" opacity=".55"/><rect x="146" y="10" width="18" height="34" rx="2" opacity=".55"/><rect x="170" y="16" width="18" height="28" rx="2" opacity=".55"/></g></svg>
+      </section>
+      <section class="card" style="--c:var(--m-weather)">
+        <h3>Aircraft Overhead <span class="tag">LIVE</span></h3>
+        <div class="kpis"><div><div class="kv">2</div><div class="kl">within 46 km</div></div><div><div class="kv">1,600 ft</div><div class="kl">lowest · helicopter</div></div></div>
+        <div class="src">adsb.lol · live</div>
+      </section>
+
+      <section class="card wide" style="--c:var(--m-transit)">
+        <h3>Live Vehicle Map <span class="tag">LIVE</span></h3>
+        <div class="map"><svg viewBox="0 0 400 168" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
+          <path d="M0 40 C60 20 90 60 150 50 S260 10 320 40 S380 90 400 80 V168 H0Z" fill="var(--map-land)"/>
+          <g fill="none" stroke-linecap="round"><path d="M20 140 C90 120 140 90 210 92 S330 70 390 60" stroke="var(--muted)" stroke-width="2" opacity=".35"/>
+          <path d="M40 160 C100 130 120 110 160 100 S240 120 300 150" stroke="var(--muted)" stroke-width="2" opacity=".35"/>
+          <path d="M30 120 C110 110 170 70 250 75 S340 100 395 110" stroke="var(--m-transit)" stroke-width="4"/></g>
+          <g fill="var(--m-transit)" stroke="var(--surface)" stroke-width="2"><circle cx="118" cy="99" r="6"/><circle cx="252" cy="75" r="6"/></g>
+          <g fill="var(--muted)" opacity=".6"><circle cx="160" cy="100" r="4"/><circle cx="300" cy="150" r="4"/><circle cx="330" cy="72" r="4"/></g>
+        </svg></div>
+      </section>
+      <section class="card wide" style="--c:var(--m-transit)">
+        <h3>Departures · Langford Exchange <span class="tag">LIVE</span></h3>
+        <ul class="list">
+          <li><span class="rt">95</span>Downtown via Hwy 1<span class="t">2 min</span></li>
+          <li><span class="rt">49</span>Skirt Mountain via Florence Lake<span class="t">4 min</span></li>
+          <li><span class="rt">52</span>Colwood Exchange via Royal Bay<span class="t late">9 min · +3</span></li>
+          <li><span class="rt">61</span>Sooke via Hwy 14<span class="t">14 min</span></li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="spec">
+      <section class="card"><p>Figures and look-alike letters</p><div class="big">0123456789 · 1,447 · 12.5 °C</div><p style="margin-top:6px">Il1 | O0 | rn m | 5S 8B · Galloping Goose · Malahat · Niño</p></section>
+      <section class="card"><p>Body text at 14 px</p><p style="color:var(--ink)">Every number shows where it came from and how fresh it is. Open data only, no sign-in, no ads, no analytics. Buses on Hwy 1 inbound are moving at 18 km/h, against a typical 42 km/h for this hour.</p></section>
+    </div>
+  </main>
+</div>
+
+<script>
+const THEMES = [
+  ["default-dark", "Default dark (navy, today)"], ["graphite", "Graphite"], ["charcoal", "Charcoal"], ["slate", "Slate"], ["onyx", "Onyx (black)"],
+  ["default-light", "Default light (today)"], ["fog", "Fog (light grey)"], ["concrete", "Concrete (mid grey)"],
+];
+const FONTS = [
+  ["inter", "Inter (today)", "Web font, open licence. Neutral, very legible numbers; the current choice."],
+  ["system", "System UI", "No download: Segoe UI on Windows, San Francisco on Apple, Roboto on Android. Looks native but differs by device."],
+  ["plex", "IBM Plex Sans", "Web font, open licence. A little more technical character; good figures."],
+  ["source", "Source Sans 3", "Web font, open licence. Narrower and softer, fits more on a tile."],
+  ["atkinson", "Atkinson Hyperlegible", "Web font, open licence, designed for low vision: every look-alike letter is distinct."],
+  ["public", "Public Sans", "Web font, open licence, made for government sites. Plain and trustworthy."],
+  ["dm", "DM Sans", "Web font, open licence. Geometric and friendly, a little rounder."],
+  ["figtree", "Figtree", "Web font, open licence. Clean geometric, slightly warmer than Inter."],
+  ["manrope", "Manrope", "Web font, open licence. Modern, wide, distinctive numbers."],
+  ["verdana", "Verdana", "Classic web-safe font: on Windows and Apple, but not Android (falls back), so not truly universal."],
+];
+const q = new URLSearchParams(location.search), root = document.documentElement;
+let t = q.get("t") || "default-dark", f = q.get("f") || "inter";
+function draw() {
+  root.dataset.t = t; root.dataset.f = f;
+  for (const [box, list, cur, set] of [["themes", THEMES, t, (v) => (t = v)], ["fonts", FONTS, f, (v) => (f = v)]]) {
+    const host = document.getElementById(box); host.replaceChildren();
+    for (const [id, name] of list) {
+      const b = document.createElement("button"); b.textContent = name; b.setAttribute("aria-pressed", id === cur);
+      b.onclick = () => { set(id); history.replaceState(null, "", `?t=${t}&f=${f}`); draw(); }; host.append(b, " ");
+    }
+  }
+  document.getElementById("note").textContent = FONTS.find((x) => x[0] === f)[2];
+}
+draw();
+if (q.has("bare")) document.getElementById("lab").remove();
+</script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en" data-page="darksky">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    // Apply saved theme and design skin before first paint. <html data-skins="alt herbarium …"> lists this page's
+    // themed designs; ?skin=<id>|classic overrides and is remembered. "alt" is shared across pages; other ids per page.
+    (function () { try { var r = document.documentElement, q = new URLSearchParams(location.search).get("skin");
+      var t = localStorage.getItem("odp-theme"); if (t) r.dataset.theme = t;
+      var multi = !!r.dataset.skins, ok = (r.dataset.skins || "alt").split(" ").concat("grey"), pk = "odp-skin:" + (r.dataset.page || location.pathname);
+      if (q) { if (multi) localStorage.setItem(pk, q); if (q === "alt" || q === "classic" || q === "grey") localStorage.setItem("odp-skin", q); }
+      var s = q || (multi && localStorage.getItem(pk)) || localStorage.getItem("odp-skin");
+      if (ok.indexOf(s) >= 0) r.dataset.skin = s; } catch (e) {} })();
+  </script>
+  <title>Dark Sky Finder</title>
+  <meta name="description" content="Where and when to stargaze in British Columbia and Arizona: live cloud, moon, aurora and ISS forecasts on top of a validated light-pollution model built from NASA night lights and Globe at Night." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✨</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&display=swap" rel="stylesheet" />
+  <!-- Planetarium skin: Josefin Sans, Spectral, DM Mono, Caveat -->
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&family=Caveat:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/shared/theme.css" />
+  <link rel="stylesheet" href="../src/darksky/darksky.css" />
+  <link rel="stylesheet" href="../src/darksky/skin.css" />
+</head>
+<body class="darksky">
+  <header class="topbar">
+    <a class="crumb" href="../">← Open Places</a>
+    <span class="title">Dark Sky Finder</span>
+    <span class="spacer"></span>
+    <button class="skin-btn" id="skin" type="button" data-skin-name="Planetarium"></button>
+    <button class="icon-btn" id="theme" type="button"></button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <canvas id="stars" aria-hidden="true"></canvas>
+      <div class="wrap hero-inner">
+        <div class="eyebrow" id="tonight-label">Tonight</div>
+        <h1 class="hero-title">Dark Sky Forecast</h1>
+        <div class="controls-row"><div class="seg" id="views" role="group" aria-label="Region"></div></div>
+        <div class="grid cols-4 tonight" id="tonight"></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Live map</div>
+            <h2>Sky Brightness Map</h2>
+            <p>Shading shows modelled sky brightness on a clear, moonless night. Click anywhere for a three-night forecast that combines cloud, moon, darkness and that spot's light pollution.</p>
+          </div>
+        </div>
+        <div class="map-shell card">
+          <div class="map-body">
+            <div id="map" class="map"></div>
+            <aside class="panel" id="panel">
+              <div class="layer-toggles">
+                <div class="side-title">Layers</div>
+                <label class="toggle"><input type="checkbox" id="lyr-sqm" checked /> <span>Sky brightness (model)</span></label>
+                <label class="toggle"><input type="checkbox" id="lyr-change" /> <span>Brightening 2014 → 2025</span></label>
+                <label class="toggle"><input type="checkbox" id="lyr-aurora" checked /> <span>Aurora chance (now)</span></label>
+                <div class="legend-ramp" id="legend-ramp"></div>
+              </div>
+              <div id="spot"></div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Next three nights</div>
+            <h2>Best Sites</h2>
+            <p>Every certified dark-sky place and popular spot in the region, scored for each night. A clear, moonless sky over a dark site scores 100.</p>
+          </div>
+        </div>
+        <div class="card"><div class="table-scroll"><table class="data sites-table" id="sites-table"></table></div>
+          <p class="note" style="margin-top:8px">Cloud: Environment Canada GEM (BC) and NOAA models (Arizona) via Open-Meteo, loaded live. Moon and twilight are computed in your browser.</p></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Space weather</div>
+            <h2>Aurora Outlook</h2>
+            <p>NOAA's three-day Kp forecast. The dashed lines mark roughly how strong a storm needs to be before the aurora shows on the northern horizon from each place.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="chart" id="kp"></div>
+          <p class="note" id="kp-note"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Model card</div>
+            <h2>Light Pollution Model</h2>
+            <p>A gradient-boosted model learns sky brightness from NASA night-lights at several distances, trained on Globe at Night Sky Quality Meter readings across western North America. Every score below comes from spatial cross-validation, where whole 1° areas are held out at once.</p>
+          </div>
+        </div>
+        <div class="grid cols-4" id="metrics"></div>
+        <div class="grid cols-2" style="margin-top:16px">
+          <div class="card">
+            <h3 class="card-title">Darkness by distance</h3>
+            <p class="note card-sub">Median modelled sky brightness at each distance from downtown. Higher means darker: the scale is magnitudes per square arcsecond.</p>
+            <div class="legend" id="reach-legend"></div>
+            <div class="chart" id="reach"></div>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Predicted vs measured</h3>
+            <p class="note card-sub">Sky Quality Meter readings, each predicted by a model that never saw that 1° area.</p>
+            <div class="chart" id="scatter"></div>
+          </div>
+        </div>
+        <div class="grid cols-2" style="margin-top:16px">
+          <div class="card">
+            <h3 class="card-title">Brightening by town</h3>
+            <p class="note card-sub" id="towns-sub">Change in satellite night-light index, 2014 → 2025, within about 5 km of each town centre.</p>
+            <div class="chart" id="towns"></div>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Model inputs</h3>
+            <p class="note card-sub">Drop in R² when each input is shuffled. Glow from 3–10 km away matters more than the lights right overhead.</p>
+            <div class="chart" id="importance"></div>
+          </div>
+        </div>
+        <div class="grid cols-2 method" style="margin-top:16px">
+          <div class="card prose">
+            <h3>Method</h3>
+            <p><b>Night lights.</b> NASA's Black Marble VNP46A2 daily radiance (gap-filled and corrected for moonlight), via the GIBS imagery service. I take the median of 7 dates per year on a ~1 km grid for 2014 and 2025. GIBS serves an 8-bit display stretch, so values are a radiance index rather than calibrated units, and bright city cores saturate.</p>
+            <p><b>Ground truth.</b> Globe at Night Sky Quality Meter readings from 2014–2025 across western North America. Only clear skies with the sun at least 15° below the horizon are used. Observation times are rebuilt from local time, because the published UT field has a sign error in the 2014–2022 releases.</p>
+            <p><b>Two models.</b> A median model predicts a typical reading. An 80th-percentile model predicts a good night: readings are only ever contaminated brighter (haze, twilight, stray light), so the upper quantile is the better estimate of the sky's real darkness. The maps and site scores use the good-night model.</p>
+            <p><b>Night score.</b> For each hour of astronomical darkness I multiply clear-sky fraction by moonlight penalty, then by the site's sky quality, and average across the night.</p>
+          </div>
+          <div class="card prose">
+            <h3>Honest limitations</h3>
+            <ul>
+              <li>The model explains about half the variation in individual readings. Globe at Night readings are noisy: observer technique, haze and local lights all add scatter.</li>
+              <li>Bright city cores saturate the night-light index, so the model can't tell a busy downtown from a suburb. Brightening is undercounted where lights were already saturated in 2014.</li>
+              <li>Snow, desert reflectance and the satellite's 1:30 am overpass all affect the index. Changes in LED colour (blue-rich light that VIIRS undercounts) mean real brightening is probably larger than shown.</li>
+              <li>Training data is thin in BC: fewer than 500 Canadian readings. BC predictions lean on patterns learned in Washington, Oregon and California.</li>
+            </ul>
+            <h3 style="margin-top:18px">Data sources</h3>
+            <ul class="sources">
+              <li><a href="https://www.earthdata.nasa.gov/data/projects/black-marble">NASA Black Marble (VNP46A2)</a> via <a href="https://nasa-gibs.github.io/gibs-api-docs/">GIBS</a></li>
+              <li><a href="https://globeatnight.org/maps-data/">Globe at Night</a> (NOIRLab), CC BY 4.0</li>
+              <li><a href="https://www.swpc.noaa.gov/products/aurora-30-minute-forecast">NOAA SWPC</a>: OVATION aurora and planetary Kp forecast</li>
+              <li>Cloud forecasts from ECCC GEM and NOAA GFS/HRRR via <a href="https://open-meteo.com/">Open-Meteo</a> (CC BY 4.0)</li>
+              <li>ISS orbit from <a href="https://celestrak.org/">CelesTrak</a>; moon and twilight from <a href="https://github.com/cosinekitty/astronomy">Astronomy Engine</a></li>
+              <li>Basemap © <a href="https://openfreemap.org">OpenFreeMap</a>, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a></li>
+            </ul>
+            <p class="note" id="generated"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="site"><div class="wrap">Dark Sky Finder is built entirely on free, open data. Live layers load straight from NOAA, Open-Meteo and CelesTrak in your browser.</div></footer>
+  <script type="module" src="../src/darksky/main.js"></script>
+</body>
+</html>

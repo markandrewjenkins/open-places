@@ -1,0 +1,23 @@
+.venv/
+node_modules/
+site/dist/
+data/*/raw/
+*.log
+__pycache__/
+.claude/settings.local.json
+export/
+data/osm/
+data/dem/
+# local tooling state and stray scratch files from test runs (never published)
+.wrangler/
+**/.wrangler/
+.dev.vars
+**/.dev.vars
+/main.js
+/mob_malahat.png
+site/a.json
+site/v.json
+site/w.json
+# City of Langford layers with no stated licence: local preview only, never published (see tools/export_repos.py EXCLUDE)
+site/public/data/langford/tracker.json
+site/public/data/langford/orthos.json

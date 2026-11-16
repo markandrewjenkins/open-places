@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en" data-page="blink">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    // Apply saved theme and design skin before first paint. ?skin=alt|classic overrides and is remembered.
+    // Inlaid in Open Places (?embed=1&skin=places|alt&theme=light|dark): the shell's theme and skin win, nothing is
+    // remembered, and the top bar hides.
+    (function () { try { var r = document.documentElement, q = new URLSearchParams(location.search), s = q.get("skin"), em = q.get("embed") === "1";
+      var t = q.get("theme") || localStorage.getItem("odp-theme"); if (t === "light" || t === "dark") r.dataset.theme = t;
+      if (em) r.classList.add("embed");
+      if (s === "alt" || s === "classic" || s === "grey") { if (!em) localStorage.setItem("odp-skin", s); } else s = em ? null : localStorage.getItem("odp-skin");
+      if (s === "alt" || s === "grey") r.dataset.skin = s; } catch (e) {} })();
+  </script>
+  <title>Public Transit</title>
+  <meta name="description" content="Public transit wherever the feeds are open: every vehicle live on the map, the next departures near you, service alerts and the network, from each agency's open GTFS and GTFS-Realtime data. Greater Victoria adds a Route 95 reliability spotlight for Langford and the West Shore." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚌</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Exo+2:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/shared/theme.css" />
+  <link rel="stylesheet" href="../src/shared/console.css" />
+  <link rel="stylesheet" href="../src/blink/blink.css" />
+  <link rel="stylesheet" href="../src/blink/transit.css" />
+  <link rel="stylesheet" href="../src/blink/skin.css" />
+</head>
+<body class="blink cx-body">
+  <header class="topbar">
+    <a class="crumb" href="../">← Open Places</a>
+    <span class="title">Public Transit</span>
+    <label class="tr-region"><span class="sr-only">Region</span><select id="region" aria-label="Transit region"></select></label>
+    <span class="spacer"></span>
+    <button class="skin-btn" id="skin" type="button" data-skin-name="Night Run"></button>
+    <button class="icon-btn" id="theme" type="button"></button>
+  </header>
+
+  <!-- the console (left rail, overview tiles, topic views, detail drawer) is built by src/shared/console.js from the
+       topic modules in src/blink/: tmap.js, tnext.js, talerts.js, tnet.js for every region, plus the Route 95
+       spotlight (live.js, ontime.js, wait.js, corridor.js, outlook.js, compare.js) for Greater Victoria -->
+  <div id="app" class="cx-app"></div>
+  <script type="module" src="../src/blink/main.js"></script>
+</body>
+</html>

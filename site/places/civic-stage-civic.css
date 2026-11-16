@@ -1,0 +1,29 @@
+/* Open Places: compact floating panels for map-first pages (civic-stage-civic.js). Harbour tokens only. */
+/* pane "none": the module's old chart pane is hidden; the right column hugs its panel instead of filling the height */
+.civ-sg[data-pane="none"] { --rw: clamp(340px, 22vw, 470px); }
+.civ-sg[data-pane="none"] .civ-sg-right > :not(.civ-fpanel) { display: none; }
+.civ-sg[data-pane="none"] .civ-sg-right { align-self: start; max-height: 100%; overflow: auto; }
+.civ-sg[data-pane="none"] .civ-sg-right > .civ-fpanel { flex: none; }
+.civ-fp-lede { margin: 0 0 6px; font-size: 12.5px; line-height: 1.4; color: var(--ink-2); }
+.civ-fp-lede:empty { display: none; }
+.civ-fp-lede .civ-tag { margin-right: 4px; }
+.civ-fpc { position: relative; flex: none; min-height: 0; margin: 2px 0 6px; }
+.civ-fpc > svg { display: block; }
+/* shared charts (renderBars etc.) colour their labels from pane rules; give them the same ink inside a floating panel */
+.civ-fpc text.label { fill: var(--ink-2); font-size: 11px; }
+.civ-fpc text.axis-t { fill: var(--muted); font-size: 10px; }
+.civ-fpc text.label.strong { fill: var(--ink); }
+.civ-fpl { max-height: min(46vh, 520px); overflow: auto; min-height: 0; margin-bottom: 6px; }
+.civ-fpl .civ-rows { height: auto; overflow: visible; }
+.civ-fpl > .civ-row { display: grid; }
+.civ-leg { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 10px; margin: 0 0 6px; font-size: 11px; color: var(--ink-2); }
+.civ-leg-t { flex: 1 0 100%; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.civ-leg-i { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.civ-leg-i i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); }
+/* the radar's controls (civic-mod-weather.js radarPanel) */
+.wxg { gap: 6px; }
+.wxg .wxr-bar { justify-content: flex-start; }
+.wxg .wxr-time { white-space: normal; }
+@media (max-width: 1099.98px) {
+  .civ-fpl { max-height: 380px; }
+}

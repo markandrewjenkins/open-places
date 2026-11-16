@@ -1,0 +1,174 @@
+/* Waterways: Classic design. The console layout lives in ../shared/console.css; this file holds the page's tokens and
+   its own views. Neutral portfolio palette with a sea-blue accent; vessel colours are by type, never by operator. */
+
+body.ships {
+  --accent: #1f6fb2;
+  --t-water: #1f6fb2; --t-busy: #c2611f; --t-river: #0f8a8a; --t-notice: #b8453a;
+  --lane: #1f7fbf; --warn: #d9822b;
+  --v-ferry: #2a63d6; --v-cargo: #e07b24; --v-tanker: #c23b3b; --v-tug: #8b44d6; --v-fish: #0f9488; --v-pleasure: #4c9a2a; --v-other: #8a929e;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) body.ships {
+    --accent: #5aa2e6; --t-water: #5aa2e6; --t-busy: #f08a4b; --t-river: #3cc0bd; --t-notice: #f0776b; --lane: #58b4f0; --warn: #f0a24b;
+    --v-ferry: #5b8ff0; --v-cargo: #f0954b; --v-tanker: #f06b6b; --v-tug: #b07cf0; --v-fish: #35c4b6; --v-pleasure: #7cbf45; --v-other: #a0a8b4;
+  }
+}
+:root[data-theme="dark"] body.ships {
+  --accent: #5aa2e6; --t-water: #5aa2e6; --t-busy: #f08a4b; --t-river: #3cc0bd; --t-notice: #f0776b; --lane: #58b4f0; --warn: #f0a24b;
+  --v-ferry: #5b8ff0; --v-cargo: #f0954b; --v-tanker: #f06b6b; --v-tug: #b07cf0; --v-fish: #35c4b6; --v-pleasure: #7cbf45; --v-other: #a0a8b4;
+}
+
+/* ---------- top bar: the waters switch */
+.topbar .ww-region { margin-left: 14px; }
+.topbar .ww-region button { padding: 4px 10px; font-size: 12.5px; }
+html.embed .topbar { display: none; }   /* inlaid in Open Places: the shell has its own header; ?region= picks the waters */
+
+/* ---------- shared bits */
+.prose p, .prose ul { color: var(--ink-2); font-size: 14px; margin: 0 0 10px; }
+.prose ul { padding-left: 18px; }
+.prose li { margin-bottom: 6px; }
+.prose h3 { font-size: 16px; margin-bottom: 10px; }
+.prose b { color: var(--ink); font-weight: 600; }
+.sources a, .prose a { color: var(--ink); }
+.ww-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.ww-pick .seg { flex-wrap: wrap; }
+.ww-pick .seg button { padding: 4px 10px; font-size: 12.5px; }
+.ww-pick-l { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ---------- map + panel */
+.ww-mapcard { padding: 0 !important; overflow: hidden; }
+.ww-mapbody { display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-height: 480px; }
+.ww-map { min-height: 480px; }
+.ww-panel { border-left: 1px solid var(--border); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; overflow: auto; min-height: 0; }
+.ww-modes { display: grid; grid-template-columns: repeat(3, auto); }
+.ww-modes button { padding: 5px 8px; font-size: 12px; white-space: nowrap; }
+.ww-modes button[disabled] { opacity: 0.5; cursor: not-allowed; }
+.ww-live { font-size: 11px; font-weight: 650; letter-spacing: 0.08em; color: var(--ink-2); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ww-live b { letter-spacing: 0; font-variant-numeric: tabular-nums; color: var(--ink); }
+.ww-live span { letter-spacing: 0; font-weight: 500; }
+.ww-dot { width: 8px; height: 8px; border-radius: 50%; background: #1baf7a; box-shadow: 0 0 0 0 rgba(27, 175, 122, 0.6); animation: ww-pulse 2s infinite; }
+.ww-live.replay .ww-dot { background: var(--warn); animation: none; }
+@keyframes ww-pulse { 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .ww-dot { animation: none; } }
+.ww-why { margin: -2px 0 0; font-size: 12px; line-height: 1.4; }
+.ww-replay { display: flex; flex-direction: column; gap: 6px; background: var(--surface-2); border-radius: 10px; padding: 9px 10px; }
+.ww-replay .note { font-size: 11.5px; }
+.ww-play { align-self: flex-start; border: 1px solid var(--border); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 4px 10px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.ww-play[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.ww-rrow { display: flex; align-items: center; gap: 8px; }
+.ww-range { flex: 1; min-width: 0; accent-color: var(--accent); }
+.ww-clock { font-variant-numeric: tabular-nums; font-size: 13px; min-width: 62px; text-align: right; }
+.ww-layers { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12.5px; color: var(--ink-2); }
+.ww-check { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.ww-lanesel select { font: inherit; font-size: 12px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1px 4px; }
+.ww-regions button { padding: 4px 10px; font-size: 12px; }
+.ww-counts { display: flex; flex-direction: column; gap: 1px; }
+.ww-counts-h { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; margin-bottom: 3px; }
+.ww-counts-h .note { font-size: 11px; }
+.ww-kind { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--ink-2);
+  font: inherit; font-size: 12.5px; padding: 3px 6px; border-radius: 7px; cursor: pointer; text-align: left; }
+.ww-kind img { justify-self: center; transform: rotate(90deg); }
+.ww-kind b { font-variant-numeric: tabular-nums; color: var(--ink); }
+.ww-kind:hover { background: var(--surface-2); color: var(--ink); }
+.ww-kind[aria-pressed="false"] { opacity: 0.4; }
+.ww-kind[aria-pressed="false"] span { text-decoration: line-through; }
+.ww-dship { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-2); }
+.ww-dship img { transform: rotate(90deg); margin: 0 12px; flex: none; }   /* drawn bow-up: turned, it is as wide as it is tall */
+.maplibregl-popup-content { background: var(--surface) !important; color: var(--ink); }
+
+/* ---------- types key */
+.ww-key { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; overflow: auto; align-content: start; }
+.ww-key li { display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dotted var(--border); }
+.ww-key img { justify-self: center; transform: rotate(90deg); }
+.ww-key b { display: block; font-size: 13px; }
+.ww-key small { display: block; color: var(--ink-2); font-size: 12px; line-height: 1.35; }
+
+/* ---------- busy */
+.ww-regs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ww-regs li { display: grid; grid-template-columns: auto 1fr; gap: 0 8px; align-items: center; padding: 4px 0; border-bottom: 1px dotted var(--border); font-size: 13px; }
+.ww-regs i { width: 9px; height: 9px; border-radius: 50%; grid-row: span 2; }
+.ww-regs small { grid-column: 2; color: var(--muted); font-size: 11.5px; }
+
+/* ---------- tides + river */
+.chart .ww-hw { fill: var(--t-river); opacity: 0.08; }
+.legend .ww-hw-key { background: color-mix(in oklab, var(--t-river) 18%, transparent) !important; }
+.ww-hilo { list-style: none; margin: 0; padding: 0; overflow: auto; }
+.ww-hilo li { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px dotted var(--border); font-size: 13px; }
+.ww-hilo li.past { opacity: 0.5; }
+.ww-hilo b { font-weight: 650; }
+.ww-hilo span { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ww-hilo em { font-style: normal; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ww-chs { margin-top: 8px; font-size: 11.5px; }
+
+/* ---------- notices */
+.ww-nhead { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.ww-nhead .seg button { padding: 3px 9px; font-size: 12px; }
+.ww-nlist { list-style: none; margin: 0; padding: 0; overflow: auto; }
+.ww-nlist li a { display: grid; gap: 1px; padding: 7px 8px; border-radius: 8px; text-decoration: none; color: var(--ink-2); border-bottom: 1px dotted var(--border); }
+.ww-nlist li a:hover { background: var(--surface-2); }
+.ww-nlist li.on a { background: color-mix(in oklab, var(--t-notice) 12%, transparent); }
+.ww-nlist b { color: var(--ink); font-size: 13px; font-weight: 600; }
+.ww-nlist li.new b::after { content: "new"; margin-left: 6px; font-size: 10.5px; font-weight: 650; color: var(--t-notice); text-transform: uppercase; letter-spacing: 0.06em; }
+.ww-nlist span { font-size: 12.5px; line-height: 1.4; }
+.ww-nlist small { font-size: 11.5px; color: var(--muted); }
+.ww-nlist li.ended { opacity: 0.55; }
+.ww-nlist.mini { overflow: hidden; height: 100%; }
+.ww-nlist.mini li a { padding: 4px 2px; }
+.ww-nlist.mini span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; color: var(--muted); }
+.ww-ntext { font-size: 13.5px; line-height: 1.5; color: var(--ink); }
+
+/* ---------- desktop: every pane fills the panel */
+@media (min-width: 1100px) {
+  .pane-wwmap { grid-template-rows: minmax(0, 1fr); }
+  .pane-wwmap .ww-mapcard { display: flex; min-height: 0; }
+  .pane-wwmap .ww-mapbody, .pane-wwmap .ww-map { flex: 1; min-height: 0; height: 100%; }
+  .pane-wwtypes, .pane-wwareas, .pane-wwcruise, .pane-wwfraser, .pane-wwnotices { grid-template-rows: minmax(0, 1fr); }
+  .pane-wwhours, .pane-wwtides { grid-template-rows: auto minmax(0, 1fr); }
+  .pane-about { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  .pane-about .card { max-height: 100%; overflow: auto; }
+  .pane-wwfraser .chart#ww-reach { flex: 0 0 150px; }
+}
+@media (max-width: 1099.98px) {
+  .ww-mapbody { grid-template-columns: minmax(0, 1fr); }
+  .ww-map { min-height: 62vh; }
+  .ww-panel { border-left: 0; border-top: 1px solid var(--border); }
+  .ww-key { grid-template-columns: minmax(0, 1fr); }
+  .ww-nlist { max-height: 60vh; }
+  .ww-hilo { max-height: 50vh; }
+  .cx-app .chart#ww-reach { height: 150px; }
+  .cx-app .chart#ww-heat { height: 230px; }
+  .cx-app .chart#ww-cruise { height: 260px; }
+}
+@media (max-width: 720px) {
+  .topbar .ww-region { margin-left: 4px; flex-shrink: 0; flex-wrap: nowrap; }
+  .topbar .ww-region button { padding: 3px 7px; font-size: 11.5px; white-space: nowrap; }
+  .topbar .title { display: none; }
+}
+/* phones: the crumb becomes a bare arrow and the skin button its dot, so the waters switch fits on one line */
+@media (max-width: 480px) {
+  .topbar { gap: 8px; }
+  .topbar a.crumb { font-size: 0; }
+  .topbar a.crumb::before { content: "←"; font-size: 18px; }
+  .topbar .skin-btn > span:last-child { display: none; }
+}
+
+/* ---------- live ships: fade key, ferries view, drawer status */
+.ww-fadekey { display: flex; align-items: center; gap: 6px; padding: 6px 6px 0; }
+.ww-fadekey img { transform: rotate(90deg); }
+.ww-fadekey .note { font-size: 11px; margin-left: 4px; }
+.ww-dfer { margin: 2px 0 0; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.ww-ferlist { list-style: none; margin: 0; padding: 0; overflow: auto; }
+.ww-ferlist li a { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 8px; border-bottom: 1px dotted var(--border);
+  text-decoration: none; color: var(--ink-2); border-radius: 6px; }
+.ww-ferlist li a:hover { background: var(--surface-2); }
+.ww-ferlist img { justify-self: center; }
+.ww-ferlist b { display: block; color: var(--ink); font-size: 13px; font-weight: 600; }
+.ww-ferlist small { display: block; font-size: 12px; color: var(--ink-2); }
+.ww-ferlist em { font-style: normal; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 12.5px; color: var(--ink); text-align: right; }
+.ww-ferlist em small { font-weight: 400; color: var(--muted); font-size: 11px; }
+.ww-ferlist li[data-state="docked"] small { color: var(--muted); }
+.ww-ferlist li[data-state="quiet"] a { opacity: 0.6; }
+.ww-ferlist li.note { padding: 10px 8px; }
+.ww-fer-foot { margin: 8px 0 0; font-size: 11.5px; }
+@media (min-width: 1100px) { .pane-wwferries { grid-template-rows: minmax(0, 1fr); } }
+@media (max-width: 1099.98px) { .ww-ferlist { max-height: 60vh; } }

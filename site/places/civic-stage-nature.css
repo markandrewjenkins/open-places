@@ -1,0 +1,30 @@
+/* Open Places: the Seasons & nature and Outdoors pages on the map stage (civic-stage-nature.js). Their old full-page
+   chart panes give way to the map and one compact panel on the left. */
+.civ-sg-right > .civ-pane:has(#blossom-main, #foliage-main, #salish-main, #darksky-main, #sunday-main, #golf-main) { display: none; }
+
+.nt-body { gap: 8px; }
+.nt-lead { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
+.nt-lead b { color: var(--ink); font-weight: 650; }
+.nt-tag { vertical-align: 0.1em; margin-right: 2px; }
+.nt-tag[data-kind="estimate"] { color: var(--warn); }
+.nt-h { margin: 4px 0 0; font: 650 10px/1.2 var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+.nt-key { display: grid; gap: 4px; }
+.nt-k { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 12px; color: var(--ink-2); min-width: 0; }
+.nt-k i { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 1px var(--border); }
+.nt-k span:nth-child(2) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nt-k span:last-child { font: 500 11.5px/1 var(--fig); color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.nt-ramp { height: 8px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--border); }
+.nt-ends { display: flex; justify-content: space-between; margin-top: 3px; font: 500 10.5px/1 var(--fig); color: var(--muted); }
+
+.nt-rows { display: flex; flex-direction: column; }
+.nt-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 7px; align-items: center; width: 100%; padding: 5px 4px; border: 0; border-bottom: 1px solid var(--grid);
+  background: none; text-align: left; font: inherit; font-size: 12.5px; color: var(--ink-2); }
+button.nt-row { cursor: pointer; }
+button.nt-row:hover, button.nt-row:focus-visible { background: color-mix(in oklab, var(--tc, var(--accent)) 9%, transparent); outline: none; }
+.nt-row > b { font: 600 11px/1 var(--fig); color: var(--muted); text-align: right; }
+.nt-row .nt-n { color: var(--ink); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nt-row small { font: 500 11px/1.2 var(--fig); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.nt-cred { margin: 2px 0 0; font-size: 10.5px; line-height: 1.4; color: var(--muted); }

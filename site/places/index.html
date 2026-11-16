@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en" data-page="civic">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    // Apply saved theme and design before first paint. Two designs, each light and dark: Blue (the default, no data-skin;
+    // navy by night) and Grey (data-skin="grey": "Fog" by day, "Graphite" by night). ?skin=grey|blue|default overrides and
+    // is remembered for this page; any other saved value (e.g. "blue" from the retired Tide design) falls back to Blue.
+    (function () { try { var r = document.documentElement, q = new URLSearchParams(location.search).get("skin"), pk = "odp-skin:" + r.dataset.page;
+      var t = localStorage.getItem("odp-theme"); if (t) r.dataset.theme = t;
+      var s = q ? (q === "grey" ? "grey" : "default") : localStorage.getItem(pk);
+      if (s === "grey") r.dataset.skin = "grey";
+      if (q) localStorage.setItem(pk, s); else if (s && s !== "grey" && s !== "default") localStorage.removeItem(pk); } catch (e) {} })();
+  </script>
+  <title>Open Places</title>
+  <meta name="description" content="Open Places: one screen of open data per place. Alerts first, then the basics every place shares, then a ladder from your municipality out to the planet." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%226%22 fill=%22none%22 stroke=%22%23888%22 stroke-width=%221.6%22/%3E%3Ccircle cx=%228%22 cy=%228%22 r=%222%22 fill=%22%23888%22/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/shared/theme.css" />
+  <link rel="stylesheet" href="../src/shared/console.css" />
+  <link rel="stylesheet" href="./civic.css" />
+  <link rel="stylesheet" href="./civic-charts.css" />
+</head>
+<body class="civic cx-body">
+  <header id="civ-head">
+    <div class="topbar civ-top">
+      <a class="civ-brand" href="#world" title="Back to the map">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.5 12h19M12 2.5c-4.4 5-4.4 14 0 19M12 2.5c4.4 5 4.4 14 0 19M4.2 6.8h15.6M4.2 17.2h15.6" fill="none" stroke="currentColor" stroke-width="1"/><circle cx="8.6" cy="9.4" r="1.9" class="lit"/></svg>
+        <span>Open Places</span>
+      </a>
+      <nav id="civ-crumbs" class="civ-crumbs" aria-label="Place"></nav>
+      <span class="spacer"></span>
+      <div class="civ-search">
+        <input id="civ-q" type="search" placeholder="Find a place…" aria-label="Find a place" autocomplete="off" />
+        <div id="civ-q-list" class="civ-results" role="listbox" hidden></div>
+      </div>
+      <button class="skin-btn" id="skin" type="button" data-skin-id="grey" data-skin-name="Grey" data-skin-base="Blue"></button>
+      <button class="icon-btn civ-sound" id="civ-sound" type="button" aria-pressed="false" aria-label="Sound cues" title="Sound off"></button>
+      <button class="icon-btn" id="theme" type="button"></button>
+    </div>
+    <div class="civ-alerts" id="civ-alerts" aria-live="polite"></div>
+  </header>
+
+  <!-- the place console (rail, basics, scale ladder, topic views), built by ./civic.js on src/shared/console.js -->
+  <div id="app" class="cx-app"></div>
+
+  <!-- the world map -->
+  <section id="civ-world" class="civ-world" aria-label="World map" hidden>
+    <div id="civ-map" class="civ-map"></div>
+    <div class="civ-wpanel">
+      <div class="civ-wk">Open Places</div>
+      <h1>World Map</h1>
+      <p class="civ-wlede">One screen of open data for wherever you are: alerts first, the basics every place shares, then what matters at each scale from your town out to the planet.</p>
+      <div class="civ-search civ-wsearch">
+        <input id="civ-wq" type="search" placeholder="Search: Langford, Victoria, Toronto…" aria-label="Search places" autocomplete="off" />
+        <div id="civ-wq-list" class="civ-results" role="listbox" hidden></div>
+      </div>
+      <div class="civ-wbtns">
+        <button id="civ-start" class="civ-btn" type="button">Greater Victoria</button>
+        <button id="civ-locate" class="civ-btn ghost" type="button">Use My Location</button>
+      </div>
+      <p class="civ-whint"><i class="civ-key"></i> Places with their own topics. <b>Click anywhere else</b> for the basics there: weather, air, daylight and earthquakes.</p>
+    </div>
+    <div class="civ-wtools">
+      <a class="civ-gallery" href="../projects/">All Dashboards</a>
+      <button class="icon-btn" id="civ-wtheme" type="button"></button>
+    </div>
+    <div class="civ-coords" id="civ-coords">Hover the map · click for the basics anywhere</div>
+  </section>
+  <script type="module" src="./civic.js"></script>
+</body>
+</html>

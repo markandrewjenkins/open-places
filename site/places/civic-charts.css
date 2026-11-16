@@ -1,0 +1,83 @@
+/* Open Places mockup (review only): marks for the tile visuals and pane charts in ./civic-charts.js, the extra chart
+   cards in the detail panes, and where a tile's visual sits. Loaded after civic.css; tokens only (--s1…--s3, --live,
+   --warn, --bad, --ink, --muted, --grid, --axis, --surface…), so every design, light and dark, restyles it. */
+
+/* ------------------------------------------------------------ marks */
+.civic .civ-line { fill: none; stroke: var(--s1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.civic .civ-area { fill: var(--s1); opacity: 0.1; }
+.civic .civ-night { fill: color-mix(in oklab, var(--ink) 7%, transparent); }
+.civic .civ-xh { stroke: var(--axis); stroke-width: 1; pointer-events: none; }
+.civic .civ-ref { stroke: var(--muted); stroke-width: 1; opacity: 0.55; }
+.civic .civ-ref.civ-now { stroke: var(--ink); opacity: 0.75; stroke-width: 1.5; }
+.civic .civ-zero { stroke: var(--axis); stroke-width: 1; }
+.civic .civ-track { stroke: var(--grid); stroke-width: 1; }
+.civic .civ-trackbar { fill: var(--surface-2); }
+.civic .civ-band { fill: var(--s1); opacity: 0.32; }
+.civic .civ-dot { fill: var(--s1); stroke: var(--surface); stroke-width: 2; }
+.civic .civ-pt { stroke: var(--surface); stroke-width: 1.5; }
+.civic circle.q { fill: var(--s1); fill-opacity: 0.7; }
+.civic circle.q.civ-big { fill-opacity: 1; }
+.civic .civ-range { fill: var(--s1); }
+.civic .civ-col2 { fill: var(--s1); opacity: 0.55; }
+.civic .civ-hit { fill: transparent; }
+.civic .civ-needle { stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
+.civic .civ-hub, .civic .civ-mk { fill: var(--ink); }
+.civic svg text.civ-gv { fill: var(--ink); font-weight: 600; letter-spacing: -0.02em; }
+.civic svg text.civ-strong, .civic svg text.hl { fill: var(--ink); font-weight: 600; }
+.civic svg text.civ-plab { fill: var(--ink-2); font-weight: 500; }
+.civic svg text.civ-lt { font-size: 10px; }
+.civic .civ-plot svg text { font-size: 9.5px; }
+
+/* weather glyphs: sun in the second series colour, rain and snow in the first, cloud in ink on the surface */
+.civic .civ-wx .sun { fill: var(--s2); }
+.civic .civ-wx .ray { stroke: var(--s2); stroke-width: 1.3; stroke-linecap: round; }
+.civic .civ-wx .cl { fill: var(--surface); stroke: var(--ink-2); stroke-width: 1.1; stroke-linejoin: round; }
+.civic .civ-wx .drop { stroke: var(--s1); stroke-width: 1.4; stroke-linecap: round; }
+.civic .civ-wx .flake { fill: var(--s1); }
+.civic .civ-wx .bolt { fill: var(--s2); }
+.civic .civ-wx .fogl { stroke: var(--muted); stroke-width: 1.4; stroke-linecap: round; }
+
+/* the "mock" chip on a mock chart */
+.civic .civ-xmock { position: absolute; top: 2px; right: 2px; z-index: 1; pointer-events: none; }
+
+/* ------------------------------------------------------------ detail panes: the main chart card, then a row of extra charts */
+.civ-col { display: grid; gap: 12px; min-height: 0; min-width: 0; grid-template-rows: var(--crows, minmax(0, 1.4fr) minmax(0, 1fr)); }
+.civ-col:has(> .civ-xrow[hidden]) { grid-template-rows: minmax(0, 1fr); }
+.civ-xrow { display: grid; gap: 12px; min-height: 0; min-width: 0; grid-template-columns: var(--xcols, minmax(0, 1fr)); }
+.civ-xrow[hidden] { display: none; }
+.civ-xcard .chart { flex: 1 1 0; min-height: 0; }
+.civic .cx-fill > .chart.civ-alchart { flex: none; height: 128px; margin-bottom: 8px; }
+.civic .chart.civ-alchart[hidden] { display: none; }
+
+/* ------------------------------------------------------------ overview tiles (desktop Summary): where the visual sits
+   Tall tiles keep it under the numbers (civic.css). Short tiles, which civic.css leaves without one, and short-but-wide
+   ones put it beside the numbers, filling the right of the tile; the smallest drop the source line to make room. */
+@media (min-width: 1100px) {
+  @container (max-height: 104px) or ((max-height: 150px) and (min-width: 340px)) {
+    .civ-ov[data-layout="pyramid"] .cx-tile-vis.civ-v { display: flex; position: static; } /* the tile, not this footer box, places the plot */
+    .civ-ov[data-layout="pyramid"] .cx-tile-vis.civ-v .civ-plot { display: block; position: absolute; right: 12px; top: 31px; bottom: 25px; width: clamp(76px, 40cqw, 300px); }
+    .civ-ov[data-layout="pyramid"] .cx-tile-vis.civ-v .civ-plot:has(> .civ-rows) { display: none; }
+    .civ-ov[data-layout="pyramid"] .cx-tile:not([data-kind="planned"]) .cx-tile-kpis { max-width: calc(100% - clamp(76px, 40cqw, 300px) - 10px); overflow: hidden; }
+    .civ-ov[data-layout="pyramid"] .cx-tile:not([data-kind="planned"]) .cx-tk:first-child { max-width: 70%; }
+    .civ-ov[data-layout="pyramid"] .cx-tile:not([data-kind="planned"]) .cx-tk:only-child { max-width: 100%; }
+  }
+  @container (max-height: 84px) {
+    .civ-ov[data-layout="pyramid"] .cx-tile-vis.civ-v { display: contents; } /* no footer box, no extra gap */
+    .civ-ov[data-layout="pyramid"] .cx-tile-vis.civ-v .civ-tfoot { display: none; }
+    .civ-ov[data-layout="pyramid"] .cx-tile-vis.civ-v .civ-plot { bottom: 7px; }
+  }
+  @container (max-height: 150px) and (min-width: 340px) and (max-width: 560px) {
+    .civ-ov[data-layout="pyramid"] .cx-tile:not([data-kind="planned"]) .cx-tk:nth-child(n+3) { display: none; }
+  }
+  @container (max-height: 104px) and (max-width: 300px) {
+    .civ-ov[data-layout="pyramid"] .cx-tile:not([data-kind="planned"]) .cx-tk:nth-child(n+2) { display: none; }
+    .civ-ov[data-layout="pyramid"] .cx-tile:not([data-kind="planned"]) .cx-tk:first-child { max-width: 100%; }
+  }
+}
+
+@media (max-width: 1099.98px) {
+  .civ-col { grid-template-rows: none; }
+  .civ-xrow { grid-template-columns: minmax(0, 1fr); }
+  .civic .cx-app .civ-xcard .chart { height: 210px; flex: none; }
+  .civic .cx-app .civ-alchart { height: 132px; }
+}

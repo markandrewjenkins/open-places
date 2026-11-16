@@ -1,0 +1,121 @@
+# PROPOSAL ONLY - not enabled anywhere. Copy to .github/workflows/blink-collect.yml in the exported
+# blink-95-reliability repo once it exists.
+#
+# Long-term GTFS-Realtime collection for Blink 95 Reliability on GitHub Actions.
+#
+#   collect  every 15 min: one ~13-minute run of the collector (30 s polls, ~26 snapshots), uploaded as a small
+#            workflow artifact (~20-80 KB). Nothing is committed per run, so main and the data branch stay quiet.
+#   merge    once a night: downloads the artifacts from the last 3 days of collect runs, merges them into one
+#            zstd parquet per kind per closed day (deduped, so re-runs are harmless) and makes ONE commit to the
+#            orphan branch `blink-data`. Artifacts are kept 7 days, so a failed merge catches up the next night.
+#   squash   on Sundays the merge job rewrites `blink-data` as a single commit, so .git does not grow with every
+#            nightly rewrite (only the current files are kept; the logs themselves are never deleted).
+#
+# The daily refresh-and-deploy workflow then adds, before the Blink build step:
+#     - uses: actions/checkout@v4
+#       with: { ref: blink-data, path: data/blink/raw/log }
+#     - run: |
+#         python -m pipelines.blink.fetch daily
+#         python -m pipelines.blink.build
+#   (and `gtfs-realtime-bindings` in requirements.txt).
+#
+# Limits, honestly:
+#   * Scheduled workflows are best effort: runs often start 5-30 min late and are sometimes skipped at busy
+#     times (top of the hour worst, hence odd minutes below). Expect roughly 50-80% time coverage, in
+#     ~13-minute windows. The build only measures headways inside continuous watched stretches, so gaps cost
+#     sample size, not correctness - but end-to-end trip run times (~50 min) will rarely fall in one window.
+#   * ~96 runs/day x ~15 min is ~24 runner-hours/day. Free for public repos, but it is a heavy, non-CI use of
+#     Actions; GitHub's terms ask that Actions be used for the repository's own build/test/deploy/publish work.
+#     Use it for a few weeks of study data, not as permanent infrastructure.
+#   * In public repos, schedules are disabled after 60 days without repository activity.
+#   * Times come from the runner clock; the vehicle timestamps in the feed are what the metrics use.
+#
+# Alternatives (better coverage, no Actions load):
+#   * The owner's PC (current setup): `python -m pipelines.blink.collect` under Windows Task Scheduler "At log on"
+#     / "At startup", restart on failure. Full 30 s coverage whenever the machine is on; resumes and dedupes.
+#   * A Raspberry Pi or any always-on box at home: same command under systemd (Restart=always). ~2 MB/day.
+#   * A small cloud VM or container with a 1-minute scheduler (needs an account the owner would create;
+#     agents must not create one).
+#   Each of these writes the same daily files; copy closed-day parquet into the data branch to publish them.
+
+name: blink-collect
+
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"       # every 15 min, away from :00
+    - cron: "41 10 * * *"               # 03:41 Pacific: merge yesterday into the data branch
+  workflow_dispatch:
+    inputs:
+      job: { description: "collect or merge", default: collect }
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  collect:
+    if: (github.event_name == 'schedule' && github.event.schedule != '41 10 * * *') || (github.event_name == 'workflow_dispatch' && inputs.job == 'collect')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency: { group: blink-collect, cancel-in-progress: false }
+    steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: pipelines }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: pip install requests pandas pyarrow gtfs-realtime-bindings
+      - name: Log ~13 minutes of route 95 (+ comparison routes) at 30 s
+        env:
+          BLINK_LOG_DIR: ${{ runner.temp }}/blinklog
+        run: python -m pipelines.blink.collect --minutes 13 --parts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blink-log-${{ github.run_id }}
+          path: ${{ runner.temp }}/blinklog
+          retention-days: 7
+          if-no-files-found: ignore
+
+  merge:
+    if: (github.event_name == 'schedule' && github.event.schedule == '41 10 * * *') || (github.event_name == 'workflow_dispatch' && inputs.job == 'merge')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency: { group: blink-merge, cancel-in-progress: false }
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out (or create) the data branch
+        run: |
+          if git ls-remote --exit-code --heads origin blink-data; then
+            git clone --depth 1 --branch blink-data "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" log
+          else
+            mkdir log && cd log && git init -b blink-data && git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          fi
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: pip install requests pandas pyarrow gtfs-realtime-bindings
+      - name: Download the last 3 days of collect artifacts into the data folder
+        run: |
+          since=$(date -u -d '3 days ago' +%F)
+          gh run list --workflow blink-collect --status success --created ">=$since" --limit 400 \
+            --json databaseId --jq '.[].databaseId' | while read id; do
+            gh run download "$id" -n "blink-log-$id" -D log 2>/dev/null || true
+          done
+      - name: Merge closed days into one parquet per kind
+        env:
+          BLINK_LOG_DIR: log
+        run: python -m pipelines.blink.collect --compact
+      - name: Commit (one commit per night; squash on Sundays)
+        working-directory: log
+        run: |
+          git config user.name "data-bot"
+          git config user.email "data-bot@users.noreply.github.com"
+          rm -rf "$(date +%F)" 2>/dev/null || true          # today's parts stay in artifacts until the day closes
+          git add -A
+          git diff --cached --quiet && exit 0
+          if [ "$(date -u +%u)" = "7" ]; then
+            git checkout --orphan squashed && git commit -qm "Blink logs to $(date -u +%F) (squashed)"
+            git push --force origin squashed:blink-data
+          else
+            git commit -qm "Blink logs $(date -u +%F)" && git push origin HEAD:blink-data
+          fi

@@ -1,0 +1,44 @@
+/* "Chart Room" design skin for Waterways (optional, restrained). Every rule is scoped under :root[data-skin="alt"].
+   Day: a paper nautical chart (cream paper, sounding-blue ink, a pale depth tint). Night: the chart table under a
+   dimmed lamp (deep navy, pale ink, one amber accent). Type and palette only: no textures, ornaments or glow. */
+
+:root[data-skin="alt"] {
+  --page: #f3efe3;
+  --surface: #fbf8f0;
+  --surface-2: #e9eef0;
+  --ink: #16263a;
+  --ink-2: #3f5266;
+  --muted: #6f7f8e;
+  --grid: #dde3e2;
+  --axis: #b7c2c6;
+  --border: rgba(22, 38, 58, 0.16);
+  --radius: 6px;
+  --font: "IBM Plex Sans", system-ui, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-skin="alt"]:not([data-theme="light"]) {
+    --page: #0d1621; --surface: #13202e; --surface-2: #1a2a3a; --ink: #e8eef3; --ink-2: #b4c2cf; --muted: #7f8fa0;
+    --grid: #223344; --axis: #2f4456; --border: rgba(200, 220, 240, 0.12);
+  }
+}
+:root[data-skin="alt"][data-theme="dark"] {
+  --page: #0d1621; --surface: #13202e; --surface-2: #1a2a3a; --ink: #e8eef3; --ink-2: #b4c2cf; --muted: #7f8fa0;
+  --grid: #223344; --axis: #2f4456; --border: rgba(200, 220, 240, 0.12);
+}
+:root[data-skin="alt"] body.ships { --accent: #1d5c96; --t-water: #1d5c96; --lane: #2b6fa8; }
+:root[data-skin="alt"][data-theme="dark"] body.ships { --accent: #e0a64a; --t-water: #e0a64a; --lane: #6fb0e0; }
+@media (prefers-color-scheme: dark) { :root[data-skin="alt"]:not([data-theme="light"]) body.ships { --accent: #e0a64a; --t-water: #e0a64a; --lane: #6fb0e0; } }
+
+:root[data-skin="alt"] body.ships { font-family: var(--font); }
+:root[data-skin="alt"] .cx-app .card, :root[data-skin="alt"] .cx-tile { border-radius: 6px; box-shadow: none; border: 1px solid var(--border); }
+:root[data-skin="alt"] .cx-tile { border-top: 2px solid var(--tc); }
+:root[data-skin="alt"] .eyebrow, :root[data-skin="alt"] .cx-kpi-l, :root[data-skin="alt"] .ww-pick-l { text-transform: uppercase; letter-spacing: 0.1em; font-size: 11px; }
+:root[data-skin="alt"] .cx-kpi-v, :root[data-skin="alt"] .cx-tk b, :root[data-skin="alt"] .ww-clock, :root[data-skin="alt"] .chart .axis text { font-family: var(--mono); letter-spacing: -0.01em; }
+:root[data-skin="alt"] .cx-title h1 { font-weight: 600; letter-spacing: -0.01em; }
+:root[data-skin="alt"] .ww-nlist li a, :root[data-skin="alt"] .ww-hilo li, :root[data-skin="alt"] .ww-key li { border-bottom-style: solid; border-bottom-color: color-mix(in oklab, var(--border) 70%, transparent); }
+
+/* ---------- Open Places look (the default design, no data-skin="alt"; shared chrome in ../shared/theme.css).
+   Nothing below touches this page's themed skin. */
+/* solid hairlines between list rows */
+:root:not([data-skin="alt"]) :is(.ww-key li, .ww-regs li, .ww-hilo li, .ww-nlist li a) { border-bottom-style: solid; border-bottom-color: var(--grid); }

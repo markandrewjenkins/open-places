@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>(function () { try { var r = document.documentElement, t = localStorage.getItem("odp-theme"); if (t) r.dataset.theme = t; if (/[?&]embed=1/.test(location.search)) r.classList.add("embed"); } catch (e) {} })();</script>
+  <title>Cherry Blossom Watch · console mockup</title>
+  <meta name="description" content="Review mockup: Cherry Blossom Watch as an inverted-pyramid, one-screen console." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%226%22 fill=%22%23d6336c%22/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/shared/theme.css" />
+  <link rel="stylesheet" href="./mockups.css" />
+  <style>
+    /* Cherry Blossom Watch classic tokens (card-stock paper), copied from src/blossom/blossom.css */
+    .mk-screen { --page: #f3ead9; --surface: #fbf6ec; --surface-2: #efe4d0; --ink: #2e2420; --ink-2: #5f5047; --muted: #8d7d70; --grid: #e6dac4; --axis: #cbbba3;
+      --border: rgba(80, 52, 30, 0.13); --shadow: 0 1px 2px rgba(80, 52, 30, 0.06), 0 8px 24px rgba(80, 52, 30, 0.07); --accent: #d6336c; --accent-2: #1f78c8;
+      --plum: #c2185b; --early: #ec407a; --yoshino: #f48fb1; --japanese: #ff80ab; --wild: #f8bbd0; --bitter: #e9b9c9; }
+    .mk-screen [data-c="fc"] { --c: #d6336c; } .mk-screen [data-c="map"] { --c: #c2185b; } .mk-screen [data-c="st"] { --c: #1f78c8; } .mk-screen [data-c="bloom"] { --c: #ec407a; }
+    .tier { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; font-size: 11px; font-weight: 700; color: #fff; }
+    .tier.S { background: #d6336c; } .tier.A { background: #ec407a; } .tier.B { background: #f48fb1; color: #4a1027; } .tier.C { background: #efe4d0; color: #5f5047; } .tier.D { background: #f3ead9; color: #8d7d70; }
+    .bodyfc { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+    .bodyfc .big { grid-row: span 2; }
+  </style>
+</head>
+<body class="mk-page">
+  <header class="topbar">
+    <a class="crumb" href="./">← Console mockups</a>
+    <span class="title"><b>Cherry Blossom Watch</b> · console mockup</span>
+    <span class="spacer"></span>
+  </header>
+  <main class="mk-wrap">
+    <div class="mk-intro">
+      <div>
+        <div class="eyebrow">Mockup · review only</div>
+        <h1>Cherry Blossom Watch as a console</h1>
+        <p>One screen, three levels. The Overview answers "when, where and how much" in four equal tiles; Forecast drills into the peak-date ranges; a group opens in the detail drawer. Numbers are the live 2027 Vancouver forecast issued Oct 9, 2026.</p>
+      </div>
+      <div class="mk-toggle" role="group" aria-label="Mockup state">
+        <button type="button" data-go="overview"><span class="lvl">1</span>Overview</button>
+        <button type="button" data-go="forecast"><span class="lvl">2</span>Forecast</button>
+        <button type="button" data-go="detail"><span class="lvl">3</span>Yoshino detail</button>
+      </div>
+    </div>
+
+    <div class="mk-stage"><div class="mk-screen">
+      <div class="mk-top"><span class="crumb">← Open Places</span><span class="ttl">Cherry Blossom Watch</span><span class="sp"></span><span class="pill">Classic</span><span class="ib">☾</span></div>
+      <div class="mk-app">
+        <nav class="mk-rail">
+          <div class="ctx"><span>Region</span><b>Vancouver ▾</b></div>
+          <div class="g leaf" data-t="overview" data-go="overview" style="--c:#d6336c"><i style="border-radius:2px;background:conic-gradient(#c2185b 0 33%,#ff80ab 0 66%,#1f78c8 0)"></i><span>Overview</span></div>
+          <div class="g" data-t="map" data-c="map"><i></i><span>Map</span><em>29.8k</em></div>
+          <ul data-c="map"><li>Bloom map</li><li>Streets</li><li>Every tree</li></ul>
+          <div class="g" data-t="forecast" data-go="forecast" data-c="fc"><i></i><span>Forecast</span><em>Mar 27</em></div>
+          <ul data-c="fc"><li data-s="forecast/peak" data-go="forecast">Peak dates</li><li>Bloom ribbon</li><li>Day by day</li></ul>
+          <div class="g" data-t="tiers" data-c="bloom"><i></i><span>Tier list</span><em>32</em></div>
+          <ul><li>S tier</li><li>All cultivars</li></ul>
+          <div class="g" data-t="trip" data-c="st"><i></i><span>Trip planner</span></div>
+          <ul><li>Walk</li><li>Bike</li><li>Drive</li></ul>
+          <div class="g" data-t="history" style="--c:#8d7d70"><i></i><span>History</span><em>1938–</em></div>
+          <ul><li>Bloom dates since 1938</li><li>Warming trend</li></ul>
+          <div class="sep"></div>
+          <div class="g" data-t="model" style="--c:#8d7d70"><i style="background:transparent;box-shadow:inset 0 0 0 2px #8d7d70"></i><span>Model &amp; method</span></div>
+          <div class="foot">Forecast issued Oct 9, 2026 · weather through Oct 7</div>
+        </nav>
+
+        <div class="mk-main">
+          <!-- ===================== level 1: overview -->
+          <section class="mk-view" id="v-overview">
+            <div class="mk-head">
+              <div><div class="eb" style="color:var(--ink-2)">Spring 2027 · Vancouver</div><h2>Overview</h2></div>
+              <p>Four answers on one screen. Pick a tile, or a topic on the left, to go a level deeper.</p>
+            </div>
+            <div class="mk-tiles">
+              <article class="mk-tile" data-c="fc" data-go="forecast">
+                <div class="th"><i></i>Peak date<span class="go">→</span></div>
+                <div class="mk-tk" id="ov-fc-k"></div>
+                <div class="vis" id="ov-fc"></div>
+                <div class="links"><span>Peak dates</span><span>Bloom ribbon</span><span>Model</span></div>
+              </article>
+              <article class="mk-tile" data-c="bloom">
+                <div class="th"><i></i>In bloom today<small>Thu Nov 12</small><span class="go">→</span></div>
+                <div class="mk-tk" id="ov-bl-k"></div>
+                <div class="vis" id="ov-bl"></div>
+                <div class="links"><span>Bloom map</span><span>Day by day</span></div>
+              </article>
+              <article class="mk-tile" data-c="st">
+                <div class="th"><i></i>Best streets<span class="go">→</span></div>
+                <div class="mk-tk" id="ov-st-k"></div>
+                <div class="vis" id="ov-st"></div>
+                <div class="links"><span>Streets</span><span>Tier list</span><span>Trip planner</span></div>
+              </article>
+              <article class="mk-tile" data-c="map">
+                <div class="th"><i></i>Map<span class="go">→</span></div>
+                <div class="mk-tk" id="ov-map-k"></div>
+                <div class="vis" id="ov-map"></div>
+                <div class="links"><span>Bloom map</span><span>Every tree</span></div>
+              </article>
+            </div>
+          </section>
+
+          <!-- ===================== level 2: forecast -->
+          <section class="mk-view" id="v-forecast" data-c="fc" hidden>
+            <div class="mk-head">
+              <div><div class="eb">Forecast · Vancouver</div><h2>Peak Bloom Forecast</h2></div>
+              <div class="mk-kpis" id="fc-k"></div>
+            </div>
+            <div class="mk-body bodyfc">
+              <div class="mk-card big"><h3>Peak-date range by group</h3><div class="sub">Box = middle half of outcomes, line = 80% range, dot = most likely day; small dots are the 20 forecast quantiles. Click a group for its detail.</div><div class="vis" id="fc-ranges"></div></div>
+              <div class="mk-card"><h3>Bloom ribbon</h3><div class="sub">Expected share of Vancouver's 29,796 public cherries and plums in bloom each day.</div><div class="vis" id="fc-ribbon"></div></div>
+              <div class="mk-card"><h3>Forecast error</h3><div class="sub">Average miss in days by issue date, tested on past springs.</div><div class="vis" id="fc-bt"></div></div>
+            </div>
+          </section>
+
+          <!-- ===================== level 3: drawer -->
+          <aside class="mk-drawer" data-c="fc" hidden>
+            <header><div><div class="eb">Forecast · group</div><h3>Yoshino, Akebono &amp; Snow Goose</h3></div><span class="x" data-go="forecast">✕</span></header>
+            <div class="bd">
+              <div class="mk-stats" id="dr-k"></div>
+              <div><h4>Where the peak could land (20 quantiles)</h4><div class="vis" id="dr-q" style="height:96px"></div></div>
+              <div><h4>Cultivars in this group</h4><div class="mk-rows" id="dr-cv" style="--cols: 22px 1fr auto"></div></div>
+              <span class="lnk">Plan a walk along W 37th Av →</span>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="mk-notes">
+      <div class="mk-note"><h3>Navigation</h3><ul><li><b>Overview</b> — peak date, % in bloom today, best streets, map thumbnail</li><li><b>Map</b> → Bloom map · Streets · Every tree</li><li><b>Forecast</b> → Peak dates · Bloom ribbon · Day by day</li><li><b>Tier list</b> → S tier · All cultivars</li><li><b>Trip planner</b> → Walk · Bike · Drive</li><li><b>History</b> → Bloom dates since 1938 · Warming trend</li><li><b>Model &amp; method</b></li></ul></div>
+      <div class="mk-note"><h3>Drill-down</h3><ul><li>Region switch sits at the top of the rail, so every level re-scopes together.</li><li>Level 3 items: a group, a cultivar, a street or a day. Each opens in the drawer, e.g. <code>#forecast/peak/yoshino</code>.</li><li>Off-season (as now) the bloom tile says so and points to the first plums, rather than showing an empty map.</li></ul></div>
+      <div class="mk-note"><h3>Data in this mockup</h3><ul><li>Quantile dates, group tree counts and the bloom ribbon come from <code>forecast.json</code>, <code>trees.json</code> and <code>meta.json</code>.</li><li>Streets from <code>streets.json</code>; cultivars and tiers from <code>cultivars.json</code>; accuracy from <code>backtest.json</code>.</li></ul></div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { stage, cols, hbars, lines, ranges, dots, add, canvas, f0 } from "./mockups.js";
+    import { blossom as B } from "./mock-data.js";
+    const GROUPS = ["plum", "early", "yoshino", "japanese", "wild", "bitter"];
+    const SHORT = { plum: "Plums", early: "Early cherries", yoshino: "Yoshino & Akebono", japanese: "Japanese (Kanzan…)", wild: "Wild & sweet", bitter: "Native bitter" };
+    const COLOR = { plum: "var(--plum)", early: "var(--early)", yoshino: "var(--yoshino)", japanese: "var(--japanese)", wild: "var(--wild)", bitter: "var(--bitter)" };
+    const doy = (s) => { const d = new Date(s + "T12:00"); return Math.round((d - new Date(d.getFullYear(), 0, 1, 12)) / 864e5) + 1; };
+    const md = (s) => new Date(s + "T12:00").toLocaleDateString("en-CA", { month: "short", day: "numeric" });
+    const doyLbl = (n) => new Date(2027, 0, n).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
+    const tk = (id, items) => { document.getElementById(id).innerHTML = items.map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join(""); };
+    const kp = (id, items) => { document.getElementById(id).innerHTML = items.map(([l, v, s]) => `<div class="mk-kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join(""); };
+    const G = B.groups, ticks = [[60, "Mar 1"], [74, "Mar 15"], [91, "Apr 1"], [105, "Apr 15"], [121, "May 1"], [135, "May 15"]];
+    const rows = (hl) => GROUPS.map((g) => ({ label: SHORT[g], p10: doy(G[g].p10), p25: doy(G[g].p25), med: doy(G[g].median), p75: doy(G[g].p75), p90: doy(G[g].p90), color: COLOR[g], stroke: g === "bitter" || g === "wild" ? "#e3a3bb" : null, dots: hl === undefined ? G[g].q : null, tag: md(G[g].median) }));
+    const peakI = B.ribbon.indexOf(Math.max(...B.ribbon)), peakDay = B.ribbonFrom + peakI;
+
+    function overview() {
+      tk("ov-fc-k", [[md(G.yoshino.median), "Yoshino & Akebono peak"], [md(G.japanese.median), "Japanese cherries"], [md(G.plum.median), "plums lead off"]]);
+      ranges("ov-fc", rows(null).map((r) => ({ ...r, tag: null })), { d0: 55, d1: 135, ticks: ticks.filter((_, i) => i % 1 === 0), left: 118, rowMax: 26 });
+      tk("ov-bl-k", [["0%", `of ${f0(B.treesVan)} trees · off season`], [md(G.plum.p10), "first plums open (10% chance earlier)"], [`${Math.round(B.ribbon[peakI])}%`, `in bloom at the peak, ~${doyLbl(peakDay)}`]]);
+      lines("ov-bl", [{ v: B.ribbon, color: "var(--early)", area: 0.3, w: 2 }], { ymax: 60, ticks: 2, yfmt: (v) => `${v}%`, xl: [[60 - 40, "Mar 1"], [91 - 40, "Apr 1"], [121 - 40, "May 1"]], marks: [{ i: peakI, v: B.ribbon[peakI], label: `${Math.round(B.ribbon[peakI])}% · ${doyLbl(peakDay)}`, color: "var(--accent)" }] });
+      const st = B.topStreets;
+      tk("ov-st-k", [[st[0][0].replace("Th ", "th "), `${f0(st[0][1])} cherries & plums`], [st[1][0], `${f0(st[1][1])} trees`], ["Kanzan", "most planted S-tier, 9,770"]]);
+      hbars("ov-st", st.slice(0, 6).map(([n, v]) => [n.replace(/(\d)(Th|Nd|Rd|St) /, (m, a, b) => `${a}${b.toLowerCase()} `), v, "var(--accent-2)"]), { left: 104, rowMax: 22 });
+      tk("ov-map-k", [[f0(B.treesVan), "public cherries & plums"], [f0(B.counts.trees), "across 3 city inventories"], [`${B.counts.bloom_years}`, "years of bloom records"]]);
+      const col = { 0: "var(--plum)", 1: "var(--early)", 2: "var(--yoshino)", 3: "var(--japanese)", 4: "var(--wild)", 5: "var(--bitter)" };
+      dots("ov-map", B.pts, (p) => col[p[2]] || "var(--accent)", { r: 1.25, kx: 0.66 });
+    }
+    function forecast(hl) {
+      kp("fc-k", ["plum", "yoshino", "japanese", "wild"].map((g) => [SHORT[g], md(G[g].median), `${md(G[g].p10)}–${md(G[g].p90)}`]));
+      ranges("fc-ranges", rows(hl), { d0: 55, d1: 140, ticks, left: 150, rowMax: 64, hl });
+      lines("fc-ribbon", [{ v: B.ribbon, color: "var(--early)", area: 0.3, w: 2 }], { ymax: 60, ticks: 3, yfmt: (v) => `${v}%`, xl: [[20, "Mar 1"], [51, "Apr 1"], [81, "May 1"]], marks: [{ i: peakI, v: B.ribbon[peakI], label: `peak ~${doyLbl(peakDay)}`, color: "var(--accent)" }] });
+      const bt = ["01-01", "02-01", "02-15", "03-01", "03-15"];
+      const host = document.getElementById("fc-bt");
+      const L = lines(host, [
+        { v: bt.map((k) => B.backtest.plum.find((r) => r.issue === k).mae), color: "var(--plum)" },
+        { v: bt.map((k) => B.backtest.japanese.find((r) => r.issue === k).mae), color: "var(--japanese)" },
+        { v: bt.map((k) => B.backtest.wild.find((r) => r.issue === k).mae), color: "#d9a0b5" }], { ymin: 0, ymax: 12, ticks: 3, yfmt: (v) => `${v} d`, xl: [[0, "Jan 1"], [1, "Feb 1"], [2, "Feb 15"], [3, "Mar 1"], [4, "Mar 15"]], r: 70 });
+      [["Japanese", "var(--japanese)", B.backtest.japanese[4].mae], ["Plums", "var(--plum)", B.backtest.plum[4].mae], ["Wild", "#d9a0b5", B.backtest.wild[4].mae]].forEach(([n, c, v]) =>
+        add(L.s, "text", { x: L.w - 64, y: L.y(v) + 4, class: "lb", fill: c, "font-size": 11 }, `${n} ±${v.toFixed(0)}`));
+    }
+    function detail() {
+      forecast(2);
+      const g = G.yoshino;
+      document.getElementById("dr-k").innerHTML = [[md(g.median), "most likely peak"], [`${md(g.p10)}–${md(g.p90)}`, "80% range"], [f0(g.trees), "trees in Vancouver"], [`±${g.hw} days`, "bloom lasts around the peak"]]
+        .map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join("");
+      const { s, w, h } = canvas("dr-q");
+      const x = (v) => 8 + ((v - 60) / (110 - 60)) * (w - 16);
+      [[60, "Mar 1"], [74, "Mar 15"], [91, "Apr 1"], [105, "Apr 15"]].forEach(([v, l]) => { add(s, "line", { x1: x(v), x2: x(v), y1: 0, y2: h - 16, class: "gl" }); add(s, "text", { x: x(v), y: h - 3, "text-anchor": "middle", class: "ax" }, l); });
+      const bins = {}; g.q.forEach((q) => { const b = Math.round(q / 2) * 2; bins[b] = (bins[b] || 0) + 1; });
+      Object.entries(bins).forEach(([b, n]) => { for (let k = 0; k < n; k++) add(s, "circle", { cx: x(+b), cy: h - 24 - k * 11, r: 4.5, fill: "var(--yoshino)", stroke: "#d6336c", "stroke-width": 0.8 }); });
+      add(s, "line", { x1: x(doy(g.median)), x2: x(doy(g.median)), y1: 4, y2: h - 16, stroke: "var(--ink)", "stroke-width": 1.5 });
+      add(s, "text", { x: x(doy(g.median)) + 5, y: 12, class: "lb s", "font-size": 11 }, `${md(g.median)}`);
+      document.getElementById("dr-cv").innerHTML = B.cultivars.filter((c) => c.group === "yoshino").sort((a, b) => b.n - a.n)
+        .map((c) => `<div${c.name === "Akebono" ? ' class="on"' : ""}><span class="tier ${c.tier}">${c.tier}</span><span><b>${c.name}</b> · best on ${c.street.replace(/(\d)(Th|Nd|Rd|St) /, (m, a, b) => `${a}${b.toLowerCase()} `)}</span><b>${f0(c.n)}</b></div>`).join("");
+    }
+    stage({ overview: { view: "v-overview", rail: ["overview"], render: overview }, forecast: { view: "v-forecast", rail: ["forecast", "peak"], render: () => forecast() },
+      detail: { view: "v-forecast", rail: ["forecast", "peak"], drawer: true, render: detail } }, "overview");
+  </script>
+</body>
+</html>

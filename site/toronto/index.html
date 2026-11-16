@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" data-page="toronto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    // Apply saved theme and design skin before first paint. <html data-skins="alt herbarium …"> lists this page's
+    // themed designs; ?skin=<id>|classic overrides and is remembered. "alt" is shared across pages; other ids per page.
+    (function () { try { var r = document.documentElement, q = new URLSearchParams(location.search).get("skin");
+      var t = localStorage.getItem("odp-theme"); if (t) r.dataset.theme = t;
+      var multi = !!r.dataset.skins, ok = (r.dataset.skins || "alt").split(" ").concat("grey"), pk = "odp-skin:" + (r.dataset.page || location.pathname);
+      if (q) { if (multi) localStorage.setItem(pk, q); if (q === "alt" || q === "classic" || q === "grey") localStorage.setItem("odp-skin", q); }
+      var s = q || (multi && localStorage.getItem(pk)) || localStorage.getItem("odp-skin");
+      if (ok.indexOf(s) >= 0) r.dataset.skin = s; } catch (e) {} })();
+  </script>
+  <title>Toronto City Pulse</title>
+  <meta name="description" content="Toronto Island ferry crowd forecasts, live Bike Share stations with a demand forecast, and when and why the TTC subway gets delayed, built on the City of Toronto's open data." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛴️</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/shared/theme.css" />
+  <link rel="stylesheet" href="../src/shared/console.css" />
+  <link rel="stylesheet" href="../src/toronto/toronto.css" />
+  <link rel="stylesheet" href="../src/toronto/skin.css" />
+</head>
+<body class="toronto cx-body">
+  <header class="topbar">
+    <a class="crumb" href="../">← Open Places</a>
+    <span class="title">Toronto City Pulse</span>
+    <span class="spacer"></span>
+    <button class="skin-btn" id="skin" type="button" data-skin-name="Departure Board"></button>
+    <button class="icon-btn" id="theme" type="button"></button>
+  </header>
+
+  <!-- the console (left rail, overview tiles, topic views, detail drawer) is built by src/shared/console.js from the
+       topic modules in src/toronto/ (ferry.js, bike.js, ttc.js, weather.js) -->
+  <div id="app" class="cx-app"></div>
+  <script type="module" src="../src/toronto/main.js"></script>
+</body>
+</html>

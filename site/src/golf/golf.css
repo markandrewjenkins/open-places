@@ -1,0 +1,300 @@
+/* Fairway Forecast, Classic design. The console layout (rail, views, tiles, drawer) lives in ../shared/console.css;
+   this file holds the golf views. Topic colours (--g-*), tier colours (--tier-*) and chart colours are validated
+   for ≥ 3:1 against the surface in both themes. */
+body.golf {
+  --accent: #2f8a4e;
+  --g-week: #2f8a4e; --g-tiers: #b07a0c; --g-explore: #2a78d6; --g-months: #c46f00; --g-months-2: #7f5bbf; --g-trust: #7b5cc4; --g-trust-2: #c4579a; --g-coverage: #557785;
+  --g-good: #2f8a4e; --g-meh: #8aa592; --g-bad: #c0563f; --g-rain: #3d84cf; --g-wind: #8a6fcf; --g-cold: #4aa0b3; --g-frost: #7aa7d6;
+  --g-par3: #7cbc8b; --g-par4: #2f8a4e; --g-par5: #1b5733;
+  --g-rough: #e3eedc; --g-fair: #b9dcae; --g-green: #4caf6a; --g-sand: #e9d9a6; --g-water: #8ab8e6;
+  --tier-s: #b8860b; --tier-a: #2f8a4e; --tier-b: #2a78d6; --tier-c: #8a6db8; --tier-d: #a3603f;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) body.golf {
+    --accent: #3fa463; --g-week: #3fa463; --g-tiers: #d6a22c; --g-explore: #3987e5; --g-months: #e09234; --g-months-2: #a68be6; --g-trust: #9c84e6; --g-trust-2: #e07bb8; --g-coverage: #7fa3b2;
+    --g-good: #3fa463; --g-meh: #5e7a66; --g-bad: #d46a52; --g-rain: #5f9fe3; --g-wind: #a48ee6; --g-cold: #5fb6c9; --g-frost: #8fb8e6;
+    --g-par3: #5f9f6e; --g-par4: #3fa463; --g-par5: #a6dbb3;
+    --g-rough: #22352a; --g-fair: #2d5238; --g-green: #4caf6a; --g-sand: #8c7b4c; --g-water: #2f5f8f;
+    --tier-s: #d6a22c; --tier-a: #3fa463; --tier-b: #3987e5; --tier-c: #a68be6; --tier-d: #c98060;
+  }
+}
+:root[data-theme="dark"] body.golf {
+  --accent: #3fa463; --g-week: #3fa463; --g-tiers: #d6a22c; --g-explore: #3987e5; --g-months: #e09234; --g-months-2: #a68be6; --g-trust: #9c84e6; --g-trust-2: #e07bb8; --g-coverage: #7fa3b2;
+  --g-good: #3fa463; --g-meh: #5e7a66; --g-bad: #d46a52; --g-rain: #5f9fe3; --g-wind: #a48ee6; --g-cold: #5fb6c9; --g-frost: #8fb8e6;
+  --g-par3: #5f9f6e; --g-par4: #3fa463; --g-par5: #a6dbb3;
+  --g-rough: #22352a; --g-fair: #2d5238; --g-green: #4caf6a; --g-sand: #8c7b4c; --g-water: #2f5f8f;
+  --tier-s: #d6a22c; --tier-a: #3fa463; --tier-b: #3987e5; --tier-c: #a68be6; --tier-d: #c98060;
+}
+
+/* ---------- top bar: region switch */
+body.golf .region-seg { padding: 3px; border-radius: 10px; flex-wrap: nowrap; }
+body.golf .region-seg button { padding: 4px 10px; font-size: 12.5px; }
+@media (max-width: 720px) { body.golf .topbar .title { display: none; } }
+@media (max-width: 520px) { body.golf .topbar { gap: 8px; padding-left: 12px; padding-right: 12px; } body.golf .crumb-t { display: none; } body.golf .region-seg button { padding: 4px 8px; } }
+
+/* ---------- shared bits */
+.tier-b { display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 6px; background: var(--tcol); color: #fff; font-weight: 750; font-size: 12.5px; line-height: 1; }
+.tier-b.sm { width: 18px; height: 18px; font-size: 11px; border-radius: 5px; }
+.g-scroll { overflow: auto; min-height: 0; }
+.g-p { font-size: 13px; color: var(--ink-2); margin: 0 0 9px; }
+.g-p b { color: var(--ink); }
+.g-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.g-pick { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+.g-pick select { max-width: 240px; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 4px 6px; font-size: 12.5px; }
+.g-col { display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; min-height: 0; min-width: 0; }
+.g-legend { margin: 6px 0 0; }
+.legend .band.ch-night-key, .ch-night { fill: var(--grid); }
+.legend .band.ch-night-key { background: var(--grid); }
+.legend .band.wk-day-key { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); }
+.g-hint { background: color-mix(in oklab, var(--g-tiers) 12%, transparent); padding: 6px 8px; border-radius: 8px; }
+.g-dlinks { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.g-dlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; font-size: 12.5px; }
+.g-dlist li { display: grid; grid-template-columns: 1fr auto 1.4fr; gap: 4px 10px; padding: 5px 2px; border-bottom: 1px dotted var(--border); color: var(--ink-2); align-items: baseline; }
+.g-dlist li b { color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; }
+.g-dlist li .g-flags { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); }
+.g-dlist li .g-flags:empty { display: none; }
+.g-dlist li.good > span:first-child::after { content: " ⛳"; }
+
+/* ---------- charts */
+.chart .wk-day { fill: var(--surface-2); stroke: var(--border); }
+.chart .wk-range { stroke: var(--ink-2); stroke-width: 1.4; }
+.chart .wk-flag { font-size: 11px; }
+.chart .c.on .wk-play, .chart .c.on > rect:not([style*="transparent"]) { stroke: var(--ink); stroke-width: 2; }
+.cx-tile-vis .c.pick:hover .wk-play { filter: brightness(1.08); }
+.chart .ex-elev-line { fill: none; stroke: var(--g-explore); stroke-width: 2; }
+.chart .ex-tee { fill: var(--surface); stroke: var(--ink-2); stroke-width: 1.5; }
+.chart .ex-green { fill: var(--g-green); }
+.chart .c.hl rect:first-child, .chart .c.hl circle { stroke: var(--ink); stroke-width: 2; }
+.chart .tr-gap { fill: color-mix(in oklab, var(--g-trust) 16%, transparent); }
+.chart .tr-clim { fill: none; stroke: var(--ink-2); stroke-width: 1.6; stroke-dasharray: 5 4; }
+.chart .tr-base { fill: none; stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 1 3; }
+.chart .tr-line { fill: none; stroke: var(--g-trust); stroke-width: 3; }
+.chart .tr-dot { fill: var(--g-trust); stroke: var(--surface); stroke-width: 1.5; }
+.chart .c.on .tr-dot { stroke: var(--ink); stroke-width: 2.5; }
+.chart .tr-l7 { fill: none; stroke: var(--g-trust-2); stroke-width: 1.6; stroke-dasharray: 4 3; }
+.legend .line.tr-clim-key { background: repeating-linear-gradient(90deg, var(--ink-2) 0 5px, transparent 5px 9px); height: 2px; }
+.legend .line.tr-base-key { background: repeating-linear-gradient(90deg, var(--muted) 0 1px, transparent 1px 4px); height: 2px; }
+.legend .line.tr-l7-key { background: repeating-linear-gradient(90deg, var(--g-trust-2) 0 4px, transparent 4px 7px); height: 2px; }
+
+/* course plan (OSM geometry) */
+.plan-svg .pl-outline { fill: var(--g-rough); stroke: color-mix(in oklab, var(--g-week) 55%, var(--border)); stroke-width: 1; }
+.plan-svg .pl-fairway path { fill: var(--g-fair); }
+.plan-svg .pl-green path { fill: var(--g-green); }
+.plan-svg .pl-bunker path { fill: var(--g-sand); }
+.plan-svg .pl-water path { fill: var(--g-water); }
+.plan-svg .pl-hole path { fill: none; stroke: var(--ink); stroke-width: 1.2; stroke-dasharray: 3 2; opacity: 0.75; }
+.plan-svg .pl-hole .pl-ref { font-size: 10px; font-weight: 700; fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.plan-svg .pl-hole.hl path { stroke: var(--g-bad); stroke-width: 3; stroke-dasharray: none; opacity: 1; }
+.plan-svg .pl-hole.dim { opacity: 0.35; }
+
+/* ---------- This week: day cards, best list, grid */
+.g-days { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
+.g-day { display: flex; flex-direction: column; gap: 1px; min-width: 0; padding: 7px 10px 8px; border-radius: 12px; text-decoration: none; color: var(--ink-2);
+  background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); border-top: 3px solid var(--g-meh); }
+.g-day[data-v="Good day"] { border-top-color: var(--g-good); }
+.g-day[data-v="Washout"] { border-top-color: var(--g-bad); }
+.g-day:hover { border-color: color-mix(in oklab, var(--g-week) 50%, var(--border)); }
+.g-day.on { outline: 2px solid var(--g-week); }
+.g-day-n { font-size: 12px; font-weight: 650; color: var(--ink); }
+.g-day-h { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.15; }
+.g-day-h small { font-size: 12px; font-weight: 550; color: var(--muted); }
+.g-day-v { font-size: 11.5px; font-weight: 600; }
+.g-day-wx { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g-list { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; overflow: auto; min-height: 0; }
+.g-list li > a { display: grid; grid-template-columns: auto minmax(0, 1fr) auto 46px; gap: 8px; align-items: center; padding: 5px 4px; border-bottom: 1px dotted var(--border);
+  font-size: 12.5px; color: var(--ink-2); text-decoration: none; border-radius: 6px; }
+.g-list li > a:hover { background: var(--surface-2); color: var(--ink); }
+.g-list .g-l-name { color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g-list .g-l-win { font-size: 11.5px; white-space: nowrap; }
+.g-list b { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+.g-list-dr li > a { grid-template-columns: auto minmax(0, 1fr) auto 44px; }
+.g-grid { overflow: auto; min-height: 0; }
+.g-table { border-collapse: separate; border-spacing: 2px; width: 100%; font-size: 12px; }
+.g-table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); font-weight: 600; color: var(--ink-2); padding: 3px 2px; text-align: center; }
+.g-table thead th a { text-decoration: none; display: flex; flex-direction: column; line-height: 1.1; }
+.g-table thead th a small { font-size: 10.5px; color: var(--muted); }
+.g-table thead th.on a { color: var(--g-week); }
+.g-table .g-t-name { text-align: left; min-width: 180px; max-width: 280px; }
+.g-table tbody th { font-weight: 500; }
+.g-table tbody th a { display: flex; align-items: center; gap: 6px; text-decoration: none; color: var(--ink); }
+.g-table tbody th a span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g-table td { text-align: center; padding: 4px 2px; border-radius: 4px; font-variant-numeric: tabular-nums; color: var(--ink); min-width: 40px; }
+.g-table td.good { font-weight: 650; box-shadow: inset 0 3px 0 var(--g-par5); }
+.g-table td.num { text-align: right; padding-right: 6px; color: var(--ink-2); background: transparent; }
+.g-table tbody tr { cursor: pointer; }
+.g-table tbody tr:hover th a span { text-decoration: underline; }
+.g-table tbody tr.on th { box-shadow: inset 3px 0 0 var(--g-week); }
+.g-table tbody tr.on td { outline: 1px solid var(--ink-2); outline-offset: -1px; }
+
+/* ---------- Tier list */
+.g-board { display: flex; flex-direction: column; gap: 6px; overflow: auto; min-height: 0; }
+.g-tier-row { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 10px; align-items: stretch; flex: 1 0 auto; min-height: 44px; }   /* grow to fill, never shrink under its plates (the board scrolls) */
+.g-tier-l { display: grid; place-items: center; border-radius: 10px; background: var(--tcol); color: #fff; font-weight: 800; font-size: 22px; }
+.g-tier-cs { display: flex; flex-wrap: wrap; align-content: center; gap: 6px; padding: 4px 0; border-bottom: 1px dotted var(--border); }
+.g-plate { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 4px 9px 4px 4px; border-radius: 9px; text-decoration: none; color: var(--ink);
+  background: var(--surface-2); border: 1px solid var(--border); font-size: 12.5px; }
+.g-plate:hover { border-color: var(--tcol); }
+.g-plate.on { outline: 2px solid var(--tcol); }
+.g-plate-n { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: 6px; background: var(--surface); color: var(--muted); font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.g-plate-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 550; }
+.g-plate-r { font-size: 10.5px; color: var(--muted); }
+.g-plate-s { font-variant-numeric: tabular-nums; color: var(--ink-2); font-weight: 650; }
+.g-mv { font-size: 10px; }
+/* provisional: holes not mapped in OpenStreetMap, tier estimated from the course outline (dashed, no rank number) */
+.g-plate.prov { border: 1.5px dashed var(--tcol); background: transparent; }
+.g-plate.prov .g-plate-n { background: transparent; color: var(--tcol); font-size: 13px; }
+.g-plate.prov .g-plate-name { font-style: italic; padding-right: 2px; }
+.tier-b.prov { background: transparent; color: var(--tcol); border: 1.5px dashed var(--tcol); box-sizing: border-box; }
+.g-matrix tr.prov th a span { font-style: italic; }
+.g-matrix tr.prov td { opacity: 0.85; }
+.g-dash-key { width: 14px; height: 0; border-top: 2px dashed var(--ink-2); }
+.g-prov-note { border: 1.5px dashed var(--g-tiers); border-radius: 8px; padding: 6px 8px; }
+.g-prov-tag { font-weight: 700; color: var(--ink); }
+.g-prov-list li { margin: 3px 0; font-size: 12.5px; color: var(--ink-2); }
+.g-prov-list b { color: var(--ink); font-weight: 600; }
+.g-mv.up { color: var(--g-good); }
+.g-mv.down { color: var(--g-bad); }
+.g-sliders-card { gap: 4px; }
+.g-presets { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 6px; }
+.g-presets button { border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); border-radius: 7px; padding: 3px 8px; font-size: 12px; cursor: pointer; }
+.g-presets button:hover { color: var(--ink); border-color: var(--axis); }
+.g-presets button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.g-sliders { display: flex; flex-direction: column; justify-content: space-around; gap: 2px; overflow: auto; min-height: 0; }
+.g-slider { display: grid; grid-template-columns: 1fr 34px; grid-template-areas: "name val" "rng rng"; gap: 0 8px; font-size: 12.5px; color: var(--ink-2); }
+.g-slider .g-s-name { grid-area: name; }
+.g-slider b { grid-area: val; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+.g-slider input { grid-area: rng; width: 100%; accent-color: var(--g-tiers); margin: 2px 0 4px; }
+.g-mini-board { display: flex; flex-direction: column; justify-content: space-around; gap: 4px; height: 100%; font-size: 12.5px; }
+.g-mb-row { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--ink-2); }
+.g-mb-row span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g-plain { list-style: none; margin: 0; padding: 0; overflow: auto; min-height: 0; }
+.g-plain li a { display: flex; justify-content: space-between; gap: 10px; padding: 5px 4px; border-bottom: 1px dotted var(--border); font-size: 12.5px; text-decoration: none; color: var(--ink); }
+.g-plain li a:hover { background: var(--surface-2); }
+.g-plain small { color: var(--muted); text-align: right; flex: none; max-width: 55%; }
+table.g-recipe { font-size: 12.5px; margin: 4px 0 10px; }
+table.g-recipe td { vertical-align: top; padding: 5px 8px; }
+table.g-recipe td.note { font-size: 11.5px; }
+.nowrap { white-space: nowrap; }
+.g-matrix { border-collapse: separate; border-spacing: 2px; font-size: 11.5px; width: 100%; }
+.g-matrix thead th { position: sticky; top: 0; background: var(--surface); color: var(--ink-2); font-weight: 600; padding: 2px; z-index: 1; }
+.g-matrix thead th span { display: inline-block; max-width: 7ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-matrix tbody th { text-align: left; font-weight: 500; }
+.g-matrix tbody th a { display: flex; align-items: center; gap: 6px; text-decoration: none; color: var(--ink); white-space: nowrap; max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
+.g-matrix td { text-align: center; border-radius: 3px; font-variant-numeric: tabular-nums; color: var(--ink); padding: 3px 2px; }
+.g-matrix td.num { background: transparent; text-align: right; }
+.g-matrix tr.on th a { text-decoration: underline; }
+.g-fbars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.g-fbars li { display: grid; grid-template-columns: 1.1fr 0.9fr 1fr 42px; gap: 8px; align-items: center; font-size: 12px; color: var(--ink-2); }
+.g-fbars .g-fb-l { color: var(--ink); }
+.g-fbars .g-fb-raw { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g-fb-bar { height: 7px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.g-fb-bar i { display: block; height: 100%; background: var(--tc, var(--g-tiers)); border-radius: 4px; }
+.g-fbars li.neg .g-fb-bar i { background: var(--g-bad); }
+.g-fbars b { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+.g-holes-wrap { max-height: 260px; overflow: auto; }
+table.g-holes { font-size: 12px; margin-top: 0; }
+table.g-holes th, table.g-holes td { padding: 3px 6px; }
+
+/* ---------- Course explorer */
+.g-map-shell { position: relative; padding: 0 !important; overflow: hidden; min-height: 0; }
+.g-map { width: 100%; height: 100%; min-height: 460px; }
+.g-map-legend { position: absolute; left: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; max-width: calc(100% - 20px);
+  padding: 6px 10px; border-radius: 10px; background: color-mix(in oklab, var(--surface) 92%, transparent); border: 1px solid var(--border); font-size: 12px; color: var(--ink-2); }
+.g-map-legend .key { display: inline-flex; align-items: center; gap: 5px; }
+.g-map-legend .dot { width: 10px; height: 10px; border-radius: 3px; }
+.g-map-hint { color: var(--muted); font-size: 11.5px; }
+.g-feat-seg { justify-self: start; }
+.g-plan { min-height: 0; }
+
+/* ---------- Forecast trust */
+.g-verdict .g-big { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; margin: 2px 0 10px; color: var(--ink); }
+.g-verdict-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.g-verdict-list li { display: grid; grid-template-columns: 1fr auto 96px; gap: 10px; align-items: baseline; padding: 5px 2px; border-bottom: 1px dotted var(--border); font-size: 13px; color: var(--ink-2); }
+.g-verdict-list b { font-size: 16px; color: var(--g-trust); font-variant-numeric: tabular-nums; }
+.g-verdict-list small { color: var(--muted); text-align: right; }
+.g-verdict-list li.meh b { color: var(--ink-2); }
+.g-verdict-list li.base b { color: var(--ink); }
+
+/* ---------- Best months */
+table.g-mtable { font-size: 12.5px; margin-top: 0; }
+table.g-mtable tbody tr { cursor: pointer; }
+table.g-mtable tbody tr:hover td { background: var(--surface-2); }
+table.g-mtable tr.best td:first-child a { font-weight: 650; }
+table.g-mtable tr.on td { background: color-mix(in oklab, var(--g-months) 12%, transparent); }
+table.g-mtable th { position: sticky; top: 0; background: var(--surface); }
+.g-now { color: var(--g-months); font-weight: 650; }
+
+/* ---------- Map coverage */
+table.g-cov { font-size: 12.5px; margin-top: 0; }
+table.g-cov th { position: sticky; top: 0; background: var(--surface); z-index: 1; }
+table.g-cov tbody tr { cursor: pointer; }
+table.g-cov tbody tr:hover td { background: var(--surface-2); }
+table.g-cov tr.on td { background: color-mix(in oklab, var(--g-coverage) 14%, transparent); }
+.g-cov-st > span { display: inline-flex; align-items: center; gap: 5px; }
+.g-cbar { display: inline-block; width: 90px; height: 7px; border-radius: 4px; background: var(--surface-2); overflow: hidden; vertical-align: middle; }
+.g-cbar i { display: block; height: 100%; border-radius: 4px; }
+.g-cbar i.ok { background: var(--g-good); }
+.g-cbar i.no { background: var(--g-bad); opacity: 0.75; }
+.g-warn { color: var(--g-bad); font-weight: 550; }
+.g-ok { color: var(--g-good); font-weight: 600; }
+.g-edit { white-space: nowrap; font-weight: 600; color: var(--g-coverage); text-decoration: none; }
+.g-edit:hover { text-decoration: underline; }
+table.g-status { font-size: 12.5px; margin-top: 0; }
+table.g-status td { vertical-align: top; }
+.g-credits li { font-size: 12.5px; color: var(--ink-2); margin-bottom: 6px; }
+.g-help { font-size: 12.5px; color: var(--ink-2); background: var(--surface-2); padding: 8px 10px; border-radius: 8px; }
+.g-help b { color: var(--ink); }
+.g-cov-tile { display: flex; align-items: flex-end; gap: 2px; height: calc(100% - 18px); min-height: 40px; }
+.g-cov-tile i { flex: 1 1 0; height: var(--h); border-radius: 2px 2px 0 0; background: var(--g-coverage); }
+.g-cov-tile i.no { background: var(--g-bad); opacity: 0.55; }
+.g-cov-cap { margin: 4px 0 0; }
+
+/* about */
+.prose p, .prose ul { color: var(--ink-2); font-size: 13.5px; margin: 0 0 10px; }
+.prose ul { padding-left: 18px; }
+.prose li { margin-bottom: 6px; }
+.prose h3 { font-size: 16px; margin-bottom: 10px; }
+.prose b { color: var(--ink); font-weight: 600; }
+.sources a { color: var(--ink); }
+
+/* ==================================================================================================
+   DESKTOP ≥ 1100px: each sub-topic's pane fills the panel
+   ================================================================================================== */
+@media (min-width: 1100px) {
+  .pane-ex-map { grid-template-rows: minmax(0, 1fr); }
+  .pane-ex-map .g-map { min-height: 0; }
+  .pane-wk-grid, .pane-cov-courses, .pane-mo-table { grid-template-rows: minmax(0, 1fr); }
+  .pane-about { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  .pane-about .card { max-height: 100%; overflow: auto; }
+  .cx-tile .g-mini-board { font-size: 12px; }
+}
+@media (min-width: 1100px) and (max-height: 860px) {
+  .g-day { padding: 5px 9px 6px; }
+  .g-day-h { font-size: 19px; }
+  .g-tier-row { min-height: 38px; }
+  .g-slider input { margin: 0 0 2px; }
+}
+
+/* ==================================================================================================
+   MOBILE / TABLET < 1100px
+   ================================================================================================== */
+@media (max-width: 1099.98px) {
+  .g-days { grid-auto-columns: minmax(96px, 1fr); overflow-x: auto; padding-bottom: 4px; }
+  .g-list, .g-grid, .g-scroll, .g-board, .g-plain { max-height: 70vh; }
+  .g-col { grid-template-rows: none; }
+  .cx-app .g-plan { height: 360px; }
+  .g-map { min-height: 420px; }
+  .cx-app .cx-tile-vis.g-tile-auto { height: auto; }
+  .g-sliders { max-height: none; }
+}
+@media (max-width: 560px) {
+  .g-table .g-t-name { min-width: 130px; }
+  .g-fbars li { grid-template-columns: 1fr 0.9fr 0.8fr 38px; }
+  .g-verdict-list li { grid-template-columns: 1fr auto; }
+  .g-verdict-list small { grid-column: 1 / -1; text-align: left; }
+}
+table.g-cov td:nth-child(4) { white-space: nowrap; }
+table.g-cov .g-cbar { width: 70px; }
+.chart .label.wk-val { fill: var(--wk-val, #fff); }
+@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) body.golf { --wk-val: #0c1811; } }
+:root[data-theme="dark"] body.golf { --wk-val: #0c1811; }

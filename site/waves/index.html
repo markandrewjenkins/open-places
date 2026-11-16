@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" data-page="waves">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    // Apply saved theme and design skin before first paint. <html data-skins="alt herbarium …"> lists this page's
+    // themed designs; ?skin=<id>|classic overrides and is remembered. "alt" is shared across pages; other ids per page.
+    (function () { try { var r = document.documentElement, q = new URLSearchParams(location.search).get("skin");
+      var t = localStorage.getItem("odp-theme"); if (t) r.dataset.theme = t;
+      var multi = !!r.dataset.skins, ok = (r.dataset.skins || "alt").split(" ").concat("grey"), pk = "odp-skin:" + (r.dataset.page || location.pathname);
+      if (q) { if (multi) localStorage.setItem(pk, q); if (q === "alt" || q === "classic" || q === "grey") localStorage.setItem("odp-skin", q); }
+      var s = q || (multi && localStorage.getItem(pk)) || localStorage.getItem("odp-skin");
+      if (ok.indexOf(s) >= 0) r.dataset.skin = s; } catch (e) {} })();
+  </script>
+  <title>West Coast Water</title>
+  <meta name="description" content="Surf windows for Jordan River, Sombrio and the Tofino beaches, calm-water windows for paddlers in Victoria and Vancouver, live buoys and tides, and a backtest of how far each forecast day can be trusted." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Russo+One&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/shared/theme.css" />
+  <link rel="stylesheet" href="../src/shared/console.css" />
+  <link rel="stylesheet" href="../src/waves/waves.css" />
+  <link rel="stylesheet" href="../src/waves/skin.css" />
+</head>
+<body class="waves cx-body">
+  <header class="topbar">
+    <a class="crumb" href="../">← Open Places</a>
+    <span class="title">West Coast Water</span>
+    <span class="spacer"></span>
+    <button class="skin-btn" id="skin" type="button" data-skin-name="Neoprene ’94"></button>
+    <button class="icon-btn" id="theme" type="button"></button>
+  </header>
+
+  <!-- the console (left rail, overview tiles, topic views, detail drawer) is built by src/shared/console.js from the
+       topic modules in src/waves/ (surf.js, calm.js, live.js, trust.js) -->
+  <div id="app" class="cx-app"></div>
+  <script type="module" src="../src/waves/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+/* "Night Run" design skin for Route 95 Reliability. Every rule is scoped under :root[data-skin="alt"].
+   An outrun / synthwave highway at dusk: the rapid bus on the Trans-Canada at the end of the day. A sunset gradient rule
+   and perspective-grid horizon in the top bar, Audiowide display type, JetBrains Mono for every figure, uppercase
+   letter-spaced labels, dotted 6px panels with tinted header bars, KPI cards with a 3px neon left border, and a
+   "DATA AS OF" strip with a pulsing dot.
+   Day = "sunrise run": peach and lilac card stock, magenta and teal ink. Night = indigo dusk with neon magenta / cyan.
+   No transit-agency branding or colours are used. */
+
+/* ================================================================== tokens: day */
+:root[data-skin="alt"] {
+  --page: #fbeee6;
+  --surface: #fff8f3;
+  --surface-2: #f6e3dc;
+  --ink: #2a1838;
+  --ink-2: #5a4366;
+  --muted: #8a7393;
+  --grid: #ecd6d6;
+  --axis: #c9a9b8;
+  --border: rgba(110, 40, 120, 0.22);
+  --shadow: 0 1px 0 rgba(110, 40, 120, 0.06), 0 10px 26px -18px rgba(110, 40, 120, 0.45);
+  --radius: 6px;
+  --font: "Exo 2", system-ui, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  /* skin-only */
+  --nr-display: "Audiowide", "Exo 2", sans-serif;
+  --nr-sun: linear-gradient(90deg, #ff6ac1 0%, #ff8f6b 35%, #ffc861 60%, #39d0d8 100%);
+  --nr-neon: #d6249f;
+  --nr-cyan: #0a9fb0;
+  --nr-head: color-mix(in oklab, #ff6ac1 10%, var(--surface));
+  --nr-glow: 0 0 0 transparent;
+}
+:root[data-skin="alt"] body.blink {
+  --accent: #c41f8f;
+  --live: #0a9aa8; --ontime: #6a3fd6; --wait: #e0480f; --corr: #c41f8f; --wx: #2f8f3a; --cmp: #7a6a8a; --cmp95: #6a3fd6;
+  --d0: #6a3fd6; --d1: #e0367a;
+  --lane: #d0189c; --lane-part: #eeb0dc; --mixed: #b3a3b0;
+  --ok: #16915a; --late: #d6302a; --early: #3d5be0; --rain: #1f86c8; --dry: #d9a35a;
+}
+
+/* ================================================================== tokens: night */
+@media (prefers-color-scheme: dark) {
+  :root[data-skin="alt"]:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #140c2b; --surface: #1d1340; --surface-2: #281a52; --ink: #f6eaff; --ink-2: #cdb8ea; --muted: #9a86bf;
+    --grid: #2f2160; --axis: #4c3a86; --border: rgba(255, 106, 193, 0.22);
+    --shadow: 0 0 0 1px rgba(255, 106, 193, 0.06), 0 14px 30px -20px rgba(0, 0, 0, 0.8);
+    --nr-neon: #ff4fc3; --nr-cyan: #3ee6f0; --nr-head: color-mix(in oklab, #ff4fc3 12%, var(--surface));
+    --nr-glow: 0 0 10px rgba(255, 79, 195, 0.45);
+  }
+  :root[data-skin="alt"]:not([data-theme="light"]) body.blink {
+    --accent: #ff4fc3;
+    --live: #3ee6f0; --ontime: #a98bff; --wait: #ff8a4c; --corr: #ff4fc3; --wx: #8be36a; --cmp: #9a8cb8; --cmp95: #a98bff;
+    --d0: #a98bff; --d1: #ff6aa8; --lane: #ff4fc3; --lane-part: #7a3a78; --mixed: #5e5482;
+    --ok: #44d68f; --late: #ff5a5f; --early: #6f8cff; --rain: #4fb6ff; --dry: #d6a35e;
+  }
+}
+:root[data-skin="alt"][data-theme="dark"] {
+  color-scheme: dark;
+  --page: #140c2b; --surface: #1d1340; --surface-2: #281a52; --ink: #f6eaff; --ink-2: #cdb8ea; --muted: #9a86bf;
+  --grid: #2f2160; --axis: #4c3a86; --border: rgba(255, 106, 193, 0.22);
+  --shadow: 0 0 0 1px rgba(255, 106, 193, 0.06), 0 14px 30px -20px rgba(0, 0, 0, 0.8);
+  --nr-neon: #ff4fc3; --nr-cyan: #3ee6f0; --nr-head: color-mix(in oklab, #ff4fc3 12%, var(--surface));
+  --nr-glow: 0 0 10px rgba(255, 79, 195, 0.45);
+}
+:root[data-skin="alt"][data-theme="dark"] body.blink {
+  --accent: #ff4fc3;
+  --live: #3ee6f0; --ontime: #a98bff; --wait: #ff8a4c; --corr: #ff4fc3; --wx: #8be36a; --cmp: #9a8cb8; --cmp95: #a98bff;
+  --d0: #a98bff; --d1: #ff6aa8; --lane: #ff4fc3; --lane-part: #7a3a78; --mixed: #5e5482;
+  --ok: #44d68f; --late: #ff5a5f; --early: #6f8cff; --rain: #4fb6ff; --dry: #d6a35e;
+}
+
+/* ================================================================== type */
+:root[data-skin="alt"] body.blink { font-family: var(--font); }
+:root[data-skin="alt"] body.blink h1, :root[data-skin="alt"] body.blink h2 { font-family: var(--nr-display); font-weight: 400; letter-spacing: 0.02em; }
+:root[data-skin="alt"] body.blink .cx-title h1 { font-size: 21px; text-transform: uppercase; }
+:root[data-skin="alt"] body.blink .eyebrow, :root[data-skin="alt"] body.blink .cx-kpi-l, :root[data-skin="alt"] body.blink .cx-card-title,
+:root[data-skin="alt"] body.blink .cx-tile-name, :root[data-skin="alt"] body.blink .cx-dsec h3 {
+  text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; }
+:root[data-skin="alt"] body.blink .cx-card-title { font-size: 12.5px; }
+:root[data-skin="alt"] body.blink .cx-kpi-v, :root[data-skin="alt"] body.blink .cx-tk b, :root[data-skin="alt"] body.blink .cx-dstats b,
+:root[data-skin="alt"] body.blink .cx-badge, :root[data-skin="alt"] body.blink .bk-clock, :root[data-skin="alt"] body.blink .bk-vlist b,
+:root[data-skin="alt"] body.blink .chart .axis text, :root[data-skin="alt"] body.blink .chart .label, :root[data-skin="alt"] body.blink .bk-status {
+  font-family: var(--mono); letter-spacing: -0.01em; }
+:root[data-skin="alt"] body.blink .cx-tk:first-child b { font-family: var(--nr-display); font-weight: 400; color: var(--tc); text-shadow: var(--nr-glow); }
+
+/* ================================================================== top bar: sunset rule, horizon grid, one-shot sweep */
+:root[data-skin="alt"] body.blink .topbar { position: relative; overflow: hidden; background: color-mix(in oklab, var(--page) 88%, transparent); border-bottom: 0; }
+:root[data-skin="alt"] body.blink .topbar::before { content: ""; position: absolute; inset: auto 0 0 0; height: 3px; background: var(--nr-sun); }
+:root[data-skin="alt"] body.blink .topbar::after { content: ""; position: absolute; top: 0; bottom: 3px; width: 30%; left: -35%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent); animation: nr-sweep 1.6s ease-out 0.3s 1 both; pointer-events: none; }
+@keyframes nr-sweep { to { left: 110%; } }
+:root[data-skin="alt"] body.blink .topbar .title { font-family: var(--nr-display); font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase;
+  background: var(--nr-sun); -webkit-background-clip: text; background-clip: text; color: transparent; }
+:root[data-skin="alt"] body.blink .skin-btn, :root[data-skin="alt"] body.blink .icon-btn { border-radius: 4px; border: 1px dotted var(--nr-neon); }
+:root[data-skin="alt"] body.blink .skin-btn { font-family: var(--nr-display); font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; }
+:root[data-skin="alt"] body.blink .skin-dot { background: var(--nr-sun) !important; }
+
+/* the "DATA AS OF" strip (built by skin.js) */
+:root[data-skin="alt"] .nr-strip { position: relative; display: flex; gap: 20px; align-items: center; overflow: hidden; white-space: nowrap;
+  padding: 5px clamp(14px, 3vw, 28px); font: 500 11.5px/1.4 var(--mono); letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--ink-2); background: linear-gradient(180deg, var(--surface-2), var(--surface)); border-bottom: 1px dotted var(--border); }
+:root[data-skin="alt"] .nr-strip b { color: var(--ink); font-weight: 700; margin-left: 6px; }
+:root[data-skin="alt"] .nr-strip .nr-thin b { color: var(--muted); font-style: italic; }
+:root[data-skin="alt"] .nr-strip .nr-live { color: var(--nr-neon); font-family: var(--nr-display); letter-spacing: 0.14em; display: inline-flex; align-items: center; gap: 7px; }
+:root[data-skin="alt"] .nr-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--nr-neon); box-shadow: 0 0 8px var(--nr-neon); animation: nr-blink 1.4s steps(2, jump-none) infinite; }
+@keyframes nr-blink { 50% { opacity: 0.25; } }
+:root[data-skin="alt"] .nr-strip .nr-asof { margin-left: auto; }
+@media (prefers-reduced-motion: reduce) { :root[data-skin="alt"] .nr-dot, :root[data-skin="alt"] body.blink .topbar::after { animation: none; } }
+
+/* ================================================================== rail: highway signs */
+:root[data-skin="alt"] body.blink .cx-nav { background: linear-gradient(180deg, color-mix(in oklab, var(--surface-2) 70%, var(--page)), var(--page)); border-right: 1px dotted var(--border); }
+:root[data-skin="alt"] body.blink .cx-topic { border-radius: 4px; font-weight: 600; letter-spacing: 0.02em; }
+:root[data-skin="alt"] body.blink .cx-group.active > .cx-topic { background: var(--surface); box-shadow: inset 3px 0 0 var(--tc), 0 0 0 1px var(--border), var(--nr-glow); }
+:root[data-skin="alt"] body.blink .cx-dot { border-radius: 2px; transform: rotate(45deg); box-shadow: 0 0 6px var(--tc); }
+:root[data-skin="alt"] body.blink .cx-subs { border-left: 2px dotted color-mix(in oklab, var(--tc) 55%, var(--border)); }
+:root[data-skin="alt"] body.blink .cx-subs a { border-radius: 3px; }
+:root[data-skin="alt"] body.blink .nr-flavour { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--nr-neon); opacity: 0.85; }
+
+/* ================================================================== panels: dotted, 6px, tinted header bars */
+:root[data-skin="alt"] body.blink .card, :root[data-skin="alt"] body.blink .cx-tile { border-radius: 6px; border: 1px dotted var(--border); }
+:root[data-skin="alt"] body.blink .cx-tile { border-top: 0; padding-top: 0; overflow: hidden; }
+:root[data-skin="alt"] body.blink .cx-tile-head { margin: 0 -16px; padding: 8px 16px; background: linear-gradient(90deg, color-mix(in oklab, var(--tc) 18%, var(--surface)), var(--surface));
+  border-bottom: 1px dotted var(--border); box-shadow: inset 0 3px 0 var(--tc); }
+:root[data-skin="alt"] body.blink .cx-tile-dot { border-radius: 2px; transform: rotate(45deg); }
+:root[data-skin="alt"] body.blink .cx-tile:hover { box-shadow: 0 0 0 1px var(--tc), 0 0 18px -6px var(--tc); }
+:root[data-skin="alt"] body.blink .cx-fill > .cx-card-title:first-child, :root[data-skin="alt"] body.blink .bk-cardhead:first-child,
+:root[data-skin="alt"] body.blink .bk-stripcard > .cx-card-title, :root[data-skin="alt"] body.blink .bk-modelcard > .cx-card-title:first-child {
+  margin: -14px -16px 8px; padding: 7px 16px; background: var(--nr-head); border-bottom: 1px dotted var(--border); border-radius: 6px 6px 0 0; }
+:root[data-skin="alt"] body.blink .cx-kpi { border-left: 1px dotted var(--border); }
+:root[data-skin="alt"] body.blink .cx-kpi:first-child, :root[data-skin="alt"] body.blink .cx-kpi { box-shadow: inset 3px 0 0 color-mix(in oklab, var(--tc) 70%, transparent); border-left: 0; }
+:root[data-skin="alt"] body.blink .cx-tile-links a, :root[data-skin="alt"] body.blink .seg, :root[data-skin="alt"] body.blink .seg button { border-radius: 3px; }
+:root[data-skin="alt"] body.blink .seg button[aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--nr-neon), 0 0 0 1px var(--border); }
+:root[data-skin="alt"] body.blink .cx-subtabs, :root[data-skin="alt"] body.blink .cx-subtabs a { border-radius: 3px; }
+:root[data-skin="alt"] body.blink .cx-drawer { border-top: 3px solid transparent; border-image: var(--nr-sun) 1; border-left: 1px dotted var(--border); }
+:root[data-skin="alt"] body.blink .cx-dstats > div { border-radius: 4px; border-left: 3px solid var(--tc); }
+:root[data-skin="alt"] body.blink .bk-chip { border-radius: 3px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.04em; }
+:root[data-skin="alt"] body.blink .bk-replay, :root[data-skin="alt"] body.blink .bk-play { border-radius: 4px; }
+:root[data-skin="alt"] body.blink .bk-mapcard { border: 1px dotted var(--nr-neon); }
+:root[data-skin="alt"] body.blink .chart .grid line { stroke-dasharray: 2 3; }
+:root[data-skin="alt"] body.blink .cx-fillbar, :root[data-skin="alt"] body.blink .cx-fillbar i { border-radius: 2px; }
+/* the overview gets a faint perspective road grid under the tiles */
+:root[data-skin="alt"] body.blink .cx-view[data-view="overview"] { background:
+  linear-gradient(transparent 62%, color-mix(in oklab, var(--nr-neon) 7%, transparent) 100%),
+  repeating-linear-gradient(90deg, transparent 0 79px, color-mix(in oklab, var(--nr-neon) 7%, transparent) 79px 80px); }
+:root[data-skin="alt"] body.blink .cx-view[data-view="overview"] .cx-title h1 { background: var(--nr-sun); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* phones: keep the top-bar title readable next to the skin button */
+@media (max-width: 560px) {
+  :root[data-skin="alt"] body.blink .topbar .title { font-size: 13px; letter-spacing: 0.03em; }
+  :root[data-skin="alt"] body.blink .skin-btn { font-size: 10px; letter-spacing: 0.04em; padding-inline: 8px; }
+  :root[data-skin="alt"] .nr-strip { gap: 14px; }
+  :root[data-skin="alt"] body.blink .topbar .crumb { font-size: 0; }
+  :root[data-skin="alt"] body.blink .topbar .crumb::before { content: "← All"; font-size: 12px; }
+}
+
+/* ---------- Open Places look (the default design, no data-skin="alt"; shared chrome in ../shared/theme.css).
+   Nothing below touches this page's themed skin. */
+/* solid hairlines between list rows; honesty chips and ghost buttons are solid, as in Open Places */
+:root:not([data-skin="alt"]) :is(.bk-vlist a, .bk-frow, .bk-gaps li, .tr-rlist a, .tr-mode, .tr-alist li > a, .tr-alist.mini li, .tr-rcell) { border-bottom-style: solid; border-bottom-color: var(--grid); }
+:root:not([data-skin="alt"]) :is(.bk-dirline, .tr-row, .tr-schrow) { border-top-style: solid; border-top-color: var(--grid); }
+:root:not([data-skin="alt"]) :is(.bk-chip, .tr-btn.ghost) { border-style: solid; }

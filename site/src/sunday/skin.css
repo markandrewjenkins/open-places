@@ -1,0 +1,221 @@
+/* "Road Atlas" design skin for Sunday Wander (data-skin="alt"; Classic is the page without it).
+   A printed nature atlas, kept quiet on purpose: paper-tone land, vegetation in soft greens, sea and lakes in clear blues,
+   Source Serif 4 titles, letter-spaced map-label capitals in Source Sans 3, square corners and hairline rules.
+   Two accents: forest green (primary actions, pressed controls) and sea blue (links, focus). The planned route is deep
+   navy with a white casing by day (light sky blue with a dark casing at night) so it stands clear of both parks and water.
+   Road tiers run red, orange, heather plum, slate: S–C are ≥ 3:1 against the land and the park green in both editions.
+   The basemap tint lives in skin.js. Tokens:
+     --q-display  headings          --q-head-w   heading weight      --q-num      figures (tabular)
+     --q-label    small labels      --q-label-case / -track / -size / -w / -ink   their case, tracking, size, weight, colour
+     --q-ctl-r    control radius    --q-seg-r / --q-seg-in   segmented control radius (outer / inner)
+     --q-on / --q-on-ink            pressed segment, toggle and armed button
+     --q-btn / --q-btn-ink          primary button      --q-frame   map frame      --q-focus   focus ring
+     --q-dot      the Design button dot */
+
+/* ================================================================== tokens: day edition */
+:root[data-skin="alt"] body.sunday {
+  --page: #f3efe4; --surface: #faf7ef; --surface-2: #ece8da;
+  --ink: #26281f; --ink-2: #51544a; --muted: #727464;
+  --grid: #e1ddcc; --axis: #b0ad96; --border: rgba(50, 55, 35, 0.17);
+  --accent: #2f6b45; --accent-2: #1f6a96; --route: #173a5e;
+  --tier-S: #b0241c; --tier-A: #b85a0a; --tier-B: #7a3f8e; --tier-C: #646e74; --tier-D: #b9b4a2;
+  --radius: 0px;
+  --font: "Source Sans 3", "Source Sans Pro", "Segoe UI", sans-serif;
+  --mono: "Source Sans 3", "Source Sans Pro", sans-serif;
+  --q-display: "Source Serif 4", Georgia, serif; --q-head-w: 600; --q-num: var(--font); --q-title-track: -0.015em;
+  --q-label: var(--font); --q-label-w: 600; --q-label-size: 11px; --q-label-track: 0.16em; --q-label-case: uppercase; --q-label-ink: var(--muted);
+  --q-ctl-r: 1px; --q-seg-r: 1px; --q-seg-in: 0px; --q-badge-r: 0px;
+  --q-on: #2f6b45; --q-on-ink: #ffffff; --q-btn: #2f6b45; --q-btn-ink: #ffffff;
+  --q-frame: rgba(38, 40, 31, 0.5); --q-focus: #1f6a96;
+  --q-dot: linear-gradient(135deg, #4f8a5b 0 50%, #2f7fb0 50%);
+}
+/* ================================================================== tokens: night edition */
+@media (prefers-color-scheme: dark) {
+  :root[data-skin="alt"]:not([data-theme="light"]) body.sunday {
+    --page: #1a1e1c; --surface: #212624; --surface-2: #29302c;
+    --ink: #e9ebe0; --ink-2: #c1c6b8; --muted: #949a8c;
+    --grid: #303733; --axis: #56605a; --border: rgba(233, 235, 224, 0.13);
+    --accent: #82c99d; --accent-2: #7cc4ff; --route: #8fd3ff;
+    --tier-S: #ff6b5e; --tier-A: #ffa04a; --tier-B: #d6a2ec; --tier-C: #98a2a8; --tier-D: #4a524d;
+    --q-on: #82c99d; --q-on-ink: #1a1e1c; --q-btn: #82c99d; --q-btn-ink: #1a1e1c;
+    --q-frame: rgba(233, 235, 224, 0.38); --q-focus: #7cc4ff;
+  }
+}
+:root[data-skin="alt"][data-theme="dark"] body.sunday {
+  --page: #1a1e1c; --surface: #212624; --surface-2: #29302c;
+  --ink: #e9ebe0; --ink-2: #c1c6b8; --muted: #949a8c;
+  --grid: #303733; --axis: #56605a; --border: rgba(233, 235, 224, 0.13);
+  --accent: #82c99d; --accent-2: #7cc4ff; --route: #8fd3ff;
+  --tier-S: #ff6b5e; --tier-A: #ffa04a; --tier-B: #d6a2ec; --tier-C: #98a2a8; --tier-D: #4a524d;
+  --q-on: #82c99d; --q-on-ink: #1a1e1c; --q-btn: #82c99d; --q-btn-ink: #1a1e1c;
+  --q-frame: rgba(233, 235, 224, 0.38); --q-focus: #7cc4ff;
+}
+
+
+/* ================================================================== base */
+:root[data-skin="alt"] body.sunday {
+  --shadow: none;
+  font: 15px/1.55 var(--font);
+  font-feature-settings: normal;
+  background: var(--page);
+}
+:root[data-skin="alt"] body.sunday :is(h1, h2, h3, h4) {
+  font-family: var(--q-display); font-weight: var(--q-head-w);
+}
+:root[data-skin="alt"] body.sunday :focus-visible {
+  outline: 2px solid var(--q-focus); outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- top bar */
+:root[data-skin="alt"] body.sunday .topbar {
+  background: color-mix(in oklab, var(--page) 94%, transparent); border-bottom: 1px solid var(--border);
+}
+:root[data-skin="alt"] body.sunday .topbar .title {
+  font: var(--q-head-w) 15px/1.2 var(--q-display); letter-spacing: -0.01em;
+}
+:root[data-skin="alt"] body.sunday :is(.skin-btn, .icon-btn) {
+  border-radius: var(--q-ctl-r); background: var(--surface); border: 1px solid var(--border);
+}
+:root[data-skin="alt"] body.sunday .skin-btn { font: 500 12.5px/1 var(--font); color: var(--ink-2); }
+:root[data-skin="alt"] body.sunday .skin-btn .skin-dot { background: var(--q-dot); }
+
+/* ---------------------------------------------------------------- small labels */
+:root[data-skin="alt"] body.sunday :is(.eyebrow, .side-title, .stat .label, .sunday-wx .label, .pl-sub, .w-mode, .pl-stats span) {
+  font-family: var(--q-label); font-weight: var(--q-label-w); font-size: var(--q-label-size); line-height: 1.3;
+  letter-spacing: var(--q-label-track); text-transform: var(--q-label-case); color: var(--q-label-ink);
+}
+:root[data-skin="alt"] body.sunday .pl-stats span { font-size: 10.5px; color: var(--muted); }
+
+/* ---------------------------------------------------------------- hero + section heads */
+:root[data-skin="alt"] body.sunday .hero { background: none; padding: 44px 0 4px; }
+:root[data-skin="alt"] body.sunday .hero-title {
+  font: var(--q-head-w) clamp(32px, 4.4vw, 52px)/1.06 var(--q-display); letter-spacing: var(--q-title-track, -0.025em); max-width: 20ch; margin: 10px 0 14px;
+}
+:root[data-skin="alt"] body.sunday .lede { font-size: 16px; max-width: 64ch; }
+:root[data-skin="alt"] body.sunday section.block { padding-top: 52px; }
+:root[data-skin="alt"] body.sunday .section-head h2 {
+  font: var(--q-head-w) clamp(22px, 2.4vw, 28px)/1.15 var(--q-display); letter-spacing: var(--q-title-track, -0.02em); margin-top: 6px;
+}
+
+/* ---------------------------------------------------------------- cards + controls */
+:root[data-skin="alt"] body.sunday .card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: none;
+}
+:root[data-skin="alt"] body.sunday .seg {
+  background: var(--surface); border: 1px solid var(--q-seg-border, var(--border)); border-radius: var(--q-seg-r); padding: 2px; gap: 2px;
+}
+:root[data-skin="alt"] body.sunday .seg button {
+  border-radius: var(--q-seg-in); font: 500 13px/1.2 var(--font); color: var(--ink-2);
+}
+:root[data-skin="alt"] body.sunday .seg button:hover { color: var(--ink); }
+:root[data-skin="alt"] body.sunday .seg button[aria-pressed="true"] {
+  background: var(--q-on); color: var(--q-on-ink); box-shadow: none;
+}
+:root[data-skin="alt"] body.sunday .chip {
+  border-radius: var(--q-ctl-r); background: var(--surface); border: 1px solid var(--border); color: var(--ink-2); font: 500 12.5px/1.2 var(--font);
+}
+:root[data-skin="alt"] body.sunday .chip[aria-pressed="true"] { color: var(--ink); border-color: var(--axis); }
+:root[data-skin="alt"] body.sunday .chip[aria-pressed="false"] { opacity: 0.5; }
+:root[data-skin="alt"] body.sunday input[type="range"] { accent-color: var(--q-btn); }
+
+/* ---------------------------------------------------------------- weather + stats */
+:root[data-skin="alt"] body.sunday .wx-body { color: var(--ink); }
+:root[data-skin="alt"] body.sunday .wx-day { font-weight: 600; }
+:root[data-skin="alt"] body.sunday .wx-temp {
+  font: 500 46px/1 var(--q-num); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; margin: 4px 0 2px;
+}
+:root[data-skin="alt"] body.sunday .wx-line { font: 400 12px/1.5 var(--q-num); color: var(--ink-2); }
+:root[data-skin="alt"] body.sunday .wx-verdict {
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); font-weight: 600; color: var(--ink);
+}
+:root[data-skin="alt"] body.sunday .stat .value {
+  font: 500 27px/1.15 var(--q-num); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; margin-top: 8px;
+}
+:root[data-skin="alt"] body.sunday .stat:nth-child(3) .value {
+  font: var(--q-head-w) 19px/1.25 var(--q-display); letter-spacing: -0.01em;
+}
+:root[data-skin="alt"] body.sunday .stat .sub { color: var(--muted); }
+
+/* ---------------------------------------------------------------- map + planner */
+:root[data-skin="alt"] body.sunday .map-shell { border-color: var(--q-frame); }
+:root[data-skin="alt"] body.sunday .map-side { border-left-color: var(--border); }
+:root[data-skin="alt"] body.sunday .side-title { margin-bottom: 8px; }
+:root[data-skin="alt"] body.sunday .tier-legend i { height: 3px; border-radius: 0; }
+:root[data-skin="alt"] body.sunday .tier-legend .tl-row { font-size: 12.5px; }
+:root[data-skin="alt"] body.sunday .pl-title { font: var(--q-head-w) 17px/1.2 var(--q-display); }
+:root[data-skin="alt"] body.sunday :is(.pl-btn, .pl-arm, .planner select) {
+  border-radius: var(--q-ctl-r); background: var(--surface); border: 1px solid var(--q-ctl-border, var(--border)); color: var(--ink); font-family: var(--font);
+}
+:root[data-skin="alt"] body.sunday :is(.pl-btn, .pl-arm):hover { border-color: var(--ink-2); }
+:root[data-skin="alt"] body.sunday .pl-btn.primary { background: var(--q-btn); border-color: var(--q-btn); color: var(--q-btn-ink); font-weight: 600; }
+:root[data-skin="alt"] body.sunday .pl-arm[aria-pressed="true"] { background: var(--q-on); color: var(--q-on-ink); border-color: var(--q-on); }
+:root[data-skin="alt"] body.sunday .pl-preset {
+  border-radius: var(--q-ctl-r); background: var(--surface); border: 1px solid var(--border);
+}
+:root[data-skin="alt"] body.sunday .pl-preset:hover { border-color: var(--ink-2); }
+:root[data-skin="alt"] body.sunday .pl-preset.on { outline: 0; border-color: var(--route); box-shadow: inset 3px 0 0 var(--route); }
+:root[data-skin="alt"] body.sunday .pl-stats div { border-radius: var(--q-ctl-r); background: var(--surface-2); }
+:root[data-skin="alt"] body.sunday .pl-stats b { font: 500 17px/1.2 var(--q-num); letter-spacing: -0.02em; }
+:root[data-skin="alt"] body.sunday :is(.pl-pmeta, .pl-line b, .pl-stops i, .rc-meta, .rt-score, .rt-stats, .w-row b, #generated, .tooltip .t-row b) {
+  font-family: var(--q-num); font-variant-numeric: tabular-nums;
+}
+:root[data-skin="alt"] body.sunday .pl-line { border-bottom-style: solid; }
+:root[data-skin="alt"] body.sunday .pl-pin { font-family: var(--font); }
+:root[data-skin="alt"] body.sunday .pl-pin.start { background: var(--ink); color: var(--page); }
+:root[data-skin="alt"] body.sunday .maplibregl-ctrl-group { border-radius: var(--q-ctl-r); box-shadow: 0 0 0 1px var(--border); }
+
+/* ---------------------------------------------------------------- tiers: outlined badges, a tier-coloured edge on the tier list */
+:root[data-skin="alt"] body.sunday .tier-S { --tc: var(--tier-S); }
+:root[data-skin="alt"] body.sunday .tier-A { --tc: var(--tier-A); }
+:root[data-skin="alt"] body.sunday .tier-B { --tc: var(--tier-B); }
+:root[data-skin="alt"] body.sunday .tier-C { --tc: var(--tier-C); }
+:root[data-skin="alt"] body.sunday .tier-D { --tc: var(--tier-D); }
+:root[data-skin="alt"] body.sunday .pl-tier {
+  background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--tc); border-radius: var(--q-badge-r, 2px);
+  font: 600 10.5px/1.4 var(--q-num); padding: 0 6px;
+}
+:root[data-skin="alt"] body.sunday .tier-row { border-bottom-color: var(--border); }
+:root[data-skin="alt"] body.sunday .tier-label {
+  background: var(--surface-2); color: var(--ink); border-right: 1px solid var(--border); box-shadow: inset 3px 0 0 var(--tc);
+}
+:root[data-skin="alt"] body.sunday .tier-label b { font: var(--q-head-w) 30px/1 var(--q-display); color: var(--ink); }
+:root[data-skin="alt"] body.sunday .tier-label span { font-weight: 500; color: var(--ink-2); }
+:root[data-skin="alt"] body.sunday .road-card {
+  border-radius: var(--q-ctl-r); background: var(--surface); border: 1px solid var(--border); box-shadow: none;
+}
+:root[data-skin="alt"] body.sunday .road-card:hover { border-color: var(--ink-2); box-shadow: none; }
+:root[data-skin="alt"] body.sunday .rc-name { font-weight: 600; }
+:root[data-skin="alt"] body.sunday .rc-feat { filter: var(--q-emoji, none); }
+
+/* ---------------------------------------------------------------- routes, weights, prose */
+:root[data-skin="alt"] body.sunday .routes-mode {
+  font: var(--q-head-w) 17px/1.2 var(--q-display); padding-bottom: 8px; border-bottom: 1px solid var(--border); margin: 24px 0 12px;
+}
+:root[data-skin="alt"] body.sunday .route-card h4 { font: var(--q-head-w) 16.5px/1.25 var(--q-display); }
+:root[data-skin="alt"] body.sunday .rt-top .pl-tier { padding: 1px 7px; }
+:root[data-skin="alt"] body.sunday .rt-stats { font-size: 12px; }
+:root[data-skin="alt"] body.sunday .w-row { font-size: 13.5px; }
+:root[data-skin="alt"] body.sunday .w-row b { font-weight: 500; }
+:root[data-skin="alt"] body.sunday .prose h3 { font: var(--q-head-w) 17px/1.2 var(--q-display); }
+:root[data-skin="alt"] body.sunday .prose li::marker { color: var(--muted); }
+:root[data-skin="alt"] body.sunday .tooltip {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--q-ctl-r); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14); font-family: var(--font);
+}
+:root[data-skin="alt"] body.sunday footer.site { margin-top: 40px; padding: 20px 0 48px; border-top: 1px solid var(--border); }
+
+/* ================================================================== atlas details */
+/* map-label capitals for the route-group headings; a neatline round the map; sea-blue links; a double rule over the footer */
+:root[data-skin="alt"] body.sunday .routes-mode { font: 600 12px/1.3 var(--font); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-2); }
+:root[data-skin="alt"] body.sunday .map-shell { outline: 1px solid var(--border); outline-offset: 3px; }
+:root[data-skin="alt"] body.sunday .lede { font-size: 16.5px; }
+:root[data-skin="alt"] body.sunday .stat .value { font-weight: 600; }
+:root[data-skin="alt"] body.sunday .wx-temp { font-weight: 600; }
+:root[data-skin="alt"] body.sunday .pl-tier { font-weight: 700; }
+:root[data-skin="alt"] body.sunday .w-mode { color: var(--ink-2); }
+:root[data-skin="alt"] body.sunday .sources a { color: var(--accent-2); }
+:root[data-skin="alt"] body.sunday footer.site { border-top: 3px double var(--axis); }
+
+/* ---------- Open Places look (the default design, no data-skin="alt"; shared chrome in ../shared/theme.css).
+   Nothing below touches this page's themed skin. */
+/* the shared Open Places tokens instead of the Classic warm-paper palette */
+:root:not([data-skin="alt"]) body.sunday { --page: inherit; --surface: inherit; --surface-2: inherit; --ink: inherit; --ink-2: inherit; --muted: inherit; --grid: inherit; --axis: inherit; --border: inherit; --shadow: inherit; }

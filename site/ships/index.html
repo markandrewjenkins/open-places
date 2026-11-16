@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" data-page="ships">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    // Apply saved theme and design skin before first paint (?skin=alt|classic overrides and is remembered).
+    // Inlaid in Open Places (?embed=1&skin=places|alt&theme=light|dark&region=…): the shell's choices win, unsaved, and the top bar hides.
+    (function () { try { var r = document.documentElement, q = new URLSearchParams(location.search), s = q.get("skin"), e = q.get("embed") === "1";
+      var t = q.get("theme") || localStorage.getItem("odp-theme"); if (t === "light" || t === "dark") r.dataset.theme = t;
+      if (e) r.classList.add("embed", "ww-embed");
+      if (s === "alt" || s === "classic" || s === "grey") { if (!e) localStorage.setItem("odp-skin", s); } else s = e ? null : localStorage.getItem("odp-skin");
+      if (s === "alt" || s === "grey") r.dataset.skin = s; } catch (e) {} })();
+  </script>
+  <title>Waterways</title>
+  <meta name="description" content="Ships, ferries, tugs and river traffic around Greater Victoria, Vancouver and the Fraser River, and Seattle: what's moving, when the water is busiest, tides and river levels, and Coast Guard notices, from open AIS, tide and river data." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Cpath d=%22M8 1.5C11 4 12 7 12 9.5V13.5Q12 14.5 11 14.5H5Q4 14.5 4 13.5V9.5C4 7 5 4 8 1.5Z%22 fill=%22%232a63d6%22/%3E%3Crect x=%226%22 y=%227%22 width=%224%22 height=%224%22 rx=%221%22 fill=%22%23fff%22/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/shared/theme.css" />
+  <link rel="stylesheet" href="../src/shared/console.css" />
+  <link rel="stylesheet" href="../src/ships/ships.css" />
+  <link rel="stylesheet" href="../src/ships/skin.css" />
+</head>
+<body class="ships cx-body">
+  <header class="topbar">
+    <a class="crumb" href="../">← Open Places</a>
+    <span class="title">Waterways</span>
+    <div class="seg ww-region" id="ww-region" role="group" aria-label="Waters"></div>
+    <span class="spacer"></span>
+    <button class="skin-btn" id="skin" type="button" data-skin-name="Chart Room"></button>
+    <button class="icon-btn" id="theme" type="button"></button>
+  </header>
+
+  <!-- the console (left rail, overview tiles, topic views, detail drawer) is built by src/shared/console.js from the
+       topic modules in src/ships/ (water.js, busy.js, river.js, notices.js) -->
+  <div id="app" class="cx-app"></div>
+  <script type="module" src="../src/ships/main.js"></script>
+</body>
+</html>

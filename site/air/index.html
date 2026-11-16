@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" data-page="air">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    // Apply saved theme and design skin before first paint. ?skin=alt|classic overrides and is remembered.
+    // Inlaid in Open Places (?embed=1&skin=places&theme=light|dark): the shell's theme wins and the top bar hides.
+    (function () { try { var r = document.documentElement, q = new URLSearchParams(location.search), s = q.get("skin");
+      var t = q.get("theme") || localStorage.getItem("odp-theme"); if (t === "light" || t === "dark") r.dataset.theme = t;
+      if (q.get("embed") === "1") r.classList.add("embed");
+      if (s === "alt" || s === "classic" || s === "grey") { if (q.get("embed") !== "1") localStorage.setItem("odp-skin", s); } else s = q.get("embed") === "1" ? null : localStorage.getItem("odp-skin");
+      if (s === "alt" || s === "grey") r.dataset.skin = s; } catch (e) {} })();
+  </script>
+  <title>Air Traffic</title>
+  <meta name="description" content="What's flying over Greater Victoria right now: live aircraft from volunteer ADS-B receivers, arrivals and departures at Victoria International and the harbour, runways, flying weather and the sky's busy hours." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/shared/theme.css" />
+  <link rel="stylesheet" href="../src/shared/console.css" />
+  <link rel="stylesheet" href="../src/air/air.css" />
+  <link rel="stylesheet" href="../src/air/skin.css" />
+</head>
+<body class="air cx-body">
+  <header class="topbar">
+    <a class="crumb" href="../">← Open Places</a>
+    <span class="title">Air Traffic</span>
+    <label class="ov-place"><span class="sr-only">Place</span><select id="place" aria-label="Place to watch"></select></label>
+    <span class="spacer"></span>
+    <button class="skin-btn" id="skin" type="button" data-skin-name="Flight Strip"></button>
+    <button class="icon-btn" id="theme" type="button"></button>
+  </header>
+
+  <!-- the console (left rail, overview tiles, topic views, detail drawer) is built by src/shared/console.js from the
+       topic modules in src/air/ (now.js, airports.js, weather.js, busy.js) -->
+  <div id="app" class="cx-app"></div>
+  <script type="module" src="../src/air/main.js"></script>
+</body>
+</html>

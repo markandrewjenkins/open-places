@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>(function () { try { var r = document.documentElement, t = localStorage.getItem("odp-theme"); if (t) r.dataset.theme = t; if (/[?&]embed=1/.test(location.search)) r.classList.add("embed"); } catch (e) {} })();</script>
+  <title>Salish Sea Live · console mockup</title>
+  <meta name="description" content="Review mockup: Salish Sea Live as an inverted-pyramid, one-screen console." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%226%22 fill=%22%230f8a7a%22/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/shared/theme.css" />
+  <link rel="stylesheet" href="./mockups.css" />
+  <style>
+    /* Salish Sea Live classic tokens: shared light theme + src/salish/salish.css accents */
+    .mk-screen { --page: #f6f5f2; --surface: #fcfcfb; --surface-2: #f1f0ec; --ink: #111110; --ink-2: #52514e; --muted: #858379; --grid: #e5e4de; --axis: #c3c2b7;
+      --border: rgba(17, 17, 16, 0.10); --shadow: 0 1px 2px rgba(17, 17, 16, 0.05), 0 8px 24px rgba(17, 17, 16, 0.06);
+      --accent: #0f8a7a; --accent-2: #2a78d6; --sea: #0f8a7a; --orca: #111111; --orca-2: #5d6b75;
+      --ship-1: #2a78d6; --ship-2: #eb6834; --ship-3: #1baf7a; --ship-4: #eda100;
+      --tier-S: #0f8a7a; --tier-A: #7cc8bb; --tier-B: #cfe7e3; --tier-C: #e7ecee; --tier-D: #f3f4f5; --ok: #1b9e5a; --warn: #c98500; --bad: #d1402a; }
+    .mk-screen [data-c="listen"] { --c: #0f8a7a; } .mk-screen [data-c="whales"] { --c: #111111; } .mk-screen [data-c="ships"] { --c: #2a78d6; }
+    .mk-screen [data-c="calls"] { --c: #0b6f62; } .mk-screen [data-c="outlook"] { --c: #c98500; }
+    .tier { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: 11.5px; font-weight: 700; flex: none; }
+    .tier.S { background: var(--tier-S); color: #fff; } .tier.A { background: var(--tier-A); color: #06312b; } .tier.B { background: var(--tier-B); color: #0b3a44; }
+    .tier.C { background: var(--tier-C); color: #3b4a50; } .tier.D { background: var(--tier-D); color: #6b767c; box-shadow: inset 0 0 0 1px var(--border); }
+    .live { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ok) 22%, transparent); margin-right: 6px; vertical-align: 0.05em; }
+    .phones { --cols: 1fr 92px 34px 40px; } .phones .sp { height: 16px; position: relative; } .phones .sp > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .rep { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 8px; }
+    .rep .meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11.5px; } .rep .meta span { padding: 1px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); }
+    /* tier board */
+    .board { display: flex; flex-direction: column; gap: 7px; min-height: 0; flex: 1; }
+    .trow { flex: 1 1 0; max-height: 92px; display: grid; grid-template-columns: 34px 50px minmax(0, 1fr); gap: 8px; align-items: center; padding: 6px 8px; border-radius: 10px; background: var(--surface-2); min-height: 0; }
+    .trow .tier { width: 32px; height: 32px; font-size: 16px; border-radius: 9px; }
+    .trow .n { font-size: 12px; color: var(--ink-2); line-height: 1.25; } .trow .n b { display: block; font-size: 18px; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .trow .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); grid-template-rows: auto; grid-auto-rows: 0; row-gap: 0; column-gap: 6px; overflow: hidden; }
+    .trow .n em { display: block; font-style: normal; font-size: 10.5px; color: var(--muted); }
+    .ic { min-width: 0; padding: 5px 8px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px; color: var(--ink-2); line-height: 1.3; }
+    .ic b { display: flex; justify-content: space-between; gap: 4px; color: var(--ink); font-size: 11.5px; white-space: nowrap; } .ic b span { overflow: hidden; text-overflow: ellipsis; } .ic b em { font-style: normal; color: var(--sea); font-variant-numeric: tabular-nums; }
+    .ic.on { border-color: var(--sea); box-shadow: 0 0 0 2px color-mix(in oklab, var(--sea) 30%, transparent); }
+    .ic.more { width: auto; display: grid; place-items: center; color: var(--muted); background: transparent; border-style: dashed; }
+    .bodycalls { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+    .bodycalls .big { grid-row: span 2; }
+    .parts { display: flex; flex-direction: column; gap: 7px; }
+    .part { display: grid; grid-template-columns: 92px minmax(0, 1fr) 46px; gap: 8px; align-items: center; font-size: 11.5px; }
+    .part .bar { height: 9px; border-radius: 5px; background: var(--surface-2); position: relative; overflow: hidden; }
+    .part .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--sea); }
+    .part b { text-align: right; font-variant-numeric: tabular-nums; } .part small { grid-column: 2 / 4; margin-top: -5px; color: var(--muted); font-size: 10.5px; }
+  </style>
+</head>
+<body class="mk-page">
+  <header class="topbar">
+    <a class="crumb" href="./">← Console mockups</a>
+    <span class="title"><b>Salish Sea Live</b> · console mockup</span>
+    <span class="spacer"></span>
+  </header>
+  <main class="mk-wrap">
+    <div class="mk-intro">
+      <div>
+        <div class="eyebrow">Mockup · review only</div>
+        <h1>Salish Sea Live as a console</h1>
+        <p>The Overview answers "can I hear whales right now, what was heard last, how busy is the water, and how much should I trust it". Calls drills into the tier list; one call opens its score breakdown in the drawer. Numbers are from the Nov 12, 2026 build.</p>
+      </div>
+      <div class="mk-toggle" role="group" aria-label="Mockup state">
+        <button type="button" data-go="overview"><span class="lvl">1</span>Overview</button>
+        <button type="button" data-go="calls"><span class="lvl">2</span>Calls</button>
+        <button type="button" data-go="call"><span class="lvl">3</span>One call</button>
+      </div>
+    </div>
+
+    <div class="mk-stage"><div class="mk-screen">
+      <div class="mk-top"><span class="crumb">← Open Places</span><span class="ttl">Salish Sea Live</span><span class="sp"></span><span style="font-size:12px;color:var(--ink-2)"><span class="live"></span>6 hydrophones streaming</span><span class="pill">Classic</span><span class="ib">☾</span></div>
+      <div class="mk-app">
+        <nav class="mk-rail">
+          <div class="g leaf" data-t="overview" data-go="overview" data-c="listen"><i style="border-radius:2px;background:conic-gradient(#0f8a7a 0 33%,#2a78d6 0 66%,#111 0)"></i><span>Overview</span></div>
+          <div class="g" data-t="listen" data-c="listen"><i></i><span>Listen</span><em>6 live</em></div>
+          <ul data-c="listen"><li>Hydrophones</li><li>Recent reports</li></ul>
+          <div class="g" data-t="whales" data-c="whales"><i></i><span>Whales</span><em>180 / 7 d</em></div>
+          <ul data-c="whales"><li>Sightings map</li><li>Species</li><li>Seasons</li></ul>
+          <div class="g" data-t="ships" data-c="ships"><i></i><span>Ships</span><em>1,733</em></div>
+          <ul data-c="ships"><li>Traffic map</li><li>By category</li><li>Ships vs whales</li></ul>
+          <div class="g" data-t="calls" data-go="calls" data-c="calls"><i></i><span>Calls</span><em>9 S</em></div>
+          <ul data-c="calls"><li data-s="calls/tiers" data-go="calls">Tier list</li><li>How scoring works</li><li>AI triage</li></ul>
+          <div class="g" data-t="outlook" data-c="outlook"><i></i><span>Outlook</span><em>Nov 16</em></div>
+          <ul data-c="outlook"><li>This week</li><li>Hour of day</li><li>Track record</li></ul>
+          <div class="sep"></div>
+          <div class="g" data-t="method" style="--c:#858379"><i style="background:transparent;box-shadow:inset 0 0 0 2px #858379"></i><span>Method &amp; sources</span></div>
+          <div class="foot" id="fresh"></div>
+        </nav>
+
+        <div class="mk-main">
+          <!-- ===================== level 1: overview -->
+          <section class="mk-view" id="v-overview">
+            <div class="mk-head">
+              <div><div class="eb" style="color:var(--ink-2)">Thu Nov 12 · Salish Sea</div><h2>Overview</h2></div>
+              <p>Four answers on one screen. Pick a tile, or a topic on the left, to go a level deeper.</p>
+            </div>
+            <div class="mk-tiles">
+              <article class="mk-tile" data-c="listen">
+                <div class="th"><i></i>Listen live<small>reports per day, 30 d · chance this week</small><span class="go">→</span></div>
+                <div class="mk-tk" id="ov-ls-k"></div>
+                <div class="mk-rows phones" id="ov-ls" style="flex:1"></div>
+                <div class="links"><span>Hydrophones</span><span>Recent reports</span></div>
+              </article>
+              <article class="mk-tile" data-c="whales">
+                <div class="th"><i></i>Latest whale report<span class="go">→</span></div>
+                <div class="mk-tk" id="ov-wh-k"></div>
+                <div class="vis rep"><div class="meta" id="ov-wh-m"></div><div class="vis" id="ov-wh"></div></div>
+                <div class="links"><span>Sightings map</span><span>Species</span><span>Seasons</span></div>
+              </article>
+              <article class="mk-tile" data-c="ships">
+                <div class="th"><i></i>Ships<small id="ov-sh-d"></small><span class="go">→</span></div>
+                <div class="mk-tk" id="ov-sh-k"></div>
+                <div class="vis" id="ov-sh"></div>
+                <div class="links"><span>Traffic map</span><span>By category</span><span>Ships vs whales</span></div>
+              </article>
+              <article class="mk-tile" data-c="calls" data-go="calls">
+                <div class="th"><i></i>Call tiers<small>last 30 days</small><span class="go">→</span></div>
+                <div class="mk-tk" id="ov-ca-k"></div>
+                <div class="vis" id="ov-ca"></div>
+                <div class="links"><span>Tier list</span><span>How scoring works</span><span>Outlook</span></div>
+              </article>
+            </div>
+          </section>
+
+          <!-- ===================== level 2: calls -->
+          <section class="mk-view" id="v-calls" data-c="calls" hidden>
+            <div class="mk-head">
+              <div><div class="eb">Calls · last 30 days</div><h2>Whale Call Tier List</h2></div>
+              <div class="mk-kpis" id="ca-k"></div>
+            </div>
+            <div class="mk-body bodycalls">
+              <div class="mk-card big"><h3>Tier list</h3><div class="sub">Every AI detection and listener report scored out of 100: verification, AI confidence, species, clarity, corroboration and recency. Pick a call for its breakdown.</div><div class="board" id="ca-board"></div></div>
+              <div class="mk-card"><h3>Scores over time</h3><div class="sub">Each scored call this past week; filled = AI detection, ring = listener report.</div><div class="vis" id="ca-time"></div></div>
+              <div class="mk-card"><h3>Calls by hydrophone</h3><div class="sub">AI detections and listener reports by hydrophone, last 30 days.</div><div class="vis" id="ca-where"></div></div>
+            </div>
+          </section>
+
+          <!-- ===================== level 3: drawer -->
+          <aside class="mk-drawer" data-c="calls" hidden>
+            <header><div><div class="eb">Calls · S tier</div><h3 id="dr-h"></h3></div><span class="x" data-go="calls">✕</span></header>
+            <div class="bd">
+              <div class="mk-stats" id="dr-k"></div>
+              <div><h4>Spectrogram (placeholder for the clip)</h4><div class="vis" id="dr-sp" style="height:78px"></div></div>
+              <div><h4>Why it scored <span id="dr-sc"></span></h4><div class="parts" id="dr-parts"></div></div>
+              <span class="lnk">▶ Listen to the clip on Orcasound →</span>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="mk-notes">
+      <div class="mk-note"><h3>Navigation</h3><ul><li><b>Overview</b>: hydrophone status, latest report, ships, call tiers</li><li><b>Listen</b> → Hydrophones · Recent reports</li><li><b>Whales</b> → Sightings map · Species · Seasons</li><li><b>Ships</b> → Traffic map · By category · Ships vs whales</li><li><b>Calls</b> → Tier list · How scoring works · AI triage</li><li><b>Outlook</b> → This week · Hour of day · Track record</li><li><b>Method &amp; sources</b></li></ul></div>
+      <div class="mk-note"><h3>Drill-down</h3><ul><li>Level 3 items: a hydrophone, a call, a sighting, a vessel class. Each opens in the drawer, e.g. <code>#calls/tiers/bush-point-1103</code>.</li><li>The "live" strip stays in the top bar, so status is visible from every level.</li><li>Ships archive lags (latest day Jun 19); the tile says so in its date stamp rather than calling it "today".</li></ul></div>
+      <div class="mk-note"><h3>Data in this mockup</h3><ul><li><code>salish.json</code>: hydrophones, reports, tiers, outlook, freshness.</li><li><code>ships/index.json</code>: daily AIS vessel counts by category.</li></ul></div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { stage, cols, hbars, lines, spark, spectro, add, canvas, lin, f0 } from "./mockups.js";
+    import { salish as S } from "./mock-data.js";
+    const TZ = "America/Los_Angeles";
+    const when = (t, o = { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) => new Date(t).toLocaleString("en-US", { timeZone: TZ, ...o });
+    const tk = (id, items) => { document.getElementById(id).innerHTML = items.map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join(""); };
+    const kp = (id, items) => { document.getElementById(id).innerHTML = items.map(([l, v, s]) => `<div class="mk-kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join(""); };
+    const pct = (p) => `${Math.round(p * 100)}%`;
+    const VERD = { "Moderator confirmed": "✓ Confirmed", "Not yet reviewed": "Unreviewed", "Listener reports": "Listener report" };
+    const SPEC = { "Southern Resident orca": "SRKW", Humpback: "Humpback", Unknown: "Unknown" };
+    const T = S.tiers, ITEMS = Object.entries(T.items).flatMap(([t, a]) => a.map((x) => ({ ...x, tier: t })));
+    const top = T.items.S[0];
+    const ship = S.ships.at(-1), shipDate = new Date(ship.date + "T12:00").toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
+    const SHIPC = { "Pleasure & sail": "var(--ship-3)", "Passenger & ferry": "var(--ship-1)", "Tug & tow": "var(--ship-4)", Other: "var(--muted)", Cargo: "var(--ship-2)", Fishing: "var(--orca-2)", Tanker: "#b0442a" };
+    document.getElementById("fresh").innerHTML = S.freshness.filter((f) => f.id !== "live").map((f) => `<div><span class="mk-dot" style="background:${f.ok ? "var(--ok)" : "var(--warn)"}"></span>${f.label.replace(/ \(.*\)/, "")}</div>`).join("");
+
+    function overview() {
+      const ph = [...S.phones].sort((a, b) => b.r30 - a.r30);
+      tk("ov-ls-k", [[`${ph.filter((p) => p.heard).length} / ${ph.length}`, "hydrophones heard whales in 30 days"], [f0(ph.reduce((s, p) => s + p.r30, 0)), "reports in 30 days"], [f0(S.nReports), "reports since 2019"]]);
+      const host = document.getElementById("ov-ls");
+      host.innerHTML = ph.map((p, i) => `<div><span><span class="live"></span><b>${p.name.replace("Beach Camp at ", "")}</b></span><span class="sp" id="sp-${i}"></span><b style="text-align:right">${p.r30}</b><span style="text-align:right">${pct(p.p)}</span></div>`).join("");
+      ph.forEach((p, i) => spark(`sp-${i}`, p.daily, "var(--sea)"));
+      const r = S.recent[0];
+      tk("ov-wh-k", [[r.name, when(r.time) + " PT"], [`${Math.round(r.conf)}%`, "AI confidence"], [f0(S.sightings7.n), "sightings in 7 days"]]);
+      document.getElementById("ov-wh-m").innerHTML = `<span>Southern Resident orca</span><span>vessel noise</span><span>${S.recent.length} detections in 10 min</span>`;
+      spectro("ov-wh", 11);
+      document.getElementById("ov-sh-d").textContent = `${shipDate}, latest archive day`;
+      const cats = Object.entries(ship.byCat).sort((a, b) => b[1] - a[1]);
+      tk("ov-sh-k", [[f0(ship.vessels), "vessels in US waters"], [f0(ship.tracks), "tracks"], [f0(ship.byCat["Pleasure & sail"]), "pleasure & sail"]]);
+      hbars("ov-sh", cats.map(([k, v]) => [k, v, SHIPC[k]]), { left: 112, rowMax: 20 });
+      tk("ov-ca-k", [[`${T.counts.S}`, "S-tier calls, worth a listen"], [top.score.toFixed(1), `top score · ${top.name}`], [`${T.rejected}`, "rejected as noise"]]);
+      const tc = ["var(--tier-S)", "var(--tier-A)", "var(--tier-B)", "#cdd5d9", "#e2e6e8"];
+      cols("ov-ca", ["S", "A", "B", "C", "D"].map((t) => T.counts[t]), { color: (i) => tc[i], labels: ["S ≥75", "A ≥60", "B ≥45", "C ≥30", "D"], top: (v) => v, maxw: 54 });
+    }
+    function calls(sel) {
+      kp("ca-k", [["S tier", T.counts.S, "score ≥ 75"], ["A tier", T.counts.A, "60–75"], ["B tier", T.counts.B, "45–60"], ["C + D", T.counts.C + T.counts.D, "below 45"], ["Rejected", T.rejected, "noise"]]);
+      document.getElementById("ca-board").innerHTML = ["S", "A", "B", "C", "D"].map((t) => {
+        const it = T.items[t];
+        return `<div class="trow"><span class="tier ${t}">${t}</span><span class="n"><b>${T.counts[t]}</b>${t === "D" ? "reports" : "calls"}</span><div class="items">${it.slice(0, 3).map((x, i) =>
+          `<div class="ic${sel && t === "S" && i === 0 ? " on" : ""}"${t === "S" && i === 0 ? ' data-go="call"' : ""}><b><span>${x.name.replace("Beach Camp at ", "")}</span><em>${x.score.toFixed(1)}</em></b>${SPEC[x.species] || x.species} · ${when(x.time, { month: "short", day: "numeric" })}<br>${VERD[x.verdict] || x.verdict}</div>`).join("")}</div></div>`;
+      }).join("");
+      // scores over time
+      const { s, w, h } = canvas("ca-time");
+      const t0 = Date.parse("2026-11-03T08:00Z"), t1 = Date.parse("2026-11-12T08:00Z"); // the scored items span the last ~9 days
+      const x = lin(t0, t1, 34, w - 6), y = lin(0, 100, h - 18, 4);
+      [[75, 100, "var(--tier-S)", "S"], [60, 75, "var(--tier-A)", "A"], [45, 60, "var(--tier-B)", "B"], [30, 45, "var(--tier-C)", "C"], [0, 30, "var(--tier-D)", "D"]].forEach(([a, b, c, l]) => {
+        add(s, "rect", { x: 34, y: y(b), width: w - 40, height: y(a) - y(b), fill: c, opacity: 0.28 });
+        add(s, "text", { x: 28, y: (y(a) + y(b)) / 2 + 4, "text-anchor": "end", class: "ax" }, l);
+      });
+      [4, 6, 8, 10].map((d) => [`2026-11-${String(d).padStart(2, "0")}`, `Nov ${d}`]).forEach(([d, l]) => add(s, "text", { x: x(Date.parse(d + "T08:00Z")), y: h - 3, "text-anchor": "middle", class: "ax" }, l));
+      for (const it of ITEMS) add(s, "circle", { cx: x(Date.parse(it.time)), cy: y(it.score), r: it === top && sel ? 6 : 4, fill: it.kind === "ai" ? "var(--sea)" : "var(--surface)", stroke: it === top && sel ? "var(--ink)" : "var(--sea)", "stroke-width": it === top && sel ? 2 : 1.3 });
+      // by hydrophone
+      const ph = [...S.phones].sort((a, b) => b.r30 - a.r30);
+      hbars("ca-where", ph.map((p) => [p.name.replace("Beach Camp at ", ""), p.r30, "var(--sea)"]), { left: 136, rowMax: 22, hl: sel ? ph.findIndex((p) => p.name === top.name) : null });
+    }
+    function call() {
+      calls(true);
+      document.getElementById("dr-h").textContent = `${top.name}, ${when(top.time)}`;
+      document.getElementById("dr-k").innerHTML = [[top.score.toFixed(1), "score out of 100 · S tier"], ["SRKW", "Southern Resident orca"], ["96%", "AI confidence"], ["Confirmed", "by a volunteer moderator"]].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join("");
+      spectro("dr-sp", 23);
+      document.getElementById("dr-sc").textContent = `${top.score.toFixed(1)}`;
+      document.getElementById("dr-parts").innerHTML = top.parts.map(([n, v, m, why]) => `<div class="part"><span>${n}</span><span class="bar"><i style="width:${(v / m) * 100}%;opacity:${v ? 1 : 0}"></i></span><b>${+v.toFixed(1)}/${m}</b><small>${why}</small></div>`).join("");
+    }
+    stage({ overview: { view: "v-overview", rail: ["overview"], render: overview }, calls: { view: "v-calls", rail: ["calls", "tiers"], render: () => calls() },
+      call: { view: "v-calls", rail: ["calls", "tiers"], drawer: true, render: call } }, "overview");
+  </script>
+</body>
+</html>

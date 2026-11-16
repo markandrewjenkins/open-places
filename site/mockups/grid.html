@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>(function () { try { var r = document.documentElement, t = localStorage.getItem("odp-theme"); if (t) r.dataset.theme = t; if (/[?&]embed=1/.test(location.search)) r.classList.add("embed"); } catch (e) {} })();</script>
+  <title>California Duck Curve · console mockup</title>
+  <meta name="description" content="Review mockup: California Duck Curve as an inverted-pyramid, one-screen console." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%226%22 fill=%22%23eb6834%22/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/shared/theme.css" />
+  <link rel="stylesheet" href="./mockups.css" />
+  <style>
+    /* California Duck Curve classic tokens: shared light theme + src/grid/grid.css accents */
+    .mk-screen { --page: #f6f5f2; --surface: #fcfcfb; --surface-2: #f1f0ec; --ink: #111110; --ink-2: #52514e; --muted: #858379; --grid: #e5e4de; --axis: #c3c2b7;
+      --border: rgba(17, 17, 16, 0.10); --shadow: 0 1px 2px rgba(17, 17, 16, 0.05), 0 8px 24px rgba(17, 17, 16, 0.06);
+      --accent: #eb6834; --demand: #2a78d6; --net: #eb6834; --caiso: #858379;
+      --nuclear: #4a3aa7; --wind: #1baf7a; --hydro: #2a78d6; --imports: #e87ba4; --solar: #eda100; --other: #b8b6ae; --gas: #eb6834; }
+    .mk-screen [data-c="tom"] { --c: #2a78d6; } .mk-screen [data-c="acc"] { --c: #858379; } .mk-screen [data-c="duck"] { --c: #eb6834; }
+    .mk-screen [data-c="batt"] { --c: #4a3aa7; } .mk-screen [data-c="mix"] { --c: #1baf7a; }
+    .bodyduck { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+    .bodyduck .big { grid-row: span 2; }
+  </style>
+</head>
+<body class="mk-page">
+  <header class="topbar">
+    <a class="crumb" href="./">← Console mockups</a>
+    <span class="title"><b>California Duck Curve</b> · console mockup</span>
+    <span class="spacer"></span>
+  </header>
+  <main class="mk-wrap">
+    <div class="mk-intro">
+      <div>
+        <div class="eyebrow">Mockup · review only</div>
+        <h1>California Duck Curve as a console</h1>
+        <p>The Overview answers "how hard will tomorrow be, how deep is the belly, where is power coming from, and how far has solar come". Duck curve drills into the spring curves by year; a year opens in the drawer. Numbers are from the forecast for Mon Oct 12, 2026.</p>
+      </div>
+      <div class="mk-toggle" role="group" aria-label="Mockup state">
+        <button type="button" data-go="overview"><span class="lvl">1</span>Overview</button>
+        <button type="button" data-go="duck"><span class="lvl">2</span>Duck curve</button>
+        <button type="button" data-go="year"><span class="lvl">3</span>2026 detail</button>
+      </div>
+    </div>
+
+    <div class="mk-stage"><div class="mk-screen">
+      <div class="mk-top"><span class="crumb">← Open Places</span><span class="ttl">California Duck Curve</span><span class="sp"></span><span class="pill">Classic</span><span class="ib">☾</span></div>
+      <div class="mk-app">
+        <nav class="mk-rail">
+          <div class="g leaf" data-t="overview" data-go="overview" data-c="duck"><i style="border-radius:2px;background:conic-gradient(#2a78d6 0 33%,#eb6834 0 66%,#eda100 0)"></i><span>Overview</span></div>
+          <div class="g" data-t="tom" data-c="tom"><i></i><span>Tomorrow</span><em>26.4 GW</em></div>
+          <ul data-c="tom"><li>Demand</li><li>Net demand</li><li>Greenest hours</li></ul>
+          <div class="g" data-t="acc" data-c="acc"><i></i><span>Accuracy</span><em>±800</em></div>
+          <ul data-c="acc"><li>By hour</li><li>Last 60 days</li><li>vs CAISO</li></ul>
+          <div class="g" data-t="duck" data-go="duck" data-c="duck"><i></i><span>Duck curve</span><em>2020–26</em></div>
+          <ul data-c="duck"><li data-s="duck/years" data-go="duck">By year</li><li>Belly depth</li><li>Record lows</li></ul>
+          <div class="g" data-t="batt" data-c="batt"><i></i><span>Batteries</span><em>9.2 GW</em></div>
+          <ul data-c="batt"><li>By year</li><li>Yesterday</li></ul>
+          <div class="g" data-t="mix" data-c="mix"><i></i><span>Fuel mix</span><em>47.8%</em></div>
+          <ul data-c="mix"><li>Mimic board</li><li>Yesterday by hour</li><li>Renewables share</li></ul>
+          <div class="sep"></div>
+          <div class="g" data-t="method" style="--c:#858379"><i style="background:transparent;box-shadow:inset 0 0 0 2px #858379"></i><span>Method &amp; limits</span></div>
+          <div class="foot">CAISO Today's Outlook · built Oct 12, 2026, 4:29 am UTC</div>
+        </nav>
+
+        <div class="mk-main">
+          <!-- ===================== level 1: overview -->
+          <section class="mk-view" id="v-overview">
+            <div class="mk-head">
+              <div><div class="eb" style="color:var(--ink-2)">Mon Oct 12, 2026 · CAISO</div><h2>Overview</h2></div>
+              <p>Four answers on one screen. Pick a tile, or a topic on the left, to go a level deeper.</p>
+            </div>
+            <div class="mk-tiles">
+              <article class="mk-tile" data-c="tom">
+                <div class="th"><i></i>Tomorrow's peak<small>demand, 80% band</small><span class="go">→</span></div>
+                <div class="mk-tk" id="ov-tm-k"></div>
+                <div class="vis" id="ov-tm"></div>
+                <div class="links"><span>Demand</span><span>Accuracy</span><span>Greenest hours</span></div>
+              </article>
+              <article class="mk-tile" data-c="duck" data-go="duck">
+                <div class="th"><i></i>Belly &amp; ramp<small>net demand tomorrow</small><span class="go">→</span></div>
+                <div class="mk-tk" id="ov-dk-k"></div>
+                <div class="vis" id="ov-dk"></div>
+                <div class="links"><span>Duck curve by year</span><span>Record lows</span></div>
+              </article>
+              <article class="mk-tile" data-c="mix">
+                <div class="th"><i></i>Mimic board<small id="ov-mx-d"></small><span class="go">→</span></div>
+                <div class="mk-tk" id="ov-mx-k"></div>
+                <div class="vis" id="ov-mx"></div>
+                <div class="links"><span>Mimic board</span><span>Yesterday by hour</span><span>Batteries</span></div>
+              </article>
+              <article class="mk-tile" data-c="mix">
+                <div class="th"><i></i>Renewables share<small>of demand, by year</small><span class="go">→</span></div>
+                <div class="mk-tk" id="ov-rn-k"></div>
+                <div class="vis" id="ov-rn"></div>
+                <div class="links"><span>Renewables share</span><span>Fuel mix</span></div>
+              </article>
+            </div>
+          </section>
+
+          <!-- ===================== level 2: duck curve -->
+          <section class="mk-view" id="v-duck" data-c="duck" hidden>
+            <div class="mk-head">
+              <div><div class="eb">Duck curve · by year</div><h2>Duck Curve by Year</h2></div>
+              <div class="mk-kpis" id="dk-k"></div>
+            </div>
+            <div class="mk-body bodyduck">
+              <div class="mk-card big"><h3>Spring net demand by hour</h3><div class="sub">Median net demand (demand − solar − wind) on March–April weekdays, one line per year. Pick a year for its detail.</div><div class="mk-legend" id="dk-leg"></div><div class="vis" id="dk-lines"></div></div>
+              <div class="mk-card"><h3>Belly depth</h3><div class="sub">Lowest hour of each year's spring curve.</div><div class="vis" id="dk-belly"></div></div>
+              <div class="mk-card"><h3>Battery output by hour</h3><div class="sub">Average battery output by hour, Apr–Sep. Below zero = charging.</div><div class="vis" id="dk-batt"></div></div>
+            </div>
+          </section>
+
+          <!-- ===================== level 3: drawer -->
+          <aside class="mk-drawer" data-c="duck" hidden>
+            <header><div><div class="eb">Duck curve · year</div><h3>Spring 2026</h3></div><span class="x" data-go="duck">✕</span></header>
+            <div class="bd">
+              <div class="mk-stats" id="dr-k"></div>
+              <div><h4>2026 against 2020: <span id="dr-gap"></span> deeper at midday</h4><div class="vis" id="dr-vs" style="height:170px"></div></div>
+              <div><h4>Records</h4><div class="mk-rows" id="dr-rec" style="--cols: 1fr auto"></div></div>
+              <span class="lnk">See Jun 20, 2026 on the mimic board →</span>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="mk-notes">
+      <div class="mk-note"><h3>Navigation</h3><ul><li><b>Overview</b>: tomorrow's peak, belly and ramp, mimic-board thumbnail, renewables share</li><li><b>Tomorrow</b> → Demand · Net demand · Greenest hours</li><li><b>Accuracy</b> → By hour · Last 60 days · vs CAISO</li><li><b>Duck curve</b> → By year · Belly depth · Record lows</li><li><b>Batteries</b> → By year · Yesterday</li><li><b>Fuel mix</b> → Mimic board · Yesterday by hour · Renewables share</li><li><b>Method &amp; limits</b></li></ul></div>
+      <div class="mk-note"><h3>Drill-down</h3><ul><li>Level 3 items: an hour, a year, a day or a fuel. Each opens in the drawer, e.g. <code>#duck/years/2026</code>.</li><li>The Mimic Board skin's full-screen board becomes the Fuel mix → Mimic board view; its thumbnail is the Overview tile.</li><li>Accuracy stays one click from every forecast number (rail badge "±800").</li></ul></div>
+      <div class="mk-note"><h3>Data in this mockup</h3><ul><li><code>grid.json</code>: forecast with bands, metrics, duck and battery curves by year, fuel mix, renewables share, records.</li></ul></div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { stage, cols, lines, add, canvas, lin, f0 } from "./mockups.js";
+    import { grid as G } from "./mock-data.js";
+    const tk = (id, items) => { document.getElementById(id).innerHTML = items.map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join(""); };
+    const kp = (id, items) => { document.getElementById(id).innerHTML = items.map(([l, v, s]) => `<div class="mk-kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join(""); };
+    const hr = (h) => `${h % 12 || 12} ${h < 12 ? "am" : "pm"}`;
+    const gw = (v) => `${(v / 1000).toFixed(1)}`.replace("-", "−");
+    const XL = [[0, "12 am"], [6, "6 am"], [12, "noon"], [18, "6 pm"], [23, "11 pm"]];
+    const YEARS = Object.keys(G.duck), YC = ["#f4d2c2", "#efb79c", "#ea9c78", "#e58155", "#d9653a", "#c24f26", "#111110"];
+    const dem = G.demand.map((d) => d[0]), net = G.net.map((d) => d[0]);
+    const peakH = dem.indexOf(Math.max(...dem)), bellyH = net.indexOf(Math.min(...net));
+    const ramp = Math.max(...net.slice(15, 21)) - net[16];
+    const belly = (y) => Math.min(...G.duck[y]), bellyAt = (y) => G.duck[y].indexOf(belly(y));
+    const rl = new Date(G.recordLow.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+    function overview() {
+      tk("ov-tm-k", [[`${f0(dem[peakH])} MW`, `peak demand, ${hr(peakH)}`], [`±${f0(G.metrics.mae)} MW`, "typical miss on test days"], [`${(G.metrics.mape * 100).toFixed(1)}%`, `vs CAISO's own ${(G.metrics.mapeCaiso * 100).toFixed(1)}%`]]);
+      lines("ov-tm", [{ v: dem, color: "var(--demand)", band: [G.demand.map((d) => d[1]), G.demand.map((d) => d[2])], w: 2.2 }], { ymin: 15000, ymax: 30000, ticks: 3, yfmt: (v) => `${v / 1000}k`, xl: XL, marks: [{ i: peakH, v: dem[peakH], label: `${f0(dem[peakH])} MW · ${hr(peakH)}`, color: "var(--demand)", anchor: "end", dx: -6 }] });
+      tk("ov-dk-k", [[`${f0(net[bellyH])} MW`, `net-demand belly, ${hr(bellyH)}`], [`+${gw(ramp)} GW`, "evening ramp, 4–7 pm"], [`${f0(G.recordLow.mw).replace("-", "−")} MW`, `record low, ${rl}`]]);
+      lines("ov-dk", [{ v: dem, color: "var(--demand)", w: 1.4, dash: "4 3", op: 0.7 }, { v: net, color: "var(--net)", band: [G.net.map((d) => d[1]), G.net.map((d) => d[2])], w: 2.4 }], { ymin: 0, ymax: 30000, ticks: 3, yfmt: (v) => `${v / 1000}k`, xl: XL,
+        marks: [{ i: bellyH, v: net[bellyH], label: `belly ${gw(net[bellyH])} GW`, color: "var(--net)", dy: 16 }, { i: 19, v: net[19], label: "neck", color: "var(--net)", dy: 16 }] });
+      mimic("ov-mx");
+      const ren = Object.entries(G.ren);
+      tk("ov-rn-k", [[`${(G.ren[2026] * 100).toFixed(1)}%`, "of demand in 2026 so far"], [`${(G.ren[2020] * 100).toFixed(1)}%`, "in 2020"], ["+3.3 pts", "a year on average"]]);
+      cols("ov-rn", ren.map(([, v]) => v * 100), { color: (i) => (i === ren.length - 1 ? "var(--wind)" : "color-mix(in oklab, var(--wind) 55%, var(--surface))"), labels: ren.map(([y]) => y), top: (v) => `${v.toFixed(0)}%`, max: 60, maxw: 40 });
+    }
+    // schematic mimic board: sources feed a bus, the bus feeds load and battery charging
+    function mimic(id) {
+      const c = G.mixCols, v = (k) => G.mixNoon[c.indexOf(k)] || 0;
+      const src = [["Solar", v("solar"), "var(--solar)"], ["Gas", v("natural_gas"), "var(--gas)"], ["Wind", v("wind"), "var(--wind)"], ["Imports", v("imports"), "var(--imports)"],
+        ["Nuclear", v("nuclear"), "var(--nuclear)"], ["Hydro", v("large_hydro") + v("small_hydro"), "var(--hydro)"], ["Other", v("geothermal") + v("biomass") + v("biogas") + v("coal"), "var(--other)"]];
+      const batt = -v("batteries"), load = src.reduce((s, r) => s + r[1], 0) - batt;
+      document.getElementById("ov-mx-d").textContent = "noon, Sat Oct 10";
+      tk("ov-mx-k", [[`${f0(v("solar"))} MW`, "solar at noon"], [`${f0(batt)} MW`, "into batteries"], [`${f0(load)} MW`, "serving load"]]);
+      const { s, w, h } = canvas(id);
+      add(s, "rect", { x: 0, y: 0, width: w, height: h, rx: 9, fill: "var(--surface-2)" });
+      const busY = h * 0.56, n = src.length, sx = (i) => 26 + (i * (w - 52)) / (n - 1), sw = (mw) => Math.max(1.5, Math.sqrt(mw) / 9);
+      add(s, "line", { x1: 14, x2: w - 14, y1: busY, y2: busY, stroke: "var(--ink)", "stroke-width": 4, "stroke-linecap": "round" });
+      add(s, "text", { x: w - 16, y: busY + 15, "text-anchor": "end", class: "ax" }, "bus");
+      src.forEach(([l, mw, col], i) => {
+        const x = sx(i);
+        add(s, "line", { x1: x, x2: x, y1: 34, y2: busY, stroke: col, "stroke-width": sw(mw) });
+        add(s, "rect", { x: x - 25, y: 4, width: 50, height: 30, rx: 6, fill: "var(--surface)", stroke: col, "stroke-width": 1.5 });
+        add(s, "text", { x, y: 16, "text-anchor": "middle", class: "lb s", "font-size": 10 }, l);
+        add(s, "text", { x, y: 29, "text-anchor": "middle", class: "ax", "font-size": 9.5 }, f0(mw));
+      });
+      [[w * 0.33, "Load", load, "var(--ink)"], [w * 0.7, "Batteries", batt, "var(--nuclear)"]].forEach(([x, l, mw, col]) => {
+        add(s, "line", { x1: x, x2: x, y1: busY, y2: h - 36, stroke: col, "stroke-width": sw(mw) });
+        add(s, "path", { d: `M${x - 5},${h - 44}L${x},${h - 37}L${x + 5},${h - 44}`, fill: "none", stroke: col, "stroke-width": 1.5 });
+        add(s, "rect", { x: x - 52, y: h - 34, width: 104, height: 28, rx: 6, fill: "var(--surface)", stroke: col, "stroke-width": 1.5 });
+        add(s, "text", { x, y: h - 16, "text-anchor": "middle", class: "lb s", "font-size": 11 }, `${l} ${f0(mw)}`);
+      });
+    }
+    function duck(sel) {
+      kp("dk-k", [["Belly 2020", `${gw(belly(2020))} GW`, `at ${hr(bellyAt(2020))}`], ["Belly 2026", `${gw(belly(2026))} GW`, `at ${hr(bellyAt(2026))}`], ["Deeper by", `${gw(belly(2020) - belly(2026))} GW`, "in six springs"], ["Record low", `${gw(G.recordLow.mw)} GW`, rl]]);
+      document.getElementById("dk-leg").innerHTML = YEARS.map((y, i) => `<span style="${sel && y !== "2026" ? "opacity:.5" : ""}"><i style="background:${YC[i]};height:${y === "2026" ? 3 : 2}px"></i>${y}</span>`).join("");
+      const L = lines("dk-lines", YEARS.map((y, i) => ({ v: G.duck[y], color: YC[i], w: y === "2026" ? 3 : 1.8, op: sel && y !== "2026" ? 0.45 : 1 })), { ymin: -5000, ymax: 25000, ticks: 6, yfmt: (v) => `${v / 1000}k`, xl: XL, zero: true,
+        marks: [{ i: bellyAt(2026), v: belly(2026), label: `2026 belly ${gw(belly(2026))} GW`, color: "#111110", dy: 18 }, { i: bellyAt(2020), v: belly(2020), label: `2020 · ${gw(belly(2020))} GW`, color: YC[0], dy: -10 }] });
+      add(L.s, "text", { x: L.x(19), y: L.y(23800), "text-anchor": "middle", class: "lb", "font-size": 11 }, "the neck barely moves");
+      cols("dk-belly", YEARS.map((y) => belly(y)), { color: (i) => YC[i], labels: YEARS.map((y) => `’${y.slice(2)}`), top: (v) => gw(v), axis: true, maxw: 34, min: -4000, max: 12000, hl: sel ? YEARS.length - 1 : null });
+      lines("dk-batt", YEARS.slice(2).map((y, i) => ({ v: G.batteries[y], color: y === "2026" ? "var(--nuclear)" : `color-mix(in oklab, var(--nuclear) ${25 + i * 15}%, var(--surface))`, w: y === "2026" ? 2.6 : 1.5 })),
+        { ymin: -10000, ymax: 10000, ticks: 4, yfmt: (v) => `${v / 1000}k`, xl: XL, zero: true, marks: [{ i: 20, v: G.batteries[2026][20], label: `${gw(G.batteries[2026][20])} GW · 8 pm`, color: "var(--nuclear)", anchor: "end", dx: -6, dy: 2 }] });
+    }
+    function year() {
+      duck(true);
+      const b = G.batteries[2026];
+      document.getElementById("dr-k").innerHTML = [[`${gw(belly(2026))} GW`, `spring belly, ${hr(bellyAt(2026))}`], [`${(G.ren[2026] * 100).toFixed(1)}%`, "renewables share (to date)"], [`${gw(Math.max(...b))} GW`, "battery output, 8 pm"], [`${gw(-Math.min(...b))} GW`, "battery charging, 11 am"]]
+        .map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join("");
+      const L = lines("dr-vs", [{ v: G.duck[2020], color: YC[0], w: 2 }, { v: G.duck[2026], color: "#111110", w: 2.6 }], { ymin: -5000, ymax: 25000, ticks: 3, yfmt: (v) => `${v / 1000}k`, xl: [[0, "12 am"], [12, "noon"], [23, "11 pm"]], zero: true });
+      // shade the gap between the years over the belly
+      const d = G.duck[2020].map((v, i) => [L.x(i), L.y(v)]), e = G.duck[2026].map((v, i) => [L.x(i), L.y(v)]).reverse();
+      add(L.s, "path", { d: `M${d.map((p) => p.join(",")).join("L")}L${e.map((p) => p.join(",")).join("L")}Z`, fill: "var(--accent)", opacity: 0.16 });
+      document.getElementById("dr-gap").textContent = `${gw(belly(2020) - belly(2026))} GW`;
+      add(L.s, "text", { x: L.x(3), y: L.y(G.duck[2020][3]) - 8, "text-anchor": "middle", class: "ax" }, "2020");
+      add(L.s, "text", { x: L.x(12), y: L.y(belly(2026)) + 14, "text-anchor": "middle", class: "lb s", "font-size": 10.5 }, "2026");
+      document.getElementById("dr-rec").innerHTML = [["Lowest net demand on record", `${f0(G.recordLow.mw).replace("-", "−")} MW · ${rl}`], ["Highest demand on record", `${f0(G.peak.mw)} MW · Sep 6, 2022`], ["Renewables share, 2020 → 2026", `${(G.ren[2020] * 100).toFixed(1)}% → ${(G.ren[2026] * 100).toFixed(1)}%`], ["Battery evening output, 2022 → 2026", `${gw(Math.max(...G.batteries[2022]))} → ${gw(Math.max(...b))} GW`]]
+        .map(([l, v], i) => `<div${i === 0 ? ' class="on"' : ""}><span>${l}</span><b>${v}</b></div>`).join("");
+    }
+    stage({ overview: { view: "v-overview", rail: ["overview"], render: overview }, duck: { view: "v-duck", rail: ["duck", "years"], render: () => duck() },
+      year: { view: "v-duck", rail: ["duck", "years"], drawer: true, render: year } }, "overview");
+  </script>
+</body>
+</html>

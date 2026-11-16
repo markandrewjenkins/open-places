@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en" data-page="golf">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    // Apply saved theme and design skin before first paint. <html data-skins="alt herbarium …"> lists this page's
+    // themed designs; ?skin=<id>|classic overrides and is remembered. "alt" is shared across pages; other ids per page.
+    (function () { try { var r = document.documentElement, q = new URLSearchParams(location.search).get("skin");
+      var t = localStorage.getItem("odp-theme"); if (t) r.dataset.theme = t;
+      var multi = !!r.dataset.skins, ok = (r.dataset.skins || "alt").split(" ").concat("grey"), pk = "odp-skin:" + (r.dataset.page || location.pathname);
+      if (q) { if (multi) localStorage.setItem(pk, q); if (q === "alt" || q === "classic" || q === "grey") localStorage.setItem("odp-skin", q); }
+      var s = q || (multi && localStorage.getItem(pk)) || localStorage.getItem("odp-skin");
+      if (ok.indexOf(s) >= 0) r.dataset.skin = s; } catch (e) {} })();
+  </script>
+  <title>Fairway Forecast</title>
+  <meta name="description" content="Golf playability for Greater Victoria and Greater Vancouver: a 7-day forecast of playable daylight hours per course, an S to D course tier list from OpenStreetMap course maps and terrain, the best months to play, and an honest check of how far ahead the forecast can be trusted." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛳</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../src/shared/theme.css" />
+  <link rel="stylesheet" href="../src/shared/console.css" />
+  <link rel="stylesheet" href="../src/golf/golf.css" />
+  <link rel="stylesheet" href="../src/golf/skin.css" />
+</head>
+<body class="golf cx-body">
+  <header class="topbar">
+    <a class="crumb" href="../">← <span class="crumb-t">Open Places</span></a>
+    <span class="title">Fairway Forecast</span>
+    <span class="spacer"></span>
+    <div class="seg region-seg" id="region" role="group" aria-label="Region">
+      <button type="button" data-region="victoria" aria-pressed="true">Victoria</button>
+      <button type="button" data-region="vancouver" aria-pressed="false">Vancouver</button>
+    </div>
+    <button class="skin-btn" id="skin" type="button" data-skin-name="Clubhouse"></button>
+    <button class="icon-btn" id="theme" type="button"></button>
+  </header>
+
+  <!-- the console (left rail, overview tiles, topic views, detail drawer) is built by src/shared/console.js from the
+       topic modules in src/golf/ (week.js, tiers.js, explore.js, months.js, trust.js, coverage.js) -->
+  <div id="app" class="cx-app"></div>
+  <script type="module" src="../src/golf/main.js"></script>
+</body>
+</html>

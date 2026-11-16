@@ -1,0 +1,100 @@
+/* Open Places design tokens, shared by the Open Places console (places/index.html) and every standalone dashboard
+   (imported by ./theme.css, so any page that links theme.css has them; civic.css imports this file too).
+   Two designs, each light and dark:
+     Blue  (default, no data-skin attribute; formerly "Default" / "Harbour")  cool-white day, bathymetric navy night,
+           survey-red (day) / amber (night) accents, one colour per topic (--m-<module id>), glass cards (--glass).
+     Grey  (data-skin="grey")  light "Fog", dark "Graphite": only the neutrals change (page, surfaces, ink, rules, top
+           bar, "now" band, map, glass); topic colours, accents, live / mock colours, radius and font stay Blue's.
+   Dark follows prefers-color-scheme unless the theme button set data-theme="light" | "dark".
+   The Tide-derived "Blue" alternate (data-skin="blue") is retired. A dashboard's own themed skin (data-skin="alt")
+   sets its own tokens on top of these (see theme.css). Token names match civic.css exactly. */
+
+/* ------------------------------------------------------------ Blue (the default, no data-skin): light */
+:root {
+  color-scheme: light;
+  --page: #f3f5f8; --surface: #ffffff; --surface-2: #e8ecf1; --ink: #18222f; --ink-2: #465163; --muted: #5f6878;
+  --grid: #e2e6ec; --axis: #c4ccd6; --border: rgba(24, 40, 62, 0.13);
+  --shadow: 0 1px 2px rgba(24, 34, 47, 0.06), 0 8px 22px -14px rgba(24, 40, 62, 0.3);
+  --accent: #b8432b; --accent-2: #1f6e86; --s1: #1f6e86; --s2: #b8661a; --s3: #78808f;
+  --live: #1a7d44; --mockc: #865c00; --bad: #b8432b; --warn: #a06c00;
+  --now-bg: #18222f; --now-bg-2: #121a25; --now-ink: #efe7d4; --now-hi: #ffb08f; --now-strong: #ffffff;
+  --top-1: #fbfcfd; --top-2: #eef2f6; --map-land: #f1f3f5; --map-water: #c6d9e2; --lit: #b8432b;
+  --glass: rgba(255, 255, 255, 0.92); --glass-hi: rgba(255, 255, 255, 0.95);
+  --radius: 9px; --pill: 7px; --fs: 14px;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --display: var(--font); --fig: var(--font);
+  --m-weather: #2f6db5; --m-air: #2b8a6a; --m-transit: #6a4bb5; --m-roads: #b8661a; --m-alerts: #b8432b; --m-natalerts: #a5452f;
+  --m-blossom: #c43c72; --m-foliage: #b9581b; --m-sunday: #3c7d3a; --m-salish: #0f7a72; --m-golf: #5f8a20;
+  --m-langford: #8a5634; --m-lstops: #4f5fb8; --m-lnotices: #6b5a46; --m-route95: #7445c9; --m-hazards: #c2361f; --m-darksky: #3b47a0;
+  --m-ferry: #0b78a8; --m-ferries: #0b78a8; --m-malahat: #8a6d1f; --m-goose: #2f8f45; --m-bike: #2f8f45; --m-ttc: #c4262b;
+  --m-grid: #c08400; --m-water: #2479b8; --m-quakes: #8c4a2f; --m-bigquakes: #7a3b26; --m-tsunami: #1d5fa0; --m-ar: #2a7fa8;
+  --m-unusual: #a3407d; --m-enso: #1f6e86; --m-outlook: #4b7d91; --m-crime: #4a5a8a;
+}
+/* ------------------------------------------------------------ Blue: dark, navy (system dark, or the theme button) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0a1220; --surface: #0f1a2c; --surface-2: #16243a; --ink: #ece5d3; --ink-2: #b4b8c3; --muted: #8590a6;
+    --grid: #1e2d44; --axis: #2d3e5a; --border: rgba(200, 215, 240, 0.13);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 26px -14px rgba(0, 0, 0, 0.8);
+    --accent: #f0b13f; --accent-2: #5fc1d3; --s1: #5fc1d3; --s2: #f0a050; --s3: #7b859b;
+    --live: #4fd08a; --mockc: #f0b13f; --bad: #ff7d63; --warn: #f0b13f;
+    --now-bg: #050b15; --now-bg-2: #03070e; --now-ink: #e9dfc6; --now-hi: #f0b13f; --now-strong: #f0b13f;
+    --top-1: #111d31; --top-2: #0c1627; --map-land: #0e1828; --map-water: #060c17; --lit: #f6b440;
+    --glass: rgba(16, 28, 47, 0.92); --glass-hi: rgba(190, 215, 255, 0.09);
+    --m-weather: #6fa8ef; --m-air: #5cc7a1; --m-transit: #a68cf0; --m-roads: #f0a050; --m-alerts: #ff7d63; --m-natalerts: #ff8f73;
+    --m-blossom: #f27aa8; --m-foliage: #f08a45; --m-sunday: #7fc06c; --m-salish: #45c2b4; --m-golf: #a5cf55;
+    --m-langford: #d29a6e; --m-lstops: #8d9cf2; --m-lnotices: #c4ad8f; --m-route95: #b08cff; --m-hazards: #ff6a50; --m-darksky: #9aa6ff;
+    --m-ferry: #48b6e6; --m-ferries: #48b6e6; --m-malahat: #d8b65a; --m-goose: #6fd083; --m-bike: #6fd083; --m-ttc: #ff6b6b;
+    --m-grid: #f4c23e; --m-water: #5fb3f0; --m-quakes: #e0956e; --m-bigquakes: #d98a63; --m-tsunami: #5aa2ee; --m-ar: #62c0e6;
+    --m-unusual: #e086bf; --m-enso: #5fc1d3; --m-outlook: #86bfd2; --m-crime: #9aa8d8;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0a1220; --surface: #0f1a2c; --surface-2: #16243a; --ink: #ece5d3; --ink-2: #b4b8c3; --muted: #8590a6;
+  --grid: #1e2d44; --axis: #2d3e5a; --border: rgba(200, 215, 240, 0.13);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 26px -14px rgba(0, 0, 0, 0.8);
+  --accent: #f0b13f; --accent-2: #5fc1d3; --s1: #5fc1d3; --s2: #f0a050; --s3: #7b859b;
+  --live: #4fd08a; --mockc: #f0b13f; --bad: #ff7d63; --warn: #f0b13f;
+  --now-bg: #050b15; --now-bg-2: #03070e; --now-ink: #e9dfc6; --now-hi: #f0b13f; --now-strong: #f0b13f;
+  --top-1: #111d31; --top-2: #0c1627; --map-land: #0e1828; --map-water: #060c17; --lit: #f6b440;
+  --glass: rgba(16, 28, 47, 0.92); --glass-hi: rgba(190, 215, 255, 0.09);
+  --m-weather: #6fa8ef; --m-air: #5cc7a1; --m-transit: #a68cf0; --m-roads: #f0a050; --m-alerts: #ff7d63; --m-natalerts: #ff8f73;
+  --m-blossom: #f27aa8; --m-foliage: #f08a45; --m-sunday: #7fc06c; --m-salish: #45c2b4; --m-golf: #a5cf55;
+  --m-langford: #d29a6e; --m-lstops: #8d9cf2; --m-lnotices: #c4ad8f; --m-route95: #b08cff; --m-hazards: #ff6a50; --m-darksky: #9aa6ff;
+  --m-ferry: #48b6e6; --m-ferries: #48b6e6; --m-malahat: #d8b65a; --m-goose: #6fd083; --m-bike: #6fd083; --m-ttc: #ff6b6b;
+  --m-grid: #f4c23e; --m-water: #5fb3f0; --m-quakes: #e0956e; --m-bigquakes: #d98a63; --m-tsunami: #5aa2ee; --m-ar: #62c0e6;
+  --m-unusual: #e086bf; --m-enso: #5fc1d3; --m-outlook: #86bfd2; --m-crime: #9aa8d8;
+}
+
+/* ------------------------------------------------------------ Grey (data-skin="grey"): light "Fog" */
+:root[data-skin="grey"] {
+  color-scheme: light;
+  --page: #e8e9eb; --surface: #f8f8f9; --surface-2: #dedfe2; --ink: #1b1d21; --ink-2: #474a51; --muted: #63666d;
+  --grid: #d9dadd; --axis: #c2c4c9; --border: rgba(0, 0, 0, 0.11);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 22px -14px rgba(0, 0, 0, 0.28);
+  --now-bg: #1e1f22; --now-bg-2: #161719; --now-ink: #ece7dc; --now-hi: #ffb08f; --now-strong: #ffffff;
+  --top-1: #f5f5f6; --top-2: #f2f2f3; --map-land: #efeff0; --map-water: #c9d3d8;
+  --glass: rgba(248, 248, 249, 0.92); --glass-hi: rgba(255, 255, 255, 0.8);
+}
+/* ------------------------------------------------------------ Grey: dark "Graphite" */
+@media (prefers-color-scheme: dark) {
+  :root[data-skin="grey"]:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #121314; --surface: #1a1b1d; --surface-2: #242629; --ink: #ece7dc; --ink-2: #b9b9b6; --muted: #8b8c8f;
+    --grid: #2a2c2f; --axis: #3a3c40; --border: rgba(255, 255, 255, 0.09);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 26px -14px rgba(0, 0, 0, 0.8);
+    --now-bg: #0a0a0b; --now-bg-2: #050506; --now-ink: #ece7dc; --now-hi: #f0b13f; --now-strong: #f0b13f;
+    --top-1: #1c1d1f; --top-2: #18191b; --map-land: #1d1e20; --map-water: #0f1011;
+    --glass: rgba(26, 27, 29, 0.92); --glass-hi: rgba(255, 255, 255, 0.06);
+  }
+}
+:root[data-skin="grey"][data-theme="dark"] {
+  color-scheme: dark;
+  --page: #121314; --surface: #1a1b1d; --surface-2: #242629; --ink: #ece7dc; --ink-2: #b9b9b6; --muted: #8b8c8f;
+  --grid: #2a2c2f; --axis: #3a3c40; --border: rgba(255, 255, 255, 0.09);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 26px -14px rgba(0, 0, 0, 0.8);
+  --now-bg: #0a0a0b; --now-bg-2: #050506; --now-ink: #ece7dc; --now-hi: #f0b13f; --now-strong: #f0b13f;
+  --top-1: #1c1d1f; --top-2: #18191b; --map-land: #1d1e20; --map-water: #0f1011;
+  --glass: rgba(26, 27, 29, 0.92); --glass-hi: rgba(255, 255, 255, 0.06);
+}

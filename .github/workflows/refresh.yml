@@ -1,0 +1,186 @@
+# Refresh every project's data, rebuild the site and publish it to GitHub Pages.
+# Daily (and on demand) the pipelines refresh the data first; a push just rebuilds and publishes what's committed.
+name: refresh-and-deploy
+
+on:
+  schedule:
+    - cron: "30 13 * * *"     # daily, 06:30 Pacific
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency: { group: pages, cancel-in-progress: true }
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: pip install -r requirements.txt
+      - name: Restore cached raw downloads
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: raw-${{ github.run_id }}
+          restore-keys: raw-
+      - name: "Cherry Blossom Watch: fetch and model"
+        if: github.event_name != 'push'      # pushes publish the committed data straight away
+        continue-on-error: true               # a flaky source keeps its last good data instead of blocking the site
+        timeout-minutes: 90
+        run: |
+          python -m pipelines.blossom.fetch all
+          python -m pipelines.blossom.build
+          python -m pipelines.blossom.trips
+      - name: "Fire, Water & Rock: live layers and wildfire outlook"
+        if: github.event_name != 'push'      # pushes publish the committed data straight away
+        continue-on-error: true               # a flaky source keeps its last good data instead of blocking the site
+        timeout-minutes: 90
+        run: |
+          python -m pipelines.hazards.fetch now
+          python -m pipelines.hazards.build
+      - name: "Snowpack to Tap: RISE, SNOTEL, CDEC"
+        if: github.event_name != 'push'      # pushes publish the committed data straight away
+        continue-on-error: true               # a flaky source keeps its last good data instead of blocking the site
+        timeout-minutes: 90
+        run: |
+          python -m pipelines.water.fetch all
+          python -m pipelines.water.build
+      - name: "Salish Sea Live: listener reports, whale sightings, OrcaHello clips, AIS days"
+        if: github.event_name != 'push'      # pushes publish the committed data straight away
+        continue-on-error: true               # a flaky source keeps its last good data instead of blocking the site
+        timeout-minutes: 90
+        env:
+          AISSTREAM_API_KEY: ${{ secrets.AISSTREAM_API_KEY }}
+        # `fetch` isolates each source: a failure is logged (as a ::warning annotation) and the build still runs,
+        # so one bad upstream record can't freeze the page. `ais` only downloads when NOAA publishes new days.
+        run: |
+          python -m pipelines.salish.fetch daily
+          python -m pipelines.salish.fetch ais
+          python -m pipelines.salish.build
+      - name: "Toronto City Pulse: ferry counts, TTC delays, weather"
+        if: github.event_name != 'push'      # pushes publish the committed data straight away
+        continue-on-error: true               # a flaky source keeps its last good data instead of blocking the site
+        timeout-minutes: 90
+        run: |
+          python -m pipelines.toronto.fetch ferry
+          python -m pipelines.toronto.fetch weather
+          python -m pipelines.toronto.fetch ttc
+          python -m pipelines.toronto.fetch bikeshare
+          python -m pipelines.toronto.build
+      - name: "California Duck Curve: CAISO outlook and weather"
+        if: github.event_name != 'push'      # pushes publish the committed data straight away
+        continue-on-error: true               # a flaky source keeps its last good data instead of blocking the site
+        timeout-minutes: 90
+        run: |
+          python -m pipelines.grid.fetch all
+          python -m pipelines.grid.build
+      - name: "Fall Foliage Watch: weather, iNaturalist and the colour forecast"
+        if: github.event_name != 'push'      # pushes publish the committed data straight away
+        continue-on-error: true               # a flaky source keeps its last good data instead of blocking the site
+        timeout-minutes: 90
+        run: |
+          python -m pipelines.foliage.fetch daily
+          python -m pipelines.foliage.build
+          python -m pipelines.foliage.trips
+      - name: "Sunday Wander: roads, scenery, stops and route ratings"
+        if: github.event_name != 'push'      # pushes publish the committed data straight away
+        continue-on-error: true               # a flaky source keeps its last good data instead of blocking the site
+        timeout-minutes: 90
+        run: |
+          python -m pipelines.sunday.fetch missing
+          python -m pipelines.sunday.build
+      - name: "Langford Boom Tracker: BC Stats permits, population and the 12-month forecast"
+        if: github.event_name != 'push'      # pushes publish the committed data straight away
+        continue-on-error: true               # a flaky source keeps its last good data instead of blocking the site
+        timeout-minutes: 30                   # open sources only: the City of Langford layers have no stated licence
+        run: |
+          python -m pipelines.langford.fetch permits population census
+          python -m pipelines.langford.build
+      - name: "Public Transit: every agency's open timetable, then Route 95's schedule, weather and reliability build"
+        if: github.event_name != 'push'      # pushes publish the committed data straight away
+        continue-on-error: true               # a flaky source keeps its last good data instead of blocking the site
+        timeout-minutes: 120
+        # `static` downloads each agency's open GTFS only when it has changed (ETag / Last-Modified; weekly for feeds
+        # without validators), 2 s apart per host, and summarises it into site/public/data/blink/agencies/ (a failure
+        # is a ::warning and that agency keeps its last build). Live vehicles, predictions and alerts load in the
+        # browser through the relay (workers/bct-relay, /rt/<agency>/…), not from this job.
+        # Route 95's real-time logs come from the collector (`python -m pipelines.blink.collect`, 30 s polls on an
+        # always-on machine); see pipelines/blink/collect_workflow.yml.example for publishing them on a `blink-data`
+        # branch checked out to data/blink/raw/log. Without logs the Route 95 build stops early and its JSON stays.
+        run: |
+          python -m pipelines.blink.fetch daily
+          python -m pipelines.blink.static
+          python -m pipelines.blink.traffic
+          python -m pipelines.blink.build
+      - name: "Fairway Forecast: golf playability forecast, course tier list, climate and the backtest"
+        if: github.event_name != 'push'      # pushes publish the committed data straight away
+        continue-on-error: true               # a flaky source keeps its last good data instead of blocking the site
+        timeout-minutes: 60                   # a cold cache backfills hourly records since 2016 once; later runs are quick
+        # Open sources only, no keys. `fetch daily` isolates each source (a failure is a ::warning annotation and the
+        # last good copy is kept); OSM extracts are reused until a week old, and the climate, hourly-observation and
+        # past-forecast archives in data/golf/raw (shared cache) are topped up incrementally.
+        run: |
+          python -m pipelines.golf.fetch daily
+          python -m pipelines.golf.build
+      - name: "Air Traffic: airport weather, OurAirports runways and the busy-hours build"
+        if: github.event_name != 'push'      # pushes publish the committed data straight away
+        continue-on-error: true               # a flaky source keeps its last good data instead of blocking the site
+        timeout-minutes: 20
+        # Open sources only, no keys. Live positions come from the browser via the relay, not this job; the busy-hours
+        # log comes from the collector (`python -m pipelines.air.collect`, 1 poll a minute on an always-on machine).
+        # Without new logs the build keeps the committed daily, hourly and movement summaries in data/air/derived.
+        run: |
+          python -m pipelines.air.fetch daily
+          python -m pipelines.air.build
+      - name: "Waterways: Coast Guard notices, the Fraser at Hope and the typical AIS week"
+        if: github.event_name != 'push'      # pushes publish the committed data straight away
+        continue-on-error: true               # a flaky source keeps its last good data instead of blocking the site
+        timeout-minutes: 30
+        # Open sources only, no keys. Runs after Salish Sea Live so `ais` clips the NOAA AIS days it has just cached
+        # (data/salish/raw/ais) instead of downloading them again; it does nothing until NOAA publishes a newer week.
+        # Live ships come from the browser via the relay (aisstream.io key held there), tides and river flow are read live.
+        run: |
+          python -m pipelines.ships.fetch daily
+          python -m pipelines.ships.fetch ais
+          python -m pipelines.ships.build
+      - name: "Open Places: climate (ENSO, outlook, ocean, tsunami), local notices & police news, highway cameras"
+        if: github.event_name != 'push'
+        continue-on-error: true
+        timeout-minutes: 15
+        # Open sources only, no keys (NPS alerts stay a needs-key stub until an NPS_API_KEY secret exists). The camera
+        # list changes monthly, so it is rebuilt on the 1st only, to stay polite to DriveBC.
+        env: { NPS_API_KEY: "${{ secrets.NPS_API_KEY }}" }
+        run: |
+          python -m pipelines.climate.build
+          python -m pipelines.local.build
+          if [ "$(date -u +%d)" = "01" ]; then python -m pipelines.roads.cams; fi
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm, cache-dependency-path: site/package-lock.json }
+      - run: npm ci
+        working-directory: site
+      - run: npm run build
+        working-directory: site
+      - name: Commit refreshed data
+        if: github.event_name != 'push'
+        run: |
+          git config user.name "data-bot"
+          git config user.email "data-bot@users.noreply.github.com"
+          git add site/public/data
+          git diff --cached --quiet || git commit -m "Refresh open data $(date -u +%F)"
+          git pull --rebase --autostash && git push
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site/dist }
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: { name: github-pages, url: "${{ steps.deployment.outputs.page_url }}" }
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

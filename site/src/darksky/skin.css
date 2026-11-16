@@ -1,0 +1,355 @@
+/* "Planetarium" design skin. Every rule is scoped under :root[data-skin="alt"].
+   Night = "The dome": deep indigo, a soft star field, chalk constellation lines, amber cove lights at the horizon.
+   Day   = "The gallery": warm gallery walls under a spotlight, exhibits presented as museum placards with brass rules.
+   Day/night differences live in tokens only. */
+
+/* ================================================================== tokens: day (Gallery) */
+:root[data-skin="alt"] {
+  color-scheme: light;
+  --page: #ece8df;
+  --surface: #f7f4ee;
+  --surface-2: #e6e1d6;
+  --ink: #1f1b3a;
+  --ink-2: #3d3860;
+  --muted: #5d5878;
+  --grid: #d9d3c6;
+  --axis: #8a8475;
+  --border: rgba(31, 27, 58, 0.16);
+  --shadow: 0 1px 0 rgba(31, 27, 58, 0.04), 0 14px 26px -18px rgba(31, 27, 58, 0.45);
+  --radius: 6px;
+  --font: "Spectral", Georgia, "Times New Roman", serif;
+  --display: "Josefin Sans", "Futura", "Century Gothic", system-ui, sans-serif;
+  --mono: "DM Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+  --chalk-font: "Caveat", "Segoe Print", cursive;
+
+  --brass: #a8741f;
+  --brass-ink: #7a5314;
+  --chalk: rgba(31, 27, 58, 0.62);
+  --chalk-star: #1f1b3a;
+  --chalk-label: #4b3fa8;
+  --chalk-filter: none;
+  --dome-line: rgba(31, 27, 58, 0.13);
+  --hero-bg: radial-gradient(ellipse 46% 85% at 74% -8%, rgba(255, 251, 238, 0.95), rgba(255, 251, 238, 0) 72%), radial-gradient(ellipse 40% 70% at 18% -12%, rgba(255, 251, 238, 0.6), transparent 70%), linear-gradient(180deg, #e2ddd1, #e9e5db);
+  --hero-ink: #1f1b3a;
+  --card-bg: #f7f4ee;
+  --tile-bg: #f9f7f2;
+  --bar-tint: rgba(168, 116, 31, 0.1);
+  --tip-bg: #fbf9f5;
+  --strip-bg: #1f1b3a;
+  --strip-ink: #ece8df;
+  --strip-muted: #c9c3e6;
+  --strip-accent: #e9c27a;
+  --pressed-bg: #1f1b3a;
+  --pressed-ink: #f7f4ee;
+  --rule: linear-gradient(90deg, transparent, #a8741f 15%, #e9c27a 50%, #a8741f 85%, transparent);
+  --sweep: rgba(255, 246, 220, 0.95);
+  --stars-opacity: 0.35;
+  --glow: none;
+  --twinkle: none;
+  --show-day: inline;
+  --show-night: none;
+  --map-bg: #2a2a52;
+}
+:root[data-skin="alt"] body.darksky {
+  --accent: #4b3fa8;
+  --accent-2: #a8741f;
+  --city-vancouver: #2f62b8;
+  --city-victoria: #a8741f;
+  --city-phoenix: #1f8a6e;
+  --city-tucson: #8a3fa8;
+  --up: #a8741f;
+  --down: #2f62b8;
+  --star: #1f1b3a;
+  --star-2: #4b3fa8;
+  --moon-dark: #2a2462;
+  --moon-lit: #f3ecd6;
+  --site-lo: #7a6fd0;
+  --site-hi: #fff3c4;
+  --site-none: #b6a8ff;
+  --aurora: #4ade80;
+}
+
+/* ================================================================== tokens: night (Dome) */
+@media (prefers-color-scheme: dark) {
+  :root[data-skin="alt"]:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0f0c2e; --surface: #17133f; --surface-2: #201b52;
+    --ink: #f1eefc; --ink-2: #cdc7ef; --muted: #a7a0d6;
+    --grid: #2b2563; --axis: #7069b8; --border: rgba(200, 190, 255, 0.2);
+    --shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), 0 18px 30px -20px rgba(0, 0, 0, 0.8);
+    --brass: #f2c46d; --brass-ink: #f2c46d;
+    --chalk: rgba(241, 238, 252, 0.82); --chalk-star: #fffaf0; --chalk-label: #e9e4ff;
+    --chalk-filter: url(#pl-chalk);
+    --dome-line: rgba(200, 190, 255, 0.1);
+    --hero-bg: linear-gradient(0deg, rgba(242, 196, 109, 0.2), rgba(242, 196, 109, 0) 70px), radial-gradient(ellipse 120% 150% at 50% 120%, #2c2674 0%, #1b1654 38%, #110d35 62%, #0b0925 100%);
+    --hero-ink: #f1eefc;
+    --card-bg: linear-gradient(180deg, #1a1648, #15113d);
+    --tile-bg: color-mix(in oklab, #17133f 82%, transparent);
+    --bar-tint: rgba(182, 168, 255, 0.1);
+    --tip-bg: #1a1648;
+    --strip-bg: #0a0822; --strip-ink: #f1eefc; --strip-muted: #a7a0d6; --strip-accent: #f2c46d;
+    --pressed-bg: #e9e4ff; --pressed-ink: #17133f;
+    --rule: linear-gradient(90deg, transparent, #4a3f9a 15%, #f2c46d 50%, #4a3f9a 85%, transparent);
+    --sweep: rgba(255, 236, 190, 0.85);
+    --stars-opacity: 1;
+    --glow: 0 0 14px rgba(182, 168, 255, 0.35);
+    --twinkle: pl-twinkle;
+    --show-day: none; --show-night: inline;
+    --map-bg: #141039;
+  }
+  :root[data-skin="alt"]:not([data-theme="light"]) body.darksky {
+    --accent: #b6a8ff; --accent-2: #f2c46d;
+    --city-vancouver: #8fc3ff; --city-victoria: #f2c46d; --city-phoenix: #7fe0c3; --city-tucson: #e6a5ff;
+    --up: #f2c46d; --down: #8fc3ff;
+    --star: #fff8e7; --star-2: #c9c0ff;
+    --moon-dark: #2a2462; --moon-lit: #f6f0dc;
+  }
+}
+:root[data-skin="alt"][data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0f0c2e; --surface: #17133f; --surface-2: #201b52;
+  --ink: #f1eefc; --ink-2: #cdc7ef; --muted: #a7a0d6;
+  --grid: #2b2563; --axis: #7069b8; --border: rgba(200, 190, 255, 0.2);
+  --shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), 0 18px 30px -20px rgba(0, 0, 0, 0.8);
+  --brass: #f2c46d; --brass-ink: #f2c46d;
+  --chalk: rgba(241, 238, 252, 0.82); --chalk-star: #fffaf0; --chalk-label: #e9e4ff;
+  --chalk-filter: url(#pl-chalk);
+  --dome-line: rgba(200, 190, 255, 0.1);
+  --hero-bg: linear-gradient(0deg, rgba(242, 196, 109, 0.2), rgba(242, 196, 109, 0) 70px), radial-gradient(ellipse 120% 150% at 50% 120%, #2c2674 0%, #1b1654 38%, #110d35 62%, #0b0925 100%);
+  --hero-ink: #f1eefc;
+  --card-bg: linear-gradient(180deg, #1a1648, #15113d);
+  --tile-bg: color-mix(in oklab, #17133f 82%, transparent);
+  --bar-tint: rgba(182, 168, 255, 0.1);
+  --tip-bg: #1a1648;
+  --strip-bg: #0a0822; --strip-ink: #f1eefc; --strip-muted: #a7a0d6; --strip-accent: #f2c46d;
+  --pressed-bg: #e9e4ff; --pressed-ink: #17133f;
+  --rule: linear-gradient(90deg, transparent, #4a3f9a 15%, #f2c46d 50%, #4a3f9a 85%, transparent);
+  --sweep: rgba(255, 236, 190, 0.85);
+  --stars-opacity: 1;
+  --glow: 0 0 14px rgba(182, 168, 255, 0.35);
+  --twinkle: pl-twinkle;
+  --show-day: none; --show-night: inline;
+  --map-bg: #141039;
+}
+:root[data-skin="alt"][data-theme="dark"] body.darksky {
+  --accent: #b6a8ff; --accent-2: #f2c46d;
+  --city-vancouver: #8fc3ff; --city-victoria: #f2c46d; --city-phoenix: #7fe0c3; --city-tucson: #e6a5ff;
+  --up: #f2c46d; --down: #8fc3ff;
+  --star: #fff8e7; --star-2: #c9c0ff;
+  --moon-dark: #2a2462; --moon-lit: #f6f0dc;
+}
+
+/* ================================================================== chrome (both halves; colours via tokens) */
+:root[data-skin="alt"] { scrollbar-color: var(--axis) var(--page); }
+:root[data-skin="alt"] body.darksky {
+  background: var(--page);
+  font-size: 16px;
+  line-height: 1.55;
+  counter-reset: hall exhibit;
+
+  & ::selection { background: color-mix(in oklab, var(--accent) 30%, transparent); color: var(--ink); }
+  & :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  & h1, & h2, & h3 { letter-spacing: 0; }
+
+  /* ---------- top bar: brass rule, one-shot sweep */
+  .topbar { background: color-mix(in oklab, var(--page) 88%, transparent); border-bottom: 1px solid var(--border); padding-top: 10px; padding-bottom: 10px; }
+  .topbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--rule); pointer-events: none; }
+  .topbar::before {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; z-index: 1; pointer-events: none;
+    background: linear-gradient(90deg, transparent, var(--sweep), transparent) no-repeat; background-size: 260px 100%; background-position: -280px 0;
+    animation: pl-sweep 2.8s cubic-bezier(.45, .05, .3, 1) .4s 1 both;
+  }
+  .topbar .crumb { font: italic 400 14.5px var(--font); color: var(--ink-2); }
+  .topbar .title { font: 600 14px/1 var(--display); letter-spacing: 0.3em; text-transform: uppercase; color: var(--ink); padding-top: 2px; }
+  .icon-btn, .skin-btn { border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+  .skin-btn { font: 600 11px/1 var(--display); letter-spacing: 0.16em; text-transform: uppercase; height: 32px; padding-top: 2px; }
+  .skin-dot { background: radial-gradient(circle at 35% 35%, #fff8e7 0 12%, #b6a8ff 30%, #2a2462 75%); box-shadow: 0 0 0 1px var(--border); }
+  .icon-btn:hover, .skin-btn:hover { border-color: var(--brass); }
+
+  /* ---------- programme board (built by skin.js) */
+  .pl-strip { background: var(--strip-bg); color: var(--strip-ink); }
+  .pl-strip-in {
+    max-width: 1240px; margin: 0 auto; padding: 8px clamp(16px, 4vw, 40px); display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap;
+    font: 400 12.5px/1.3 var(--mono); font-variant-numeric: tabular-nums;
+  }
+  .pl-now { display: inline-flex; align-items: center; gap: 8px; font: 700 10.5px/1 var(--display); letter-spacing: 0.24em; text-transform: uppercase; color: var(--strip-accent); padding: 5px 10px 4px; border: 1px solid color-mix(in oklab, var(--strip-accent) 55%, transparent); border-radius: 999px; }
+  .pl-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--strip-accent); animation: pl-pulse 2.6s ease-out infinite; }
+  .pl-item { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+  .pl-item + .pl-item::before { content: "✦"; color: var(--strip-accent); font-size: 9px; margin-right: 8px; position: relative; top: -1px; }
+  .pl-item .k { font: 600 10px/1 var(--display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--strip-muted); }
+  .pl-item b { font-weight: 500; color: var(--strip-ink); }
+  .pl-item i { font: italic 400 13px var(--font); color: var(--strip-muted); }
+  .pl-asof { margin-left: auto; font: 600 10px/1 var(--display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--strip-muted); white-space: nowrap; }
+  .pl-asof b { font: 500 12.5px var(--mono); letter-spacing: 0; color: var(--strip-ink); margin-left: 4px; }
+
+  /* ---------- hero: the dome (night) / a lit gallery wall (day) */
+  .hero { background: var(--hero-bg); color: var(--hero-ink); padding: 52px 0 32px; border-bottom: 1px solid var(--border); }
+  .hero #stars { opacity: var(--stars-opacity); }
+  .pl-sky { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .pl-sky .dome { fill: none; stroke: var(--dome-line); stroke-width: 1; }
+  .pl-sky .cl { stroke: var(--chalk); stroke-width: 1.8; stroke-linecap: round; fill: none; filter: var(--chalk-filter); }
+  .pl-sky .cl.thin { stroke-width: 1.1; stroke-dasharray: 1 6; }
+  .pl-sky .cs circle { fill: var(--chalk-star); }
+  .pl-sky .cs .glow { fill: var(--chalk-star); opacity: 0.18; }
+  .pl-sky .cs.tw { animation: var(--twinkle) 6s ease-in-out var(--d, 0s) infinite; transform-box: fill-box; transform-origin: center; }
+  .pl-sky .cn { fill: var(--chalk-label); font: 600 21px var(--chalk-font); }
+  .pl-sky .cn.sm { font-size: 17px; opacity: 0.9; }
+  .pl-sky .cn.big { font: 300 13px var(--display); letter-spacing: 0.5em; text-transform: uppercase; }
+  .hero .eyebrow { color: var(--brass-ink); font: 600 11.5px/1 var(--display); letter-spacing: 0.3em; }
+  .hero-title { font: 300 clamp(32px, 4.8vw, 58px)/1.06 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--hero-ink); max-width: 16ch; margin: 14px 0 18px; text-shadow: var(--glow); padding-top: 0.08em; }
+  .hero-title::after { content: "Tonight's feature presentation · running time: dusk to dawn"; display: block; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--brass); width: max-content; max-width: 100%;
+    font: italic 400 16px/1.35 var(--font); letter-spacing: 0; text-transform: none; color: var(--ink-2); text-shadow: none; }
+
+  /* ---------- pill segmented buttons */
+  .seg { background: transparent; border: 1px solid var(--border); border-radius: 999px; padding: 3px; gap: 2px; }
+  .seg button { border-radius: 999px; padding: 7px 14px 5px; font: 600 11px/1.2 var(--display); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-2); }
+  .seg button:hover { color: var(--ink); background: var(--bar-tint); }
+  .seg button[aria-pressed="true"] { background: var(--pressed-bg); color: var(--pressed-ink); box-shadow: none; }
+  .hero .seg { background: color-mix(in oklab, var(--surface) 55%, transparent); border-color: var(--border); }
+  .hero .seg button { color: var(--ink-2); }
+  .hero .seg button[aria-pressed="true"] { background: var(--pressed-bg); color: var(--pressed-ink); }
+
+  /* ---------- section heads: numbered halls */
+  section.block { counter-increment: hall; padding-top: 52px; }
+  .eyebrow { font: 600 11px/1 var(--display); letter-spacing: 0.26em; color: var(--brass-ink); }
+  .section-head .eyebrow { display: inline-flex; align-items: center; gap: 10px; }
+  .section-head .eyebrow::before { content: counter(hall); display: inline-grid; place-items: center; width: 24px; height: 24px; padding-top: 2px; border-radius: 50%; border: 1px solid var(--brass); color: var(--ink); font: 600 11px/1 var(--display); letter-spacing: 0; }
+  .section-head h2 { font: 400 clamp(25px, 2.8vw, 33px)/1.12 var(--display); letter-spacing: 0.02em; color: var(--ink); margin-top: 12px; }
+  .section-head p { color: var(--ink-2); font-size: 16.5px; }
+
+  /* ---------- cards: placards */
+  .card { position: relative; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); background: var(--card-bg); padding: 22px; }
+  .card-title, .prose h3:first-child {
+    margin: -22px -22px 14px; padding: 12px 22px 9px; border-radius: var(--radius) var(--radius) 0 0; background: var(--bar-tint); border-bottom: 1px solid var(--border);
+    font: 600 12px/1.2 var(--display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink);
+  }
+  .prose h3 { font: 600 12px/1.2 var(--display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink); }
+  .card-sub, .note { font-style: italic; color: var(--muted); font-size: 14.5px; }
+  .prose p, .prose ul { color: var(--ink-2); font-size: 15.5px; }
+  .prose b { color: var(--ink); font-weight: 600; }
+  .prose a, .sources a { color: var(--ink); text-decoration-color: var(--brass); }
+
+  /* KPI tiles as exhibit placards: 3px brass rule, catalogue number */
+  .tonight .card, .metric { counter-increment: exhibit; background: var(--tile-bg); border-left: 3px solid var(--brass); padding: 17px 18px 26px 18px; color: var(--ink); backdrop-filter: blur(4px); }
+  .tonight .card::after, .metric::after { content: "Cat. " counter(exhibit, decimal-leading-zero); position: absolute; right: 12px; bottom: 8px; font: 500 9.5px/1 var(--mono); letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+  .tonight .label, .metric .label { font: 600 10.5px/1.2 var(--display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+  .tonight .value, .metric .value { font: 400 23px/1.15 var(--mono); letter-spacing: -0.02em; color: var(--ink); margin-top: 8px; text-shadow: var(--glow); font-variant-numeric: tabular-nums; }
+  .tonight .sub, .metric .sub { color: var(--ink-2); font-size: 14px; font-style: italic; }
+  .moon-row svg circle { stroke: var(--border); stroke-width: 1; }
+
+  /* ---------- map shell and side panel */
+  .map-shell { padding: 0; overflow: hidden; }
+  .map { background: var(--map-bg); }
+  .panel { border-left: 1px solid var(--border); background: transparent; }
+  .side-title { font: 600 10.5px/1.2 var(--display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--brass-ink); }
+  .toggle { font-size: 15px; color: var(--ink-2); }
+  .toggle input { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; margin: 0; flex: none; cursor: pointer; border: 1px solid var(--axis); border-radius: 50%; background: var(--surface); }
+  .toggle input:checked { background: radial-gradient(circle, var(--accent) 0 3.5px, var(--surface) 4px); border-color: var(--accent); }
+  .legend-ramp .bar { border-radius: 999px; height: 8px; }
+  .legend-ramp .ends { font: 400 10.5px var(--mono); color: var(--muted); }
+  .spot-head h3 { font: 600 15px/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); padding-top: 2px; }
+  .spot-head .coords { font: 400 11.5px var(--mono); color: var(--muted); }
+  .spot-stats div { background: var(--surface-2); border-radius: 4px; border-left: 2px solid var(--brass); }
+  .spot-stats b { font: 400 17px var(--mono); color: var(--ink); }
+  .spot-stats span { font-size: 13px; font-style: italic; }
+  .night { border: 1px solid var(--border); border-radius: 6px; background: color-mix(in oklab, var(--surface-2) 40%, transparent); }
+  .night-top b { font: 600 11px var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink); }
+  .night .detail { font-size: 14px; font-style: italic; }
+  .score { font: 500 20px var(--mono); color: var(--accent); text-shadow: var(--glow); }
+  .iss { font: 400 12px/1.5 var(--mono); color: var(--ink-2); }
+  .empty-hint { background: transparent; border: 1px solid var(--border); border-left: 3px solid var(--brass); border-radius: 4px; font-style: italic; font-size: 15px; color: var(--ink-2); }
+
+  /* MapLibre chrome */
+  .maplibregl-ctrl-group { background: var(--surface); border: 1px solid var(--border); border-radius: 999px; box-shadow: none; overflow: hidden; }
+  .maplibregl-ctrl-group button + button { border-top: 1px solid var(--border); }
+  .maplibregl-ctrl-group button .maplibregl-ctrl-icon { background-image: none !important; display: grid; place-items: center; }
+  .maplibregl-ctrl-group button .maplibregl-ctrl-icon::after { font: 300 18px/1 var(--display); color: var(--ink); }
+  .maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon::after { content: "+"; }
+  .maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon::after { content: "−"; }
+  .maplibregl-ctrl-group button:hover { background: var(--surface-2) !important; }
+  .maplibregl-ctrl-attrib { background: color-mix(in oklab, var(--surface) 88%, transparent) !important; color: var(--muted); font: 11px var(--font); }
+  .maplibregl-ctrl-attrib a { color: var(--ink-2); }
+  .maplibregl-cooperative-gesture-screen { background: color-mix(in oklab, var(--page) 80%, transparent); color: var(--ink); font-family: var(--font); }
+
+  /* ---------- sites table */
+  table.data { font-size: 15px; }
+  table.data th { font: 600 10.5px/1.2 var(--display); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--brass); }
+  table.data td { border-bottom: 1px solid var(--grid); }
+  table.data tbody tr:hover td { background: var(--bar-tint); }
+  .sites-table td:nth-child(2) { font: 400 12.5px var(--mono); color: var(--ink-2); white-space: nowrap; }
+  .sites-table .name { font-weight: 600; font-size: 16px; color: var(--ink); }
+  .sites-table .kind { font-style: italic; font-size: 13.5px; }
+  .sites-table td.note { font: 400 12px var(--mono); font-style: normal; color: var(--ink-2); }
+  .scorecell b { font: 500 13.5px var(--mono); color: var(--ink); width: 30px; }
+  .scorecell .bar { height: 6px; border-radius: 999px; background: var(--surface-2); }
+  .scorecell .bar i { border-radius: 999px; background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 70%, var(--brass)), var(--accent)); }
+
+  /* ---------- charts: hairline grids, mono ticks, italic labels */
+  .chart .grid line { stroke-dasharray: 1 4; stroke-linecap: round; }
+  #kp path.bar[style*="--muted"] { fill: color-mix(in oklab, var(--muted) 16%, transparent) !important; stroke: var(--muted); stroke-width: 1; opacity: 1 !important; }
+  .chart .axis text, .chart .tick text { font: 400 10.5px var(--mono); fill: var(--muted); }
+  .chart .label { font: italic 13.5px var(--font); fill: var(--ink-2); }
+  .chart .label.strong { font-style: normal; font-weight: 600; fill: var(--ink); }
+  .legend { font-size: 14px; font-style: italic; }
+  .legend .line { height: 2px; }
+
+  /* ---------- tooltip */
+  .tooltip { background: var(--tip-bg); border: 1px solid var(--border); border-top: 2px solid var(--brass); border-radius: 4px; box-shadow: var(--shadow); font: 14px/1.4 var(--font); color: var(--ink); }
+  .tooltip .t-title { font: 600 10px/1.3 var(--display); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+  .tooltip .t-row b { font: 500 12.5px var(--mono); }
+  .tooltip .t-row span { font-style: italic; }
+
+  /* ---------- footer */
+  footer.site { border-top: 1px solid var(--border); margin-top: 40px; padding-top: 26px; color: var(--muted); font-style: italic; font-size: 15px; }
+  .pl-flavour { display: flex; align-items: center; gap: 12px; margin-top: 12px; font: 600 10.5px/1.6 var(--display); font-style: normal; letter-spacing: 0.24em; text-transform: uppercase; color: var(--brass-ink); }
+  .pl-flavour::before { content: ""; flex: none; width: 34px; height: 1px; background: var(--brass); }
+  .pl-day { display: var(--show-day); }
+  .pl-night { display: var(--show-night); }
+}
+
+/* ---------- mobile */
+@media (max-width: 640px) {
+  :root[data-skin="alt"] body.darksky {
+    font-size: 15.5px;
+    .topbar { gap: 10px; }
+    .topbar .title { font-size: 11.5px; letter-spacing: 0.14em; }
+    .topbar .crumb { max-width: 16px; overflow: hidden; white-space: nowrap; font-style: normal; }
+    .skin-btn { padding: 0 9px; font-size: 10px; letter-spacing: 0.08em; }
+    .pl-sky .cn.sm { display: none; }
+    .hero { padding-top: 36px; }
+    .hero-title { font-size: 31px; }
+    .hero-title::after { font-size: 14.5px; width: auto; }
+    .card { padding: 18px; }
+    .card-title, .prose h3:first-child { margin: -18px -18px 12px; padding-left: 18px; padding-right: 18px; }
+    .tonight .value, .metric .value { font-size: 21px; }
+    .pl-strip-in { gap: 6px 12px; font-size: 12px; }
+    .pl-item + .pl-item::before { display: none; }
+    .pl-asof { margin-left: 0; }
+  }
+}
+
+/* ---------- motion */
+@keyframes pl-sweep { from { background-position: -280px 0; opacity: 1; } 85% { opacity: 1; } to { background-position: calc(100% + 280px) 0; opacity: 0; } }
+@keyframes pl-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--strip-accent) 60%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
+@keyframes pl-twinkle { 0%, 100% { opacity: 1; } 40% { opacity: 0.45; } 55% { opacity: 0.9; } }
+@media (prefers-reduced-motion: reduce) {
+  :root[data-skin="alt"] body.darksky {
+    .topbar::before { display: none; }
+    .pl-dot, .pl-sky .cs.tw { animation: none !important; }
+  }
+}
+
+/* ---------- Open Places look (the default design, no data-skin="alt"; shared chrome in ../shared/theme.css).
+   Nothing below touches this page's themed skin. */
+/* the hero sits on the plain page (no night-sky band; its stars show on the dark theme only) and the tonight cards are
+   ordinary glass cards */
+:root:not([data-skin="alt"]) body.darksky .hero { color: var(--ink); }
+:root:not([data-skin="alt"]) body.darksky .hero .eyebrow { color: var(--muted); }
+:root:not([data-skin="alt"]) body.darksky .hero .seg { border: 1px solid var(--border); }
+:root:not([data-skin="alt"]) body.darksky .hero .seg button { color: var(--ink-2); }
+:root:not([data-skin="alt"]) body.darksky .hero .seg button[aria-pressed="true"] { color: var(--page); }
+:root:not([data-skin="alt"]) body.darksky .tonight .card { background: var(--glass); border-color: var(--border); color: var(--ink); backdrop-filter: none; }
+:root:not([data-skin="alt"]) body.darksky .tonight .label { color: var(--ink-2); }
+:root:not([data-skin="alt"]) body.darksky .tonight .sub { color: var(--muted); }
+:root:not([data-skin="alt"]):where(:not([data-theme="dark"])) body.darksky .hero #stars { display: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-skin="alt"]):where(:not([data-theme="light"])) body.darksky .hero #stars { display: block; } }

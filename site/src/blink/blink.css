@@ -1,0 +1,165 @@
+/* Route 95 Reliability: Classic design. The console layout (rail, views, tiles, drawer) lives in ../shared/console.css;
+   this file holds the page's tokens and its own views. Colours are deliberately not BC Transit's: neutral portfolio
+   palette, direction colours blue / rose, bus lanes magenta. */
+
+body.blink {
+  --accent: #0d8a80;
+  --live: #0d8a80; --ontime: #2a63d6; --wait: #d4561a; --corr: #8b44d6; --wx: #4b8a1e; --cmp: #6b7686; --cmp95: #2a63d6;
+  --d0: #2a63d6; --d1: #d6466f;
+  --lane: #c21fb8; --lane-part: #e3a3dc; --mixed: #a3a39a;
+  --ok: #1a9a52; --late: #d43a2f; --early: #7c4ae0; --rain: #2f7fd8; --dry: #c7a46a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) body.blink {
+    --accent: #2bb3a7; --live: #2bb3a7; --ontime: #5b8ff0; --wait: #f0793c; --corr: #b07cf0; --wx: #7cbf45; --cmp: #8d97a8; --cmp95: #5b8ff0;
+    --d0: #5b8ff0; --d1: #f06b92; --lane: #e04fd6; --lane-part: #7e4a7a; --mixed: #6e6d74;
+    --ok: #3cc277; --late: #f0605a; --early: #a080f5; --rain: #5aa2f0; --dry: #b8965c;
+  }
+}
+:root[data-theme="dark"] body.blink {
+  --accent: #2bb3a7; --live: #2bb3a7; --ontime: #5b8ff0; --wait: #f0793c; --corr: #b07cf0; --wx: #7cbf45; --cmp: #8d97a8; --cmp95: #5b8ff0;
+  --d0: #5b8ff0; --d1: #f06b92; --lane: #e04fd6; --lane-part: #7e4a7a; --mixed: #6e6d74;
+  --ok: #3cc277; --late: #f0605a; --early: #a080f5; --rain: #5aa2f0; --dry: #b8965c;
+}
+
+/* ---------- honesty markers: thin samples are greyed and labelled, never hidden */
+.bk-thin { color: var(--muted) !important; opacity: 0.75; font-style: italic; }
+.cx-kpi.bk-thin-kpi .cx-kpi-v, .bk-thin-kpi .cx-kpi-v { color: var(--muted); font-style: italic; }
+.cx-kpi.bk-thin-kpi .cx-kpi-s { color: var(--wait); }
+.bk-chip { display: inline-block; margin-top: 3px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em; padding: 1px 7px; border-radius: 999px;
+  color: var(--wait); background: color-mix(in oklab, var(--wait) 12%, transparent); border: 1px dashed color-mix(in oklab, var(--wait) 50%, transparent); white-space: nowrap; }
+.bk-chip.ok { color: var(--ok); background: color-mix(in oklab, var(--ok) 10%, transparent); border-style: solid; border-color: color-mix(in oklab, var(--ok) 35%, transparent); }
+.chart .bk-hatch { stroke: var(--axis); stroke-dasharray: 3 2; stroke-width: 1; }
+.chart .bk-dot-thin { opacity: 0.45; }
+.legend .bk-thin-key { background: var(--muted) !important; opacity: 0.35; }
+.legend .bk-dot-thin-key { background: transparent; border: 1.5px solid var(--muted); }
+.legend .bk-outline { background: transparent; border: 1.2px dashed var(--ink); }
+.legend .bk-dash { background: repeating-linear-gradient(90deg, var(--ink-2) 0 4px, transparent 4px 7px) !important; }
+.chart .bk-onbar { fill: #fff; }
+
+/* ---------- shared card bits */
+.bk-cardhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; }
+.bk-cardhead .seg button { padding: 4px 10px; font-size: 12px; }
+.bk-seg-pair { display: flex; gap: 8px; flex-wrap: wrap; }
+.bk-legend-low { margin: 0; }
+.prose p, .prose ul { color: var(--ink-2); font-size: 14px; margin: 0 0 10px; }
+.prose ul { padding-left: 18px; }
+.prose li { margin-bottom: 6px; }
+.prose h3 { font-size: 16px; margin-bottom: 10px; }
+.prose b { color: var(--ink); font-weight: 600; }
+.sources a { color: var(--ink); }
+.bk-explain p { font-size: 13px; margin-bottom: 8px; }
+.bk-dirline { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; border-top: 1px dotted var(--border); }
+.bk-dirline i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+
+/* ---------- live: map + side panel */
+.bk-mapcard { padding: 0 !important; overflow: hidden; }
+.bk-mapbody { display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-height: 480px; }
+.bk-map { min-height: 480px; }
+.bk-panel { border-left: 1px solid var(--border); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; overflow: auto; min-height: 0; }
+.bk-live { font-size: 11px; font-weight: 650; letter-spacing: 0.08em; color: var(--ink-2); display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.bk-live b { letter-spacing: 0; font-variant-numeric: tabular-nums; color: var(--ink); }
+.bk-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--live); box-shadow: 0 0 0 0 color-mix(in oklab, var(--live) 60%, transparent); animation: bk-pulse 2s infinite; }
+@keyframes bk-pulse { 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .bk-dot { animation: none; } }
+.bk-replay { display: flex; flex-direction: column; gap: 6px; background: var(--surface-2); border-radius: 10px; padding: 9px 10px; }
+.bk-play { align-self: flex-start; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 4px 10px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.bk-play[aria-pressed="true"] { border-color: var(--live); color: var(--live); }
+.bk-rrow { display: flex; align-items: center; gap: 8px; }
+.bk-range { flex: 1; min-width: 0; accent-color: var(--live); }
+.bk-clock { font-variant-numeric: tabular-nums; font-size: 13px; min-width: 62px; text-align: right; }
+.bk-panel .legend { margin: 0; gap: 4px 10px; font-size: 11.5px; }
+.bk-vlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.bk-vlist a { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 5px 6px; border-radius: 7px; text-decoration: none; color: var(--ink-2); font-size: 12.5px; border-bottom: 1px dotted var(--border); }
+.bk-vlist a:hover { background: var(--surface-2); color: var(--ink); }
+.bk-vlist li.on a { background: color-mix(in oklab, var(--live) 14%, transparent); color: var(--ink); }
+.bk-vdot { width: 10px; height: 10px; border-radius: 50%; }
+.bk-vname { display: flex; flex-direction: column; min-width: 0; }
+.bk-vname small { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-vlist b { font-variant-numeric: tabular-nums; color: var(--ink); }
+.bk-vlist b.late { color: var(--late); }
+.bk-vlist b.early { color: var(--early); }
+.chart .bk-bus { filter: drop-shadow(0 0 3px color-mix(in oklab, var(--ink) 25%, transparent)); }
+.maplibregl-popup-content { background: var(--surface) !important; color: var(--ink); }
+
+/* timetable + data */
+.bk-span { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; font-size: 12.5px; }
+.bk-span div { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bk-span i { width: 10px; height: 10px; border-radius: 3px; }
+.bk-span span { color: var(--ink-2); }
+.bk-fresh { display: flex; flex-direction: column; gap: 6px; overflow: auto; }
+.bk-frow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; font-size: 12.5px; padding: 5px 0; border-bottom: 1px dotted var(--border); }
+.bk-frow i { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.bk-frow i.ok { background: var(--ok); }
+.bk-frow i.bad { background: var(--late); }
+.bk-frow span { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.bk-frow small { grid-column: 2 / -1; color: var(--muted); }
+.bk-gaps { list-style: none; margin: 0; padding: 0; overflow: auto; font-size: 12.5px; }
+.bk-gaps li { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px dotted var(--border); }
+.bk-gaps b { min-width: 60px; font-variant-numeric: tabular-nums; }
+.bk-gaps span { color: var(--ink-2); }
+
+/* corridor strips */
+.bk-stripcard { padding-bottom: 8px !important; }
+.bk-stripcard .chart { height: 104px; }
+.chart .bk-seg.on rect:first-child { filter: brightness(1.05); }
+
+/* model */
+.bk-modelcard { gap: 8px; overflow: auto; }
+.bk-status { display: inline-flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
+.bk-status i { width: 12px; height: 12px; border-radius: 50%; background: var(--wait); }
+.bk-status-ready i { background: var(--ok); }
+.bk-status-provisional i { background: var(--wx); }
+.bk-status-collecting i { animation: bk-pulse 2s infinite; box-shadow: 0 0 0 0 color-mix(in oklab, var(--wait) 60%, transparent); }
+.bk-prog-l { display: flex; justify-content: space-between; font-size: 12.5px; }
+.bk-prog-l span { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.bk-prog .cx-fillbar { margin-top: 4px; }
+.bk-cv { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.bk-cv h4 { margin: 0 0 2px; font-size: 13px; }
+.bk-cvrow { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font-size: 12.5px; }
+.bk-cvrow b { font-variant-numeric: tabular-nums; }
+.bk-cvrow i { grid-column: 1 / -1; display: block; height: 5px; border-radius: 3px; background: var(--wx); opacity: 0.7; }
+
+/* ==================================================================================================
+   DESKTOP ≥ 1100px: each sub-topic's pane fills the panel.
+   ================================================================================================== */
+@media (min-width: 1100px) {
+  .pane-bkmap { grid-template-rows: minmax(0, 1fr); }
+  .pane-bkmap .bk-mapcard { display: flex; min-height: 0; }
+  .pane-bkmap .bk-mapbody, .pane-bkmap .bk-map { flex: 1; min-height: 0; height: 100%; }
+  .pane-bktt, .pane-bkhours, .pane-bkdays, .pane-bkwait, .pane-bkbunch, .pane-bkstring, .pane-bkcmap, .pane-bkbands,
+  .pane-bkmodel, .pane-bkfc, .pane-bkwet, .pane-bkcmpb { grid-template-rows: minmax(0, 1fr); }
+  .pane-bkdata { grid-template-rows: minmax(0, 1.15fr) minmax(0, 1fr); }
+  .pane-bkstops { grid-template-rows: auto minmax(0, 1fr) auto; }
+  .pane-bksegs { grid-template-rows: auto auto auto minmax(0, 1fr); }
+  .pane-bkcmp { grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); }
+  .pane-about { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  .pane-about .card { max-height: 100%; overflow: auto; }
+  .bk-explain { overflow: auto; }
+}
+@media (min-width: 1100px) and (max-height: 860px) {
+  .bk-stripcard .chart { height: 92px; }
+  .bk-explain p { font-size: 12.5px; }
+}
+
+/* ==================================================================================================
+   MOBILE / TABLET < 1100px
+   ================================================================================================== */
+@media (max-width: 1099.98px) {
+  .bk-mapbody { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .bk-map { min-height: 380px; height: 380px; }
+  .bk-panel { border-left: 0; border-top: 1px solid var(--border); max-height: none; }
+  .cx-app .bk-stripcard .chart { height: 112px; }
+  .cx-app #bk-s { height: 360px; }
+  .cx-app #bk-cb { height: 320px; }
+  .cx-app #bk-ot-0, .cx-app #bk-ot-1 { height: 280px; }
+  .cx-app #bk-cm { height: 340px; }
+  .cx-app #bk-c-lane { height: 170px; }
+  .cx-app [id^="bk-r-"] { height: 190px; }
+}
+@media (max-width: 560px) {
+  .bk-cardhead { flex-direction: column; }
+}
+
+.bk-otherkey { display: inline-flex; align-items: center; gap: 5px; }
+.bk-otherkey img { display: block; }

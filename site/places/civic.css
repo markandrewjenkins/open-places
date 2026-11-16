@@ -1,0 +1,679 @@
+/* Open Places mockup (review only). Two designs, each light and dark, switched by the Design button:
+     Blue  (the default, no data-skin; "Harbour")  a bright, airy cool-white day and a bathymetric navy night, survey-red
+           (day) / amber (night) accents, Inter throughout with tabular figures. Each topic has its own colour
+           (--m-<module id>), carried by its tile band, tab, rail dot and charts. Cards are glass (≥ 0.92 alpha) with a soft
+           highlight edge and gentle corners; the alert strip is a dark "now" band.
+     Grey  (data-skin="grey")  light "Fog", dark "Graphite": the same layout with neutral greys; only tokens change.
+   All four token sets live in ../src/shared/places-tokens.css (also imported by theme.css). This file uses tokens only, so
+   every rule works in all four. Solid hairlines everywhere (no dotted or dashed rules); "mock" / "planned" read as solid
+   tinted chips. Charts read --s1…--s3 (inside a tile: the topic colour), the map reads --map-land / --map-water. Restyles
+   the shared console (console.css) from the outside with tokens and .cx-* hooks, as a skin would. */
+@import "../src/shared/places-tokens.css";
+
+/* ------------------------------------------------------------ base */
+body.civic { font-size: var(--fs); font-variant-numeric: tabular-nums; background: var(--page); }
+.civic h1, .civic h2, .civic h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.012em; }
+.civic .chart text, .civic .civ-plot text { font-family: var(--fig); font-size: 10.5px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.civic .chart text.lbl { font-family: var(--font); font-size: 11.5px; fill: var(--ink-2); }
+.civic .chart .civ-mk { fill: var(--ink-2); }
+.civic .grid line { stroke: var(--grid); }
+.civic .tooltip { border-radius: 6px; box-shadow: 0 4px 16px rgba(0, 0, 0, .18); }
+.civic .icon-btn { border-radius: var(--pill); width: 30px; height: 30px; background: transparent; }
+.civic .icon-btn:hover { background: var(--surface-2); }
+.civic .skin-btn { height: 30px; border-radius: var(--pill); background: transparent; font-weight: 500; }
+.civic .skin-dot { background: linear-gradient(90deg, var(--ink-2) 50%, var(--surface-2) 50%); box-shadow: 0 0 0 1px var(--axis); }
+.civic select { height: 28px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--pill); background: var(--glass); color: var(--ink); font-size: 12.5px; }
+@keyframes civ-sweep { from { background-position: 100% 0; clip-path: inset(0 100% 0 0); } to { background-position: 0 0; clip-path: inset(0 0 0 0); } }
+@keyframes civ-pulse { 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+/* source tags: live / data / mock / planned, on every tile; mock and planned are solid tinted chips */
+.civ-tag { display: inline-block; font: 600 9.5px/1 var(--fig); letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 6px; border-radius: var(--pill);
+  border: 1px solid currentColor; color: var(--muted); vertical-align: 0.1em; margin-left: 5px; }
+.civ-tag[data-kind="live"] { color: var(--live); }
+.civ-tag[data-kind="data"] { color: var(--ink-2); }
+.civ-tag[data-kind="mock"], .civic .cx-tile-live[data-kind="mock"], .civ-mocktag { color: var(--mockc);
+  border: 1px solid color-mix(in oklab, var(--mockc) 40%, transparent); background: color-mix(in oklab, var(--mockc) 12%, var(--surface)); }
+.civ-tag[data-kind="planned"], .civic .cx-tile-live[data-kind="planned"] { color: var(--muted);
+  border: 1px solid color-mix(in oklab, var(--muted) 35%, transparent); background: color-mix(in oklab, var(--muted) 9%, var(--surface)); }
+.civ-sev { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 0.08em; background: var(--live); }
+.civ-sev[data-sev="1"] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--muted); }
+.civ-sev[data-sev="2"] { background: var(--warn); }
+.civ-sev[data-sev="3"] { background: var(--bad); }
+
+/* ------------------------------------------------------------ top bar: a soft gradient, then a thin sweep of topic colours */
+#civ-head { position: relative; z-index: 60; background: var(--page); }
+#civ-head::after { content: ""; display: block; height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--m-blossom) 22%, var(--m-salish) 44%, var(--m-weather) 62%, var(--m-foliage) 80%, var(--accent-2));
+  background-size: 200% 100%; animation: civ-sweep 1.6s cubic-bezier(.2, .7, .2, 1) 1 both; }
+.civ-top { position: static; gap: 12px; padding: 8px 18px; background: linear-gradient(180deg, var(--top-1), var(--top-2)); backdrop-filter: none; border-bottom: 1px solid var(--border); }
+.civ-brand { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); flex: none; }
+.civ-brand svg .lit { fill: var(--lit); filter: drop-shadow(0 0 3px var(--lit)); }
+.civ-brand span { font-family: var(--display); font-weight: 700; font-size: 19px; letter-spacing: -0.01em; }
+.civ-crumbs { display: flex; align-items: center; gap: 1px; min-width: 0; font-size: 13px; padding-left: 12px; border-left: 1px solid var(--border); }
+.civ-crumb { border: 0; background: none; padding: 4px 6px; border-radius: var(--radius); color: var(--ink-2); text-decoration: none; cursor: pointer; white-space: nowrap; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
+.civ-crumb:hover, .civ-crumb[aria-expanded="true"] { background: var(--surface-2); color: var(--ink); }
+.civ-crumb.cur { color: var(--ink); font-weight: 650; border: 1px solid var(--border); border-radius: var(--pill); background: var(--glass); box-shadow: inset 0 1px 0 var(--glass-hi); padding: 4px 8px; }
+.civ-caret { color: var(--accent); font-size: 10px; }
+.civ-sep { color: var(--muted); font-size: 12px; }
+.civ-mocktag { flex: none; font: 600 10px/1 var(--fig); letter-spacing: 0.1em; text-transform: uppercase; padding: 5px 8px; border-radius: var(--pill); }
+.civ-gallery { font-size: 12.5px; color: var(--ink-2); text-decoration: none; white-space: nowrap; }
+.civ-gallery:hover { color: var(--ink); text-decoration: underline; }
+
+.civ-search { position: relative; flex: 0 1 200px; min-width: 120px; }
+.civ-search input { width: 100%; height: 30px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--pill); background: var(--glass); box-shadow: inset 0 1px 2px rgba(0, 40, 70, 0.08); font-size: 13px; outline: none; }
+.civ-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 18%, transparent); }
+.civ-results { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 120; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, .14); padding: 4px; max-height: 320px; overflow: auto; min-width: 250px; }
+.civ-results button, .civ-menu button { display: flex; width: 100%; justify-content: space-between; align-items: baseline; gap: 10px; border: 0; background: none; padding: 6px 9px; border-radius: calc(var(--radius) - 2px); cursor: pointer; text-align: left; font-size: 13px; color: var(--ink); }
+.civ-results button:hover, .civ-results button:focus-visible, .civ-menu button:hover, .civ-menu button:focus-visible { background: var(--surface-2); outline: none; }
+.civ-results small, .civ-menu small { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.civ-nohit { padding: 8px 9px; font-size: 12.5px; color: var(--muted); }
+.civ-menu { position: fixed; z-index: 130; width: 280px; max-height: 70vh; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, .18); padding: 5px; }
+.civ-menu-h { font: 650 10px/1 var(--font); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); padding: 10px 9px 4px; }
+.civ-menu button[aria-checked="true"] { font-weight: 600; background: color-mix(in oklab, var(--accent) 12%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
+.civ-menu-world { display: block; margin-top: 4px; padding: 8px 9px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--accent); font-weight: 600; text-decoration: none; }
+
+/* ------------------------------------------------------------ the alert strip: a dark "now" band */
+.civ-alerts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 5px 18px; min-height: 30px; font-size: 12.5px;
+  color: var(--now-ink); background: linear-gradient(180deg, var(--now-bg), var(--now-bg-2)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18); }
+.civ-al-k { font: 700 10.5px/1 var(--fig); letter-spacing: 0.14em; text-transform: uppercase; color: var(--now-hi); text-decoration: none; flex: none; }
+.civ-al-k:hover { text-decoration: underline; }
+.civ-al-clear { color: var(--now-ink); flex: none; }
+.civ-al-clear::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--live); margin-right: 7px; vertical-align: 0.08em;
+  box-shadow: 0 0 0 0 var(--live); animation: civ-pulse 2s infinite; }
+/* secondary text holds 4.5:1 on the band */
+.civ-al-src { color: color-mix(in oklab, var(--now-ink) 85%, transparent); font: 500 10.5px/1.2 var(--fig); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.civ-al-src { overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1 1 0; }
+.civ-al-list { display: flex; gap: 6px 16px; flex: 1 1 0; min-width: 0; overflow: hidden; flex-wrap: nowrap; }
+.civ-al-i { display: inline-flex; align-items: center; gap: 0; flex: none; max-width: 46ch; overflow: hidden; color: var(--now-ink); text-decoration: none; white-space: nowrap; }
+.civ-al-i b { color: var(--now-strong); font-weight: 600; }
+.civ-al-i span { margin-left: 6px; color: color-mix(in oklab, var(--now-ink) 85%, transparent); overflow: hidden; text-overflow: ellipsis; }
+.civ-al-i:hover b { text-decoration: underline; }
+.civ-alerts .civ-tag[data-kind="data"] { color: var(--now-ink); }
+/* it grows only when something matters: a warning gets a red-tinted band and its own line */
+.civ-alerts[data-state="warning"] { padding-top: 7px; padding-bottom: 7px;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--bad) 42%, var(--now-bg)), color-mix(in oklab, var(--bad) 34%, var(--now-bg-2))); }
+.civ-al-top { display: inline-flex; align-items: baseline; gap: 8px; color: var(--now-ink); text-decoration: none; min-width: 0; flex: 1 1 auto; font-size: 13.5px; }
+.civ-al-top b { color: var(--now-strong); font-weight: 600; white-space: nowrap; }
+.civ-al-top span { color: color-mix(in oklab, var(--now-ink) 85%, transparent); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.civ-al-top:hover b { text-decoration: underline; }
+.civ-alerts[data-state="warning"] .civ-al-list { order: 9; flex: 1 0 100%; padding-left: 52px; }
+/* the newest feed change, at the front of the strip for ten minutes */
+.civ-al-new { display: inline-flex; align-items: center; gap: 7px; flex: 0 1 auto; min-width: 0; max-width: 48ch; color: var(--now-ink); text-decoration: none; white-space: nowrap; overflow: hidden;
+  animation: civ-flash 1.2s ease-out 1; }
+.civ-al-new em { flex: none; font: 700 9.5px/1 var(--fig); font-style: normal; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 6px; border-radius: var(--pill); background: var(--now-hi); color: var(--now-bg-2); }
+.civ-al-new b { color: var(--now-strong); font-weight: 600; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.civ-al-new time { flex: none; font: 500 10.5px/1 var(--fig); color: color-mix(in oklab, var(--now-ink) 85%, transparent); }
+.civ-al-new:hover b { text-decoration: underline; }
+@keyframes civ-flash { from { background: color-mix(in oklab, var(--now-hi) 30%, transparent); } }
+.civ-sound[aria-pressed="true"] { color: var(--accent); }
+
+/* ------------------------------------------------------------ the alert feed (civic-alerts.js): a one-line row at the top of
+   the overview, newest first; level icon (warn = triangle, notice = filled dot, info = ring), topic colour on the left edge */
+.civ-step.civ-feed { grid-template-columns: 112px minmax(0, 1fr) auto; grid-template-rows: auto; align-items: center; padding: 0 0 7px; border-top: 0; }
+.civ-feed .civ-step-h { padding-top: 0; }
+.civ-fd-strip { display: flex; gap: 6px; min-width: 0; overflow: hidden; }
+.civ-fd { --tc: var(--accent); display: inline-flex; align-items: center; gap: 6px; flex: none; max-width: 330px; min-width: 0; padding: 3px 9px 3px 7px;
+  border: 1px solid var(--border); border-left: 3px solid var(--tc); border-radius: 6px; background: var(--glass); box-shadow: inset 0 1px 0 var(--glass-hi);
+  color: var(--ink-2); text-decoration: none; font-size: 12.5px; line-height: 1.3; white-space: nowrap; }
+a.civ-fd:hover { border-color: color-mix(in oklab, var(--tc) 55%, var(--border)); }
+a.civ-fd:hover .civ-fd-t { text-decoration: underline; }
+.civ-fd-t { color: var(--ink); font-weight: 600; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.civ-fd-k { display: none; }
+.civ-fd-w { flex: none; font: 500 11px/1.2 var(--fig); color: var(--muted); font-variant-numeric: tabular-nums; }
+.civ-fd-ic { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.civ-fd-ic[data-level="warn"] { width: 10px; height: 9px; border-radius: 0; background: var(--bad); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.civ-fd-ic[data-level="notice"] { background: var(--warn); }
+.civ-fd-ic[data-level="info"] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--muted); }
+.civ-fd-none { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.civ-fd-side { position: relative; flex: none; }
+.civ-fd-all { border: 1px solid var(--border); background: var(--glass); border-radius: var(--pill); padding: 3px 10px; font-size: 12px; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.civ-fd-all:hover:not(:disabled) { color: var(--ink); border-color: var(--axis); }
+.civ-fd-all:disabled { opacity: 0.55; cursor: default; }
+.civ-fd-all[aria-expanded="true"] { background: var(--ink); color: var(--page); }
+.civ-fd-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 80; width: min(440px, calc(100vw - 32px)); max-height: min(60vh, 520px); overflow: auto;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2); padding: 4px 10px 8px; }
+.civ-fd-pop-h { font: 650 10px/1 var(--font); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 8px 0 6px; }
+/* list form: the All list, the All Alerts pane, a topic's Summary */
+.civ-fd-list { display: flex; flex-direction: column; }
+.civ-fd-list .civ-fd { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; column-gap: 8px; row-gap: 1px; align-items: baseline; max-width: none; white-space: normal;
+  padding: 6px 4px 6px 8px; border: 0; border-left: 3px solid var(--tc); border-bottom: 1px solid var(--grid); border-radius: 0; background: none; box-shadow: none; }
+.civ-fd-list .civ-fd-ic { grid-column: 1; grid-row: 1; align-self: center; }
+.civ-fd-list .civ-fd-t { grid-column: 2; grid-row: 1; white-space: normal; }
+.civ-fd-list .civ-fd-w { grid-column: 3; grid-row: 1; }
+.civ-fd-list .civ-fd-b { grid-column: 2 / 4; grid-row: 2; font-size: 12px; color: var(--ink-2); }
+.civ-fd-list .civ-fd-k { display: block; grid-column: 2 / 4; grid-row: 3; font: 500 9.5px/1.3 var(--fig); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.civ-fd-list + .civ-fd-none, .civ-scroll > .civ-fd-none { white-space: normal; padding: 6px 2px; }
+
+/* ------------------------------------------------------------ console: rail */
+.civic .cx-app { --cx-rail-w: 228px; }
+.civic .cx-nav { background: color-mix(in oklab, var(--surface-2) 55%, var(--page)); border-right: 1px solid var(--border); padding: 10px 8px 10px 10px; gap: 8px; }
+.civic .cx-nav-list { gap: 0; }
+.civic .cx-topic { border-radius: 8px; font-size: 13px; font-weight: 550; padding: 5px 10px; color: var(--ink-2); gap: 8px; }
+.civic .cx-topic:hover { background: var(--surface-2); }
+.civic .cx-group.active > .cx-topic { background: var(--glass); color: var(--ink); font-weight: 600;
+  box-shadow: 0 0 0 1px var(--border), inset 0 1px 0 var(--glass-hi), inset 3px 0 0 var(--tc, var(--accent)); }
+.civic .cx-dot { display: block; border-radius: 2px; }
+.civic .cx-badge { font-family: var(--fig); font-size: 10.5px; font-weight: 500; color: var(--muted); }
+.civic .cx-group.active .cx-badge { color: var(--tc); }
+.civic .cx-group[data-h]::before { content: attr(data-h); display: flex; margin: 12px 4px 4px; padding-bottom: 4px; font: 650 9.5px/1 var(--font); letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.civic .cx-group.civ-hot .cx-label::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; vertical-align: 0.15em;
+  background: var(--tc); box-shadow: 0 0 0 2px color-mix(in oklab, var(--tc) 25%, transparent), 0 0 8px var(--tc); }
+.civic .cx-group.civ-alerting .cx-badge { color: var(--bad); font-weight: 600; }
+.civic .cx-group.cx-sep { border-top: 1px solid var(--border); }
+.civic .cx-nav .cx-subs, .civic .cx-nav .cx-caret { display: none; } /* a topic's pages are the tabs above its content */
+.civic .cx-group[hidden] { display: none; }
+.civic .cx-foot { border-top: 1px solid var(--border); }
+
+/* ------------------------------------------------------------ console: views (glass cards with a tinted title band) */
+.civic .cx-main { background: var(--page); }
+.civic .cx-view { padding: 12px 18px 14px; gap: 10px; }
+.civic .cx-title .eyebrow { color: var(--tc, var(--accent)); font: 650 10.5px/1.3 var(--font); letter-spacing: 0.14em; text-transform: uppercase; }
+.civic .cx-view[data-view="overview"] .cx-title .eyebrow { color: var(--accent); }
+.civic .cx-title h1 { font-size: 23px; margin-top: 1px; }
+.civic .cx-kpi { border-left: 1px solid var(--border); padding: 0 14px; }
+.civic .cx-kpi:first-child { padding-left: 0; }
+.civic .cx-kpi-v { font-family: var(--fig); font-weight: 600; font-size: 18px; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.civic .cx-kpi-v.txt { font-family: var(--display); letter-spacing: -0.01em; }
+.civic .cx-kpi-l { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+.civic .cx-app .card { border-radius: var(--radius); border: 1px solid var(--border); background: var(--glass); box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow);
+  backdrop-filter: blur(10px) saturate(1.2); padding: 12px 14px; }
+.civic .cx-card-title { font: 700 11px/1.3 var(--font); letter-spacing: -0.012em; text-transform: uppercase; margin: -12px -14px 8px; padding: 8px 14px;
+  border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0; border-bottom: 1px solid color-mix(in oklab, var(--tc, var(--accent)) 20%, transparent);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--tc, var(--accent)) 15%, transparent), color-mix(in oklab, var(--tc, var(--accent)) 5%, transparent)); }
+.civic .cx-card-sub { font-size: 12px; color: var(--ink-2); }
+.civic .cx-drawer { border-top: 1px solid var(--border); border-radius: 0; }
+
+/* leaf bar: a topic's pages as pill buttons along the top of its content, in the topic colour (--topic). Unselected pills
+   are raised surface buttons with a tinted outline; the selected one is filled (topic colour, shaded for white text by day,
+   lifted for dark text by night) with a notch that joins it to the content. Each pill: status dot (live = green, data =
+   ring, mock = amber square, planned = dashed ring), name, the place it covers, a count. A tablist (console.js). */
+:root { --leaf-mix: #000; --leaf-k: 22%; --on-leaf: #ffffff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --leaf-mix: #fff; --leaf-k: 8%; --on-leaf: #0a1220; } }
+:root[data-theme="dark"] { --leaf-mix: #fff; --leaf-k: 8%; --on-leaf: #0a1220; }
+.civic .cx-subtabs.civ-leafbar { display: flex; order: -1; flex: none; gap: 6px; margin: -6px 0 0; padding: 6px 2px 9px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+  border: 0; border-bottom: 1px solid var(--border); background: none; box-shadow: none; border-radius: 0; }
+.civic .civ-leafbar::-webkit-scrollbar { display: none; }
+/* more pills off to the side: fade that edge (civic.js toggles the classes) */
+.civic .civ-leafbar.civ-fade-r, .civ-subrow.civ-fade-r { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
+.civic .civ-leafbar.civ-fade-l, .civ-subrow.civ-fade-l { -webkit-mask-image: linear-gradient(90deg, transparent, #000 36px); mask-image: linear-gradient(90deg, transparent, #000 36px); }
+.civic .civ-leafbar.civ-fade-l.civ-fade-r, .civ-subrow.civ-fade-l.civ-fade-r { -webkit-mask-image: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
+.civic .civ-leaf { --c: var(--topic, var(--tc, var(--accent))); --sel: color-mix(in oklab, var(--c), var(--leaf-mix) var(--leaf-k));
+  position: relative; flex: none; display: inline-flex; align-items: center; gap: 7px; height: 32px; margin: 0; padding: 0 12px 0 11px; border-radius: var(--pill);
+  border: 1px solid color-mix(in oklab, var(--c) 42%, var(--border)); background: var(--surface); color: var(--ink);
+  box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 2px color-mix(in oklab, var(--c) 22%, transparent);
+  font-size: 13px; font-weight: 600; letter-spacing: -0.005em; text-decoration: none; white-space: nowrap; cursor: pointer;
+  transition: background-color .12s, border-color .12s, box-shadow .12s, color .12s; }
+.civic .civ-leaf:hover { background: color-mix(in oklab, var(--c) 11%, var(--surface)); border-color: color-mix(in oklab, var(--c) 70%, var(--border)); }
+.civic .civ-leaf:active { transform: translateY(1px); }
+.civic .civ-leaf:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+.civic .civ-leaf[aria-selected="true"] { background: var(--sel); border-color: var(--sel); color: var(--on-leaf);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 3px 10px -4px color-mix(in oklab, var(--c) 80%, transparent); }
+.civic .civ-leaf[aria-selected="true"]::after { content: ""; position: absolute; left: 50%; bottom: -10px; width: 22px; height: 3px; margin-left: -11px; border-radius: 3px 3px 0 0; background: var(--sel); }
+.civic .civ-leaf[hidden] { display: none; }
+.civic .civ-leaf[aria-selected="true"] .civ-lic { color: inherit; }
+.civ-ldot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-2); }
+.civ-leaf[data-kind="live"] .civ-ldot { background: var(--live); }
+.civ-leaf[data-kind="data"] .civ-ldot { background: transparent; box-shadow: inset 0 0 0 1.6px var(--ink-2); }
+.civ-leaf[data-kind="mock"] .civ-ldot { background: var(--mockc); border-radius: 2px; }
+.civ-leaf[data-kind="planned"] .civ-ldot { background: transparent; border: 1.4px dashed var(--muted); width: 9px; height: 9px; }
+.civ-leaf-sum .civ-ldot, .civ-leaf-sum[data-kind] .civ-ldot { width: 10px; height: 10px; border: 0; border-radius: 1px; box-shadow: none;
+  background: linear-gradient(currentColor 0 0) 0 0 / 4px 4px no-repeat, linear-gradient(currentColor 0 0) 100% 0 / 4px 4px no-repeat,
+    linear-gradient(currentColor 0 0) 0 100% / 4px 4px no-repeat, linear-gradient(currentColor 0 0) 100% 100% / 4px 4px no-repeat; color: var(--c); }
+.civic .civ-leaf[aria-selected="true"] .civ-ldot { box-shadow: 0 0 0 1.5px var(--on-leaf); }
+.civic .civ-leaf[aria-selected="true"][data-kind="data"] .civ-ldot { box-shadow: inset 0 0 0 1.6px var(--on-leaf); }
+.civic .civ-leaf-sum[aria-selected="true"] .civ-ldot { box-shadow: none; color: var(--on-leaf); }
+.civ-ln { min-width: 0; }
+.civ-leaf.civ-hot .civ-ln::after { content: ""; display: inline-block; width: 5px; height: 5px; margin-left: 6px; border-radius: 50%; vertical-align: 0.15em; background: currentColor; opacity: 0.8; }
+.civ-lv { font: 500 10px/1 var(--fig); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.civ-lv:empty, .civ-lc:empty { display: none; }
+.civ-lc { font: 600 11px/1 var(--fig); font-variant-numeric: tabular-nums; padding: 3px 6px; border-radius: 999px; color: var(--ink-2); background: color-mix(in oklab, var(--c) 13%, var(--surface-2)); }
+.civic .civ-leaf[aria-selected="true"] .civ-lv { color: color-mix(in oklab, var(--on-leaf) 82%, transparent); }
+.civic .civ-leaf[aria-selected="true"] .civ-lc { color: var(--on-leaf); background: color-mix(in oklab, var(--on-leaf) 20%, transparent); }
+
+/* tiles: glass, a band tinted in the topic colour, the lead figure on a topic-coloured rule */
+.civic .cx-tile, .civic .cx-pane, .civ-more-i { --s1: var(--tc); }
+.civic .cx-tile { border-radius: var(--radius); border: 1px solid var(--border); background: var(--glass); box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow);
+  backdrop-filter: blur(10px) saturate(1.2); padding: 0 12px 8px; gap: 6px; overflow: hidden; transition: border-color .15s; }
+.civic .cx-tile.civ-hot { box-shadow: 0 0 0 1px color-mix(in oklab, var(--tc) 55%, transparent), 0 10px 26px -18px var(--tc), var(--shadow); }
+.civic .cx-tile:hover { border-color: var(--border); box-shadow: inset 0 1px 0 var(--glass-hi), 0 0 0 1px color-mix(in oklab, var(--tc) 55%, transparent), var(--shadow); }
+.civic .cx-tile-head { gap: 8px; min-width: 0; margin: 0 -12px; padding: 4px 12px; border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--tc) 22%, transparent);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--tc) 17%, transparent), color-mix(in oklab, var(--tc) 6%, transparent)); }
+.civic .cx-tile-dot { display: block; width: 8px; height: 8px; border-radius: 2px; }
+.civic .cx-tile-name { font-size: 12.5px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; color: var(--ink); }
+.civic .cx-tile-go { display: none; }
+.civic .cx-tile-live { margin-left: auto; flex: none; display: inline-flex; gap: 5px; align-items: center; font: 600 9px/1 var(--fig); letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-2); background: var(--surface); padding: 3px 6px; border: 0; border-radius: var(--pill); }
+.civic .cx-tile-live::before { display: block; content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-2); }
+.civic .cx-tile-live[data-kind="live"] { color: var(--live); }
+.civic .cx-tile-live[data-kind="live"]::before { background: var(--live); box-shadow: 0 0 0 0 var(--live); animation: civ-pulse 2s infinite; }
+.civic .cx-tile-live[data-kind="data"]::before { background: transparent; border-radius: 1px; box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+.civic .cx-tile-live[data-kind="mock"]::before, .civic .cx-tile-live[data-kind="planned"]::before { display: none; }
+.civic .cx-tile[data-kind="planned"] { background: color-mix(in oklab, var(--surface-2) 45%, var(--surface)); }
+.civic .cx-tile[data-kind="planned"] .cx-tile-head { background: transparent; }
+.civic .cx-tile-kpis { display: flex; gap: 14px; min-width: 0; }
+.civic .cx-tk { min-width: 0; flex: 0 1 auto; padding-left: 8px; border-left: 1px solid var(--border); }
+.civic .cx-tk:first-child { flex: 0 0 auto; max-width: 55%; border-left: 3px solid var(--tc); }
+.civic .cx-tk b { font-family: var(--fig); font-weight: 600; font-size: 14px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.civic .cx-tk:first-child b { font-size: 21px; letter-spacing: -0.02em; }
+.civic .cx-tk b.txt { font-family: var(--font); font-weight: 650; font-size: 13.5px; letter-spacing: -0.01em; }
+.civic .cx-tk:first-child b.txt { font-family: var(--display); font-size: 18px; }
+.civic .cx-tk span { font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+.cx-tile-vis.civ-v { display: flex; flex-direction: column; gap: 4px; }
+.civ-plot { position: relative; flex: 1 1 0; min-height: 0; }
+.civ-plot > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.civ-tfoot { display: flex; align-items: center; gap: 8px; min-height: 14px; overflow: hidden; font: 500 9.5px/1 var(--fig); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.civ-src { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.civ-open { margin-left: auto; color: var(--tc); font-weight: 600; text-decoration: none; flex: none; }
+.civ-open:hover { text-decoration: underline; }
+
+/* HTML rows (lists in tiles and views) */
+.civ-rows { display: flex; flex-direction: column; min-height: 0; overflow: hidden; height: 100%; }
+.civ-plot .civ-rows { justify-content: flex-start; }
+.civ-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 2px 0; border-bottom: 1px solid var(--grid); font-size: 12px; color: var(--ink-2); line-height: 1.3; }
+.civ-row:last-child { border-bottom-width: 0; }
+.civ-rows.bars .civ-row { grid-template-columns: minmax(0, 1.3fr) minmax(30px, 1fr) auto; }
+.civ-row.hl { color: var(--ink); font-weight: 600; background: color-mix(in oklab, var(--tc, var(--accent)) 12%, transparent); border-radius: 3px; }
+.civ-row-l { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; min-width: 0; }
+.civ-row-v { font-family: var(--fig); font-weight: 500; font-size: 11.5px; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.civ-row-bar { height: 5px; background: var(--surface-2); border-radius: 2px; overflow: hidden; }
+.civ-row-bar i { display: block; height: 100%; background: var(--s1); border-radius: 2px; }
+
+/* ------------------------------------------------------------ topic views */
+.civ-pane { display: grid; gap: 12px; min-height: 0; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); }
+.civ-side { display: grid; gap: 12px; min-height: 0; grid-template-rows: minmax(0, 1fr) minmax(0, 1.1fr); }
+.civ-scroll { overflow: auto; }
+.civ-meta { margin-bottom: 6px; }
+.civ-meta .civ-row, .civ-srcs .civ-row { align-items: start; }
+.civ-meta .civ-row-v, .civ-srcs .civ-row-v { white-space: normal; text-align: right; font-family: var(--font); font-weight: 500; font-size: 12px; }
+.civ-meta .civ-row-l { flex: none; }
+.civ-srcs .civ-row:first-child { font-size: 11px; color: var(--muted); }
+.civ-season { flex: 1 1 0; min-height: 70px; }
+.civ-meta-foot { padding-top: 6px; }
+.civ-empty { padding: 20px 4px; }
+.civ-why { font-size: 12.5px; color: var(--ink-2); max-width: 60ch; margin-top: 6px; }
+.civ-alerts-pane { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+.civ-alert { display: block; padding: 8px 0; border-bottom: 1px solid var(--grid); text-decoration: none; color: var(--ink-2); }
+.civ-alert-h { display: flex; align-items: center; gap: 0; color: var(--ink); font-size: 13.5px; }
+.civ-alert-h b { font-weight: 600; }
+.civ-alert-s { font-size: 12px; color: var(--muted); margin: 2px 0 0 13px; }
+.civ-alert-t { font-size: 12px; margin: 4px 0 0 13px; max-width: 80ch; }
+.civ-alert:hover b { text-decoration: underline; }
+.civ-clear { font-size: 15px; color: var(--ink); margin-bottom: 6px; }
+.civ-about .prose p + p { margin-top: 8px; }
+.civ-about .prose p, .civ-about li { font-size: 13px; color: var(--ink-2); line-height: 1.55; }
+.civ-about ul { margin: 0; padding-left: 18px; } .civ-about li { margin-bottom: 7px; }
+.civ-about h3 { font-size: 17px; margin-bottom: 8px; }
+
+/* no motion when asked: the header sweep, the pulsing live dots and every transition */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+/* ------------------------------------------------------------ the world map: lit places, a glass panel, a starry night */
+html.civ-world-open, html.civ-world-open body { overflow: hidden; }
+.civ-world { position: fixed; inset: 0; z-index: 90; overflow: hidden; background: radial-gradient(ellipse at 50% 30%, var(--top-1), var(--page) 60%, var(--surface-2)); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .civ-world { background: radial-gradient(1px 1px at 20% 30%, #cfd8ff88, transparent), radial-gradient(1px 1px at 70% 20%, #ffffff77, transparent), radial-gradient(1.5px 1.5px at 85% 65%, #f6e3b588, transparent),
+    radial-gradient(1px 1px at 35% 80%, #ffffff66, transparent), radial-gradient(1px 1px at 55% 55%, #cfd8ff55, transparent), radial-gradient(ellipse at 50% 45%, #13213a 0%, #070d18 60%, #03060c 100%); }
+}
+:root[data-theme="dark"] .civ-world { background: radial-gradient(1px 1px at 20% 30%, #cfd8ff88, transparent), radial-gradient(1px 1px at 70% 20%, #ffffff77, transparent), radial-gradient(1.5px 1.5px at 85% 65%, #f6e3b588, transparent),
+  radial-gradient(1px 1px at 35% 80%, #ffffff66, transparent), radial-gradient(1px 1px at 55% 55%, #cfd8ff55, transparent), radial-gradient(ellipse at 50% 45%, #13213a 0%, #070d18 60%, #03060c 100%); }
+.civ-world .civ-map, .civ-world .civ-map.maplibregl-map { position: absolute; inset: 0; }
+.civ-world .maplibregl-ctrl-top-right { top: 52px; }
+.civ-world .maplibregl-ctrl-group { border-radius: var(--radius); background: #f5f4ef; }
+.civ-world .maplibregl-ctrl-attrib { background: color-mix(in oklab, var(--surface) 85%, transparent); color: var(--ink-2); }
+.civ-wpanel { position: absolute; left: 20px; top: 20px; width: 340px; z-index: 2; padding: 18px; display: flex; flex-direction: column; gap: 12px;
+  background: var(--glass); border: 1px solid var(--border); border-radius: 16px; backdrop-filter: blur(10px) saturate(1.2);
+  box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow), 0 24px 50px -30px rgba(0, 40, 80, 0.5); }
+.civ-wk { font: 650 10.5px/1 var(--fig); letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
+.civ-wpanel h1 { font-size: 32px; line-height: 1; }
+.civ-wlede { color: var(--ink-2); font-size: 13.5px; line-height: 1.5; }
+.civ-wsearch { flex: none; }
+.civ-wsearch input { height: 34px; }
+.civ-wbtns { display: flex; gap: 8px; flex-wrap: wrap; }
+.civ-btn { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid var(--ink); border-radius: 5px; background: var(--ink); color: var(--page); font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; }
+.civ-btn:hover { opacity: 0.88; }
+.civ-btn.ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+.civ-btn small { font-size: 11px; color: var(--muted); }
+.civ-whint { font-size: 12px; color: var(--muted); padding-left: 18px; position: relative; line-height: 1.5; }
+.civ-whint b { color: var(--ink-2); font-weight: 500; }
+.civ-key { position: absolute; left: 1px; top: 4px; width: 9px; height: 9px; border-radius: 50%; background: var(--lit); box-shadow: 0 0 0 3px color-mix(in oklab, var(--lit) 25%, transparent), 0 0 10px var(--lit); }
+.civ-wtools { position: absolute; right: 14px; top: 12px; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 10px;
+  background: color-mix(in oklab, var(--surface) 88%, transparent); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: var(--pill); }
+.civ-coords { position: absolute; left: 20px; bottom: 16px; z-index: 2; font: 500 10.5px/1 var(--fig); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); padding: 5px 8px; border-radius: 4px; background: color-mix(in oklab, var(--surface) 88%, transparent); pointer-events: none; }
+.civ-pin { position: relative; width: var(--s); height: var(--s); padding: 0; border: 0; background: none; cursor: pointer; display: block; }
+.civ-pin-dot { position: absolute; inset: 0; border-radius: 50%; background: var(--lit); border: 1.5px solid var(--map-land); box-shadow: 0 0 12px var(--lit); }
+.civ-pin.first .civ-pin-dot { background: var(--lit); box-shadow: 0 0 0 3px color-mix(in oklab, var(--lit) 30%, transparent), 0 0 16px var(--lit); }
+.civ-pin.muni { display: none; }
+.civ-zoomed .civ-pin.muni { display: block; }
+.civ-pin.muni .civ-pin-dot { background: var(--surface); box-shadow: 0 0 0 1.5px var(--lit), 0 0 6px var(--lit); border-width: 1px; }
+.civ-pin:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 50%; }
+.civ-pin-lbl { position: absolute; left: 50%; bottom: calc(100% + 4px); transform: translateX(-50%); white-space: nowrap; padding: 3px 8px; border-radius: var(--pill); font: 12px/1.2 var(--font);
+  background: var(--ink); color: color-mix(in oklab, var(--page) 80%, transparent); border: 0; box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .6); opacity: 0; pointer-events: none; transition: opacity .12s; }
+.civ-pin-lbl b { color: var(--page); font-weight: 600; }
+.civ-pin:hover .civ-pin-lbl, .civ-pin:focus-visible .civ-pin-lbl, .civ-pin.first .civ-pin-lbl { opacity: 1; }
+.civ-zoomed .civ-pin.muni .civ-pin-lbl { opacity: 1; font-size: 11px; padding: 2px 5px; }
+.maplibregl-marker:hover, .maplibregl-marker:focus-within { z-index: 5; }
+
+/* ------------------------------------------------------------ icons (civic-icons.js): line icons in the topic colour */
+.civ-ic { display: block; flex: none; }
+.civic .cx-nav .cx-dot { display: none; }
+.civ-rail-ic { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; color: var(--tc, var(--ink-2)); }
+.civic .cx-group[data-topic="overview"] .civ-rail-ic { color: var(--accent); }
+.civic .cx-group[data-topic="about"] .civ-rail-ic { color: var(--muted); }
+.civ-lic { display: inline-grid; place-items: center; color: var(--c); flex: none; }
+.civ-tile-ic { display: inline-grid; place-items: center; color: var(--tc); flex: none; }
+
+/* ------------------------------------------------------------ status line: "Updated 4:14 pm" and the sources panel */
+.civ-al-sp { flex: 1 1 0; min-width: 0; }
+.civ-upd { flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid color-mix(in oklab, currentColor 30%, transparent); background: transparent; border-radius: var(--pill);
+  padding: 2px 9px; font: 500 11px/1.4 var(--fig); letter-spacing: 0.02em; color: inherit; cursor: pointer; white-space: nowrap; }
+.civ-upd:hover, .civ-upd[aria-expanded="true"] { border-color: currentColor; }
+.civ-srcp { position: fixed; right: 12px; z-index: 140; width: min(760px, calc(100vw - 24px)); max-height: min(72vh, 640px); overflow: auto; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 16px 40px rgba(0, 0, 0, .25); padding: 10px 14px 12px; }
+.civ-srcp[hidden] { display: none; }
+.civ-srcp-h { display: flex; align-items: baseline; gap: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.civ-srcp-h b { font-size: 15px; font-weight: 650; }
+.civ-srcp-h span { font-size: 12px; color: var(--muted); }
+.civ-srcp-g { margin-top: 10px; }
+.civ-srcp-g h4 { font: 650 10.5px/1.2 var(--font); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); margin: 0 0 4px; }
+.civ-srcp-g.small h4 { color: var(--muted); }
+.civ-srcp-g.small { font-size: 0.94em; }
+.civ-srcp-t { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.civ-srcp-t th, .civ-srcp-t td { text-align: left; vertical-align: top; padding: 5px 8px 5px 0; border-bottom: 1px solid var(--grid); font-weight: 400; }
+.civ-srcp-t thead th { font: 600 9.5px/1.2 var(--font); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.civ-srcp-t th b { display: block; font-weight: 600; color: var(--ink); }
+.civ-srcp-t small { display: block; color: var(--muted); font-size: 11px; }
+.civ-src-t { font-family: var(--fig); white-space: nowrap; }
+.civ-src-st { display: inline-block; font: 600 9.5px/1 var(--fig); letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 6px; border-radius: var(--pill); border: 1px solid currentColor; white-space: nowrap; }
+.civ-src-st[data-st="fresh"] { color: var(--live, var(--good)); }
+.civ-src-st[data-st="stale"] { color: var(--warn); }
+.civ-src-st[data-st="failed"] { color: var(--bad); }
+.civ-src-st[data-st="wait"] { color: var(--muted); }
+.civ-srcp-f { margin-top: 10px; font-size: 11.5px; }
+
+/* ------------------------------------------------------------ the stage: one live map behind every page (civic-stage.js) */
+.civ-stage { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: var(--map-water, var(--surface-2)); }
+.civ-stage[hidden] { display: none; }
+.civ-stage > .civ-stage-map, .civ-stage > .civ-stage-map.maplibregl-map { position: absolute; inset: 0; width: 100%; height: 100%; }
+.civ-stage .maplibregl-ctrl-group { border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); }
+.civ-stage .maplibregl-ctrl-group button + button { border-top-color: var(--border); }
+.civ-stage .maplibregl-ctrl-attrib { background: color-mix(in oklab, var(--surface) 85%, transparent); color: var(--ink-2); font-size: 10.5px; }
+.civ-stage .maplibregl-ctrl-attrib a { color: var(--ink-2); }
+:root[data-theme="dark"] .civ-stage .maplibregl-ctrl-icon { filter: invert(1) hue-rotate(180deg); }
+
+/* floating glass panels over the map */
+.civ-fp { background: color-mix(in oklab, var(--surface) 90%, transparent); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 var(--glass-hi, transparent), 0 6px 22px -10px rgba(0, 20, 40, 0.35); backdrop-filter: blur(12px) saturate(1.25); }
+.civ-fpanel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.civ-fp-h { display: flex; align-items: center; gap: 7px; flex: none; margin: 0; padding: 7px 12px; font: 700 11px/1.3 var(--font); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink);
+  border-bottom: 1px solid color-mix(in oklab, var(--tc, var(--accent)) 20%, var(--border));
+  background: linear-gradient(180deg, color-mix(in oklab, var(--tc, var(--accent)) 14%, transparent), color-mix(in oklab, var(--tc, var(--accent)) 4%, transparent)); }
+.civ-fp-h .civ-ic { color: var(--tc, var(--accent)); }
+.civ-fpanel > :not(.civ-fp-h) { padding: 6px 12px 8px; min-height: 0; }
+.civ-fp-body { display: flex; flex-direction: column; min-height: 0; overflow: hidden; flex: 1 1 auto; }
+.civ-fp-rows { overflow: auto; min-height: 0; flex: 1 1 auto; }
+.civ-fp-foot { display: flex; align-items: center; gap: 8px; flex: none; padding-top: 6px; margin-top: auto; border-top: 1px solid var(--grid); font: 500 10px/1.3 var(--fig); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.civ-fp-foot > span { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.civ-fp-foot a { color: var(--accent); text-decoration: none; white-space: nowrap; font-weight: 600; }
+.civ-fp-foot a:hover { text-decoration: underline; }
+.civ-fp-counts { display: flex; flex-wrap: wrap; gap: 4px 12px; padding-bottom: 6px; font-size: 12px; color: var(--ink-2); }
+.civ-fp-counts b { font-family: var(--fig); color: var(--ink); }
+.civ-row { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px solid var(--grid); font-size: 12.5px; color: var(--ink-2); min-width: 0; }
+.civ-row b { color: var(--ink); font-weight: 600; }
+.civ-kd { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 2px; }
+.civ-dep { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--grid); }
+.civ-dep-r { min-width: 30px; text-align: center; padding: 3px 6px; border-radius: 5px; font: 700 12px/1 var(--fig); }
+.civ-dep-h { display: flex; flex-direction: column; min-width: 0; }
+.civ-dep-h b { font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.civ-dep-h small { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.civ-dep-w { font: 600 13px/1 var(--fig); color: var(--ink-2); white-space: nowrap; }
+.civ-dep-w.live { color: var(--live, var(--good)); }
+.civ-native { display: none; }
+
+/* layer chips */
+.civ-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 5px; border-radius: var(--pill); background: color-mix(in oklab, var(--surface) 90%, transparent);
+  border: 1px solid var(--border); box-shadow: 0 6px 18px -10px rgba(0, 20, 40, 0.35); backdrop-filter: blur(12px); }
+.civ-chips[hidden], .civ-chips:empty { display: none; }
+.civ-chips-k { display: inline-grid; place-items: center; color: var(--muted); padding: 0 3px 0 4px; }
+.civ-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px 0 7px; border-radius: var(--pill); border: 1px solid transparent; background: transparent;
+  font-size: 12px; font-weight: 550; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.civ-chip .civ-ic { color: var(--muted); }
+.civ-chip:hover { color: var(--ink); background: var(--surface-2); }
+.civ-chip[aria-pressed="true"] { color: var(--ink); border-color: color-mix(in oklab, var(--lc, var(--accent)) 45%, var(--border)); background: color-mix(in oklab, var(--lc, var(--accent)) 12%, var(--surface)); }
+.civ-chip[aria-pressed="true"] .civ-ic { color: var(--lc, var(--accent)); }
+.civ-chip b { font: 600 10.5px/1 var(--fig); color: var(--ink-2); }
+
+/* map popups */
+.civ-pop .maplibregl-popup-content { padding: 10px 12px 10px; border-radius: 10px; background: var(--surface); color: var(--ink); border: 1px solid var(--border); box-shadow: 0 10px 28px rgba(0, 0, 0, .25); }
+.civ-pop.maplibregl-popup-anchor-bottom .maplibregl-popup-tip, .civ-pop.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip, .civ-pop.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: var(--surface); }
+.civ-pop.maplibregl-popup-anchor-top .maplibregl-popup-tip, .civ-pop.maplibregl-popup-anchor-top-left .maplibregl-popup-tip, .civ-pop.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: var(--surface); }
+.civ-pop.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--surface); }
+.civ-pop.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--surface); }
+.civ-pop .maplibregl-popup-close-button { font-size: 16px; color: var(--muted); padding: 2px 7px; }
+.civ-popc { display: flex; flex-direction: column; gap: 3px; min-width: 200px; }
+.civ-popk { display: flex; align-items: center; gap: 5px; font: 650 9.5px/1.2 var(--font); letter-spacing: 0.1em; text-transform: uppercase; color: var(--lc, var(--muted)); padding-right: 18px; }
+.civ-popt { font-size: 14px; font-weight: 650; }
+.civ-popb { font-size: 12.5px; color: var(--ink-2); line-height: 1.4; }
+.civ-popm { font: 500 11px/1.3 var(--fig); color: var(--muted); }
+.civ-popa { align-self: flex-start; margin-top: 3px; border: 0; background: none; padding: 0; color: var(--accent); font-size: 12.5px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.civ-popa:hover { text-decoration: underline; }
+.civ-popcam { position: relative; width: 260px; max-width: 100%; margin: 4px 0; }
+
+/* ------------------------------------------------------------ a page over the stage: strip · left · map · right */
+.civ-sg { --lw: 0px; --rw: 0px; position: absolute; inset: 0; padding: 10px 12px 12px; display: grid; gap: 10px; pointer-events: none;
+  grid-template-columns: var(--lw) minmax(0, 1fr) var(--rw); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "strip strip right" "left . right"; }
+.civ-sg.has-left { --lw: clamp(290px, 21vw, 380px); }
+.civ-sg[data-layout="map"] { --rw: clamp(340px, 27vw, 520px); }
+.civ-sg[data-layout="map"][data-wide] { --rw: clamp(420px, 38vw, 780px); }
+.civ-sg[data-layout="panel"] { --rw: min(66%, 1240px); }
+.civ-sg.native .civ-sg-right:empty { display: none; }
+.civ-sg-map { display: none; }
+.civ-sg-strip { grid-area: strip; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; min-width: 0; pointer-events: none; }
+.civ-sg-strip > * { pointer-events: auto; }
+.civ-sg-left { grid-area: left; display: flex; flex-direction: column; gap: 10px; min-height: 0; max-height: 100%; align-self: start; overflow: auto; pointer-events: auto; }
+.civ-sg-left:empty { display: none; }
+.civ-sg-left > .civ-fpanel { max-height: 100%; }
+.civ-sg-right { grid-area: right; display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; pointer-events: auto; }
+.civ-sg-right > .civ-pane, .civ-sg-right > .civ-alerts-pane { flex: 1 1 0; min-height: 0; }
+.civ-sg-right > .civ-fpanel { flex: 1 1 0; }
+.civ-sg-right .civ-atlas { display: none; }
+.civ-sg[data-layout="map"] .civ-sg-right > .civ-pane, .civ-sg[data-layout="map"] .civ-sg-right > .civ-alerts-pane { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.25fr) minmax(0, 1fr); }
+.civ-sg-strip .cx-kpis { flex: 0 1 auto; max-width: 100%; margin: 0; padding: 6px 12px; background: color-mix(in oklab, var(--surface) 90%, transparent); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 6px 18px -10px rgba(0, 20, 40, 0.35); backdrop-filter: blur(12px); }
+.civ-sg-strip .cx-kpis:empty { display: none; }
+
+/* a topic's Summary: live tiles on the left, alerts and published data on the right */
+.civ-sum-tiles { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.civ-sum-tiles > .cx-tile { flex: none; height: clamp(112px, 13vh, 140px); }
+.civ-sum-fl { overflow: auto; flex: 1 1 0; }
+.civ-sum-data { display: flex; flex-direction: column; overflow: auto; }
+.civ-drow { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--grid); color: var(--ink-2); text-decoration: none; font-size: 12.5px; }
+.civ-drow .civ-ic { color: var(--tc); }
+.civ-drow span { flex: 1; min-width: 0; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.civ-drow small { font: 500 10.5px/1 var(--fig); color: var(--muted); white-space: nowrap; }
+.civ-drow:hover span { text-decoration: underline; }
+
+/* ------------------------------------------------------------ the Overview over the stage */
+.civ-ov { --lw: clamp(290px, 21vw, 380px); --rw: clamp(330px, 25vw, 440px); position: absolute; inset: 0; padding: 10px 12px 12px; display: grid; gap: 10px; pointer-events: none;
+  grid-template-columns: var(--lw) minmax(0, 1fr) var(--rw); grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-areas: "title title right" "hero hero right" "left chips right" "glance glance right"; }
+.civ-ov.no-left { grid-template-areas: "title title right" "hero hero right" "chips chips right" "glance glance right"; }
+.civ-ov > * { min-width: 0; min-height: 0; pointer-events: auto; }
+.civ-ov-map { display: none; }
+.civ-ov-title { grid-area: title; justify-self: start; display: flex; align-items: center; gap: 12px; padding: 6px 12px; max-width: 100%; }
+.civic .civ-ov-title .cx-head { margin: 0; padding: 0; border: 0; }
+.civic .civ-ov-title h1 { font-size: 19px; margin: 0; line-height: 1.15; }
+.civ-near { border: 1px solid var(--border); background: transparent; border-radius: var(--pill); padding: 3px 10px; font-size: 12.5px; color: var(--accent); font-weight: 600; cursor: pointer; white-space: nowrap; }
+.civ-ov-hero { grid-area: hero; display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); gap: 10px; height: clamp(132px, 17vh, 184px); }
+.civ-ov-hero:empty { display: none; }
+.civ-ov-left { grid-area: left; display: flex; flex-direction: column; gap: 8px; align-self: start; max-height: 100%; overflow: auto; padding: 1px; pointer-events: none; }
+.civ-ov-left > * { pointer-events: auto; }
+.civ-ov-left > .cx-tile { flex: none; height: clamp(100px, 12vh, 132px); }
+.civ-ov-h { flex: none; margin: 2px 2px 0; font: 650 10.5px/1.2 var(--font); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2);
+  padding: 4px 9px; align-self: flex-start; border-radius: var(--pill); background: color-mix(in oklab, var(--surface) 88%, transparent); border: 1px solid var(--border); backdrop-filter: blur(10px); }
+.civ-ov-chips { grid-area: chips; align-self: start; justify-self: end; pointer-events: none; display: flex; }
+.civ-ov-chips > * { pointer-events: auto; }
+.civ-ov-right { grid-area: right; display: flex; flex-direction: column; gap: 10px; }
+.civ-ov-alerts { flex: 1 1 auto; --tc: var(--bad); }
+.civ-ovals { display: flex; flex-direction: column; flex: 1 1 auto; overflow: auto; min-height: 0; }
+.civ-alr { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 8px 2px 8px 0; border-bottom: 1px solid var(--grid); color: var(--ink-2); text-decoration: none; }
+.civ-alr .civ-sev { margin: 5px 0 0; }
+.civ-alr-m { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.civ-alr-m b { font-size: 13.5px; font-weight: 650; color: var(--ink); line-height: 1.3; }
+.civ-alr-m p { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--ink-2); }
+.civ-alr-m small { font: 500 10.5px/1.35 var(--fig); letter-spacing: 0.02em; color: var(--muted); }
+.civ-alr-go { color: var(--muted); padding-top: 2px; }
+a.civ-alr:hover b { text-decoration: underline; }
+a.civ-alr:hover .civ-alr-go { color: var(--accent); }
+.civ-alr[data-sev="3"] { box-shadow: inset 3px 0 0 var(--bad); padding-left: 8px; }
+.civ-alr-h { margin: 10px 0 0; font: 650 10px/1.2 var(--font); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.civ-alr-clear { display: flex; align-items: center; gap: 8px; padding: 10px 0; font-size: 14px; color: var(--ink); }
+.civ-alr-clear::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--live, var(--good)); flex: none; }
+.civ-ov-glance { grid-area: glance; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 5px 6px; }
+.civ-gl { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px 4px 7px; border-radius: var(--pill); text-decoration: none; color: var(--ink-2); font-size: 12.5px; white-space: nowrap; }
+.civ-gl .civ-ic { color: var(--tc); }
+.civ-gl b { font: 600 12px/1 var(--fig); color: var(--ink); }
+.civ-gl small { font: 500 10px/1 var(--fig); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.civ-gl:hover { background: color-mix(in oklab, var(--tc) 10%, var(--surface-2)); color: var(--ink); }
+
+/* tiles over the map: they size to their slot; small slots drop the chart, narrow ones the extra numbers */
+.civ-ov .cx-tile, .civ-sum-tiles .cx-tile { container-type: size; min-height: 0; }
+.civic .civ-ov-hero .cx-tk:first-child b { font-size: 26px; }
+@container (max-height: 104px) { .cx-tile-vis { display: none; } }
+@container (max-width: 250px) { .cx-tk:nth-child(n+3) { display: none; } }
+@container (max-width: 190px) { .cx-tk:nth-child(n+2) { display: none; } }
+
+.civ-later li { font-size: 12.5px; }
+.civ-later li small { color: var(--muted); }
+
+/* ------------------------------------------------------------ desktop: one screen, the views float over the stage */
+@media (min-width: 1100px) {
+  .civ-staged .cx-main > .cx-view { position: relative; z-index: 1; padding: 0; gap: 0; overflow: hidden; pointer-events: none; background: transparent; }
+  .civ-staged .cx-main > .cx-view.civ-page { pointer-events: auto; overflow: auto; padding: 16px 20px; gap: 12px; background: var(--page, var(--bg)); }
+  .civ-staged .civ-topicview > .cx-head { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .civ-staged .civic .cx-subtabs.civ-leafbar { pointer-events: auto; margin: 0; padding: 7px 12px 8px; flex: none; position: relative; z-index: 2;
+    background: color-mix(in oklab, var(--surface) 82%, transparent); backdrop-filter: blur(12px) saturate(1.3); border-bottom: 1px solid var(--border); }
+  .civ-staged .civ-topicview > .cx-pane { position: relative; flex: 1 1 0; min-height: 0; display: block; }
+  .civ-staged .civ-topicview > .cx-pane[hidden] { display: none; }
+  .civ-staged .cx-view > .civ-ov { flex: 1 1 0; }
+}
+@media (min-width: 1100px) and (max-height: 860px) {
+  .civic .civ-ov-hero .cx-tk:first-child b { font-size: 22px; }
+}
+
+/* ------------------------------------------------------------ phones and tablets: one column, the map as a block */
+@media (max-width: 1099.98px) {
+  .civ-al-sp { display: none; }
+  .civ-upd { margin-left: auto; }
+  .civ-sg, .civ-ov { position: static; display: flex; flex-direction: column; gap: 12px; padding: 0; pointer-events: auto; }
+  .civ-sg-map, .civ-ov-map { display: block; position: relative; height: 44vh; min-height: 260px; max-height: 400px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .civ-sg-map:empty, .civ-ov-map:empty, .civ-sg-map[hidden], .civ-ov-map[hidden] { display: none; }
+  .civ-sg-strip { order: 1; } .civ-sg-map { order: 2; } .civ-sg-left { order: 3; } .civ-sg-right { order: 4; }
+  .civ-sg-left, .civ-ov-left { max-height: none; overflow: visible; }
+  .civ-sg-right > .civ-pane, .civ-sg-right > .civ-alerts-pane { flex: none; }
+  .civ-sg-strip .cx-kpis { width: 100%; }
+  .civ-ov-title { order: 1; padding: 0; background: none; border: 0; box-shadow: none; backdrop-filter: none; }
+  .civ-ov-hero { order: 2; height: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .civ-ov-hero > .cx-tile { height: 168px; }
+  .civ-ov-right { order: 3; } .civ-ov-map { order: 4; } .civ-ov-chips { order: 5; justify-self: auto; } .civ-ov-left { order: 6; } .civ-ov-glance { order: 7; }
+  .civ-ov-left > .cx-tile, .civ-sum-tiles > .cx-tile { height: 150px; }
+  .civ-ovals { max-height: 420px; }
+  .civ-chips { border-radius: 12px; }
+  .civ-fp-rows { max-height: 380px; }
+  .civ-srcp-t thead { display: none; }
+  .civ-srcp-t tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; border-bottom: 1px solid var(--grid); padding: 4px 0; }
+  .civ-srcp-t th, .civ-srcp-t td { border: 0; padding: 1px 0; }
+  .civ-srcp-t td:nth-child(2) { grid-column: 1; font-size: 11.5px; color: var(--muted); }
+  .civ-srcp-t td:nth-child(3) { grid-column: 1; }
+  .civ-srcp-t td:nth-child(4) { grid-column: 2; grid-row: 1; }
+}
+@media (max-width: 700px) {
+  .civic .cx-group:not(.active) .cx-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .civ-ov-hero { grid-template-columns: minmax(0, 1fr); }
+  .civ-ov-hero > .cx-tile { height: 150px; }
+}
+
+/* phones and tablets: header, alert strip and leaf bar as scroll strips (kept from the earlier layout) */
+@media (max-width: 1099.98px) {
+  #civ-head { position: sticky; top: 0; }
+  .civ-top { flex-wrap: wrap; row-gap: 4px; }
+  .civ-crumbs { order: 9; flex: 1 0 100%; padding-left: 0; margin-left: -6px; overflow-x: auto; scrollbar-width: none; }
+  .civ-crumbs::-webkit-scrollbar { display: none; }
+  .civ-alerts { padding: 5px 14px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .civ-alerts::-webkit-scrollbar { display: none; }
+  .civ-alerts[data-state="warning"] { flex-wrap: wrap; }
+  .civ-alerts[data-state="warning"] .civ-al-list { padding-left: 0; overflow-x: auto; }
+  .civ-al-src { display: none; }
+  .civ-al-list { flex: none; overflow: visible; }
+  .civ-pane, .civ-alerts-pane { grid-template-columns: minmax(0, 1fr); }
+  .civ-sg-right > .civ-pane, .civ-sg-right > .civ-alerts-pane { grid-template-rows: none; }
+  .civ-side { grid-template-rows: none; }
+  .civic .cx-app .civ-season { height: 130px; flex: none; }
+  .civ-scroll { max-height: 340px; }
+  .civ-rows { height: auto; }
+  .civic .cx-group[data-h]::before { display: none; }
+  .civic .cx-app .cx-tile-vis { height: 96px; }
+  .civic .cx-app .civ-ov .cx-tile-vis, .civic .cx-app .civ-sum-tiles .cx-tile-vis { height: auto; }
+  .civic .cx-subtabs.civ-leafbar { margin-left: calc(-1 * clamp(12px, 3vw, 24px)); margin-right: calc(-1 * clamp(12px, 3vw, 24px)); padding-left: clamp(12px, 3vw, 24px); padding-right: clamp(12px, 3vw, 24px); scroll-padding: 0 clamp(12px, 3vw, 24px); }
+  .civic .civ-leaf { height: 34px; }
+  .civ-fd { max-width: 80vw; }
+  .civ-al-new { max-width: 70vw; }
+}
+@media (min-width: 1100px) { .civic .cx-app .cx-tile-vis { height: auto; } }
+@media (max-width: 700px) {
+  .civ-top .civ-search, .civ-top .civ-gallery, .civ-top .civ-mocktag { display: none; }
+  .civ-wpanel { left: 10px; right: 10px; top: 10px; width: auto; padding: 14px; gap: 9px; }
+  .civ-wlede { display: none; }
+  .civ-wtools { top: auto; bottom: 12px; right: 12px; }
+  .civ-coords, .civ-world .maplibregl-ctrl-top-right { display: none; }
+  .civic .cx-tk:first-child { max-width: 60%; }
+}
+
+/* ------------------------------------------------------------ What You Need to Know (civic-brief.js) */
+.civ-brf-list { display: flex; flex-direction: column; }
+.civ-brf-h { display: flex; align-items: center; gap: 6px; margin: 10px 0 2px; font: 700 10px/1.2 var(--font); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.civ-brf-h:first-child { margin-top: 2px; }
+.civ-brf-h::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.civ-brf-h[data-tier="1"] { color: var(--bad); } .civ-brf-h[data-tier="1"]::before { background: var(--bad); }
+.civ-brf-h[data-tier="2"] { color: var(--warn); } .civ-brf-h[data-tier="2"]::before { background: var(--warn); }
+.civ-brf { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; padding: 7px 0 7px 10px; border-bottom: 1px solid var(--grid); color: var(--ink); text-decoration: none;
+  box-shadow: inset 2px 0 0 color-mix(in oklab, var(--tc, var(--accent)) 70%, transparent); }
+.civ-brf[data-tier="1"] { box-shadow: inset 3px 0 0 var(--bad); background: color-mix(in oklab, var(--bad) 7%, transparent); }
+.civ-brf[data-tier="2"] { box-shadow: inset 3px 0 0 var(--warn); }
+.civ-brf p { grid-column: 1; margin: 0; font-size: 14px; line-height: 1.4; }
+.civ-brf[data-tier="3"] p { font-size: 13px; color: var(--ink-2); }
+.civ-brf small { grid-column: 1; margin-top: 2px; font: 500 10.5px/1.3 var(--fig); letter-spacing: 0.03em; color: var(--muted); }
+.civ-brf-go { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--muted); }
+.civ-brf:hover p { text-decoration: underline; text-decoration-color: color-mix(in oklab, currentColor 40%, transparent); }
+.civ-brf:hover .civ-brf-go { color: var(--accent); }
+.civ-brf-calm { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 14px; color: var(--ink); }
+.civ-brf-calm::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--live, var(--good)); flex: none; }
+.civ-brf-quiet { margin: 10px 0 2px; padding: 8px 10px; border-radius: 8px; background: color-mix(in oklab, var(--live, var(--good)) 9%, transparent); font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.civ-brf-quiet b { color: var(--live, var(--good)); font-weight: 650; }
+@media (min-width: 1100px) { .civ-brf p { font-size: 14.5px; } }
+@media (min-width: 2000px) { .civ-brf p { font-size: 15.5px; } .civ-brf[data-tier="3"] p { font-size: 14px; } }
+
+/* ------------------------------------------------------------ rail tooltips */
+.civ-rtip { position: fixed; z-index: 150; width: 320px; max-width: calc(100vw - 24px); padding: 10px 12px 10px; border-radius: 10px; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--border); box-shadow: 0 12px 32px rgba(0, 0, 0, .28); pointer-events: none; }
+.civ-rtip[hidden] { display: none; }
+.civ-rtip-t { display: block; font-size: 14px; font-weight: 650; }
+.civ-rtip p { margin: 2px 0 6px; font-size: 12.5px; line-height: 1.4; color: var(--ink-2); }
+.civ-rtip ul { list-style: none; margin: 0; padding: 6px 0 0; border-top: 1px solid var(--grid); display: flex; flex-direction: column; gap: 4px; }
+.civ-rtip li { display: grid; grid-template-columns: 16px minmax(0, auto) minmax(0, 1fr); align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink); }
+.civ-rtip li small { justify-self: end; text-align: right; font: 500 11px/1.25 var(--fig); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.civ-rtip li[data-live] small { color: var(--ink-2); }
+.civ-rtip li[data-live] small::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: var(--live, var(--good)); vertical-align: 1px; }
+.civ-stage .maplibregl-ctrl-bottom-right { right: var(--pr, 0px); bottom: var(--pb, 0px); transition: right .2s, bottom .2s; }
+.civ-fpanel[hidden] { display: none; }
+.civic { --t-map: var(--m-transit, var(--accent)); --t-next: var(--m-transit, var(--accent)); --t-alert: var(--warn); --t-net: var(--m-transit, var(--accent)); }
+.civ-trdeps .tr-boards { display: flex; flex-direction: column; gap: 8px; overflow: auto; min-height: 0; flex: 1 1 auto; }
+.civ-trdeps .tr-stop { background: transparent; padding: 6px 8px; }
+.civ-drawer-b { overflow: auto; }
+.civ-x { border: 0; background: none; padding: 0; cursor: pointer; color: var(--accent); font: inherit; font-weight: 600; }
+@media (max-width: 1099.98px) {
+  .civ-ov-left, .civ-sg-left, .civ-ov-chips { align-self: stretch; }
+  .civ-ov-right { order: 2; } .civ-ov-hero { order: 3; }
+}

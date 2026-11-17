@@ -5,8 +5,10 @@
 //
 // ------------------------------------------------------------------ layer spec (declarative; see docs/places-structure.md)
 //   { id, title, icon, color,            // id unique per page; title + icon for the layer chip and popups; color = CSS colour
-//     kind: "circle" | "line" | "fill" | "arrow" | "label",
-//     data(ctx) → GeoJSON FeatureCollection | null,     // properties: title, body?, meta?, href?, sev? (1–3), color?, r?, rot?, fop? (fill opacity)
+//     kind: "circle" | "line" | "fill" | "area" | "arrow" | "label" | "icon",   // area = a place of interest (src/shared/area.js)
+//     data(ctx) → GeoJSON FeatureCollection | null,     // properties: title, body?, meta?, href?, sev? (1–3), color?, r?, rot?, fop? (fill opacity), off? (line offset px)
+//     image?() → ImageData,              // kind "icon": the marker picture (drawn at 2x), made again after a theme change; iconSize? (expression)
+//     images?() → { key: ImageData },    // kind "icon", instead of image: one picture per key, chosen by each feature's `icon` property
 //     optional?: true, on?: false,       // a chip toggles it (on = the default state); otherwise always drawn
 //     start?(ctx, redraw) → stop,        // polling while the layer is shown (redraw() after new data)
 //     select?(feature, ctx) → Node,      // popup body for a click (default: title, body, meta, link to href)
@@ -14,11 +16,39 @@
 //   or { id, custom(map, ctx) → cleanup } for an owner who draws its own sources and layers. It runs once while the page
 //   shows it; after a theme change (map.setStyle) the owner re-adds its own layers (tlayers.js and air/layer.js do), unless
 //   the spec sets rerun: true, when the stage calls cleanup and custom again.
+//
+// ------------------------------------------------------------------ coverage: the area a page's data covers
+// Every page shows the area its data covers as a dotted outline with a faint fill (the area convention,
+// src/shared/area.js), the world outside dimmed very slightly, and a small label along the outline. The shell
+// (civic.js coverageOf) picks the default from the page's leaf: its scale and the node it covers (nodeFor in civic-modules.js):
+//   muni → the municipality (StatCan CSD, data/langford/crd_csd.json) · region → Greater Victoria = the union of its
+//   municipalities (data/places/boundaries.json), other regions a 40 km circle · province/state → Natural Earth admin-1
+//   (data/places/boundaries.json) · country → world-atlas · basic/alerts leaves, Summary and Overview → the place's own outline.
+// A page overrides the default from its stage entry (STAGES in civic-layers.js, a module's `stage`, civic-stage-*.js) or
+// on the module itself:
+//   coverage(ctx) → { feature: GeoJSON Feature (Polygon | MultiPolygon), label: "Aircraft search area · 74 km" }
+//                 | null / undefined (use the default) | false (no outline on this page)
+// It is read again on every update (data arrivals), so an area that follows the data (a search circle) can change.
+// circleFeature([lon, lat], km) below makes a circle polygon. The shell passes show({ coverage: () => {…} | null, tint }).
+//
+// ------------------------------------------------------------------ home: the place's own outline and the way back
+// show({ home: { label: "Langford", outline: () => Feature | null } }) draws the outline of the place being viewed as a thin
+// dashed line on every page (pl-* layers, under the basemap labels; it coexists with the page's coverage, and when the
+// coverage is the place itself only the dashed line is drawn). Once the user moves the map (or an alert is focused), a
+// button above the zoom buttons ("Back to Langford") returns to the page's starting view; it hides again on a new page.
+// moved: true once the user has moved the map since this page showed; the page's own refits then leave the view alone.
+
+// ------------------------------------------------------------------ focus: one thing fitted and highlighted (alerts)
+// focus({ key, geo: GeoJSON geometry, zoom?, color?, page? }) fits the map to the geometry (zoom = the most it zooms in)
+// and highlights it; page = the show() key it belongs to, so a click that also changes page fits once that page shows.
+// focus(null) clears it; showing another page clears it too (onFocusEnd(cb) hears that). onMove(cb) hears the user's
+// own moves (drag, wheel, buttons), not the page's fits.
 import maplibregl from "maplibre-gl";
 import "../src/shared/basemap.js";   // dark basemap labels match the light style's size and case
 import "maplibre-gl/dist/maplibre-gl.css";
 import { el, cssVar } from "../src/shared/ui.js";
 import { icon } from "./civic-icons.js";
+import { addAreaLayers, AREA } from "../src/shared/area.js";
 
 const STYLE = { light: "https://tiles.openfreemap.org/styles/positron", dark: "https://tiles.openfreemap.org/styles/dark" };
 const OFF_KEY = "odp-places-layers-off";
@@ -48,12 +78,38 @@ function dotImage() {
   return g.getImageData(0, 0, s, s);
 }
 
+/** a circle of r km around [lon, lat] as a GeoJSON Polygon Feature (for coverage(ctx)) */
+export function circleFeature([lon, lat], r, properties = {}, n = 96) {
+  const ring = [];
+  for (let k = 0; k <= n; k++) { const a = (k / n) * 2 * Math.PI; ring.push([lon + (r / (111.32 * Math.cos((lat * Math.PI) / 180))) * Math.sin(a), lat + (r / 110.57) * Math.cos(a)]); }
+  return { type: "Feature", geometry: { type: "Polygon", coordinates: [ring] }, properties };
+}
+const ringArea = (r) => { let a = 0; for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += (r[j][0] - r[i][0]) * (r[j][1] + r[i][1]); return a; };
+const polysOf = (g) => (!g ? [] : g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : []);
+/** the world with the coverage cut out (the slight dim outside); holes wind against the outer ring so MapLibre keeps them */
+function maskOf(g) {
+  const outer = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]], s = Math.sign(ringArea(outer));
+  const holes = polysOf(g).map((p) => (Math.sign(ringArea(p[0])) === s ? p[0].slice().reverse() : p[0]));
+  return { type: "Feature", geometry: { type: "Polygon", coordinates: [outer, ...holes] }, properties: {} };
+}
+/** [[w, s], [e, n]] of any geometry */
+export function bboxOf(g) {
+  let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
+  const walk = (c) => { if (typeof c[0] === "number") { w = Math.min(w, c[0]); e = Math.max(e, c[0]); s = Math.min(s, c[1]); n = Math.max(n, c[1]); } else for (const x of c) walk(x); };
+  if (g?.type === "GeometryCollection") for (const x of g.geometries) walk(x.coordinates); else if (g?.coordinates) walk(g.coordinates);
+  return w === Infinity ? null : [[w, s], [e, n]];
+}
+
 export function createStage({ ctx, isDark }) {
   const mapEl = el("div", { class: "civ-stage-map" });
   const chips = el("div", { class: "civ-chips", role: "group", "aria-label": "Map layers" });
   const node = el("div", { class: "civ-stage", "aria-label": "Live map" }, mapEl);
   let map = null, styleReady = false, popup = null, selected = null;
-  let cur = { key: null, specs: [], view: null };
+  let cur = { key: null, specs: [], view: null, coverage: null, tint: null };
+  let cov = null, covSig = "";         // the coverage drawn now ({ feature, label }) and its signature
+  let focus = null;                    // { key, geo, zoom, color, page, applied }
+  let onMoveCb = null, onFocusEndCb = null, userMove = false;
+  let home = null, plSig = "", userMoved = false, lastInput = 0, homeCtl = null;   // see "home" in the header
   const running = new Map();   // spec id → stop()
   const customs = new Map();   // spec id → cleanup()
   const off = store.get();
@@ -63,12 +119,20 @@ export function createStage({ ctx, isDark }) {
     if (map) return map;
     map = new maplibregl.Map({ container: mapEl, style: STYLE[isDark() ? "dark" : "light"], center: ctx.place.ll, zoom: 10, attributionControl: { compact: true }, maxZoom: 16, dragRotate: false, pitchWithRotate: false });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+    map.addControl(homeControl(), "bottom-right");   // added after: it sits just above the zoom buttons
     map.touchZoomRotate.disableRotation();
     // a blank stand-in for basemap sprites the style lacks; owners' layers (tlayers.js "iso|…", air/layer.js) draw their own
     map.on("styleimagemissing", (e) => { if (e.id.includes("|") || /^(opair|air|ov|tr)-/.test(e.id)) return; if (!map.hasImage(e.id)) map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) }); });
     map.on("style.load", () => { styleReady = true; tint(); map.addImage("st-arrow", arrowImage(), { sdf: true, pixelRatio: 2 }); map.addImage("st-dot", dotImage(), { sdf: true, pixelRatio: 2 }); draw(true); });
     map.on("click", onClick);
-    map.on("mousemove", (e) => { const f = hit(e.point); map.getCanvas().style.cursor = f ? "pointer" : ""; });
+    // the user's own moves (drag, wheel, keyboard, zoom buttons): a move with an input event, or one that starts just after
+    // input on the map (inertia, a zoom button's ease); the page's own fits carry neither
+    for (const t of ["pointerdown", "wheel", "keydown", "touchstart"]) mapEl.addEventListener(t, () => { lastInput = Date.now(); }, { capture: true, passive: true });
+    map.on("movestart", (e) => { userMove = !!e.originalEvent || Date.now() - lastInput < 1500; });
+    map.on("moveend", (e) => { const u = userMove || !!e.originalEvent; userMove = false; if (u) { userMoved = true; showHome(true); } onMoveCb?.(u); });
+    // the stage sets the pointer over its own layers and clears only what it set, so owners' layers (air, ferries) keep theirs
+    let ours = false;
+    map.on("mousemove", (e) => { const f = hit(e.point), c = map.getCanvas().style; if (f) { c.cursor = "pointer"; ours = true; } else if (ours) { c.cursor = ""; ours = false; } });
     new ResizeObserver(() => map.resize()).observe(mapEl);
     if (import.meta.env?.DEV) window.__stage = map;
     return map;
@@ -82,7 +146,7 @@ export function createStage({ ctx, isDark }) {
   }
 
   // ---------------------------------------------------------------- drawing
-  const lids = (s) => (s.kind === "fill" ? [`st-${s.id}-f`, `st-${s.id}-l`] : s.kind === "line" ? [`st-${s.id}-c`, `st-${s.id}-l`] : s.kind === "label" ? [`st-${s.id}-t`] : s.kind === "arrow" ? [`st-${s.id}-a`] : [`st-${s.id}-p`]);
+  const lids = (s) => (s.kind === "area" ? [`st-${s.id}-af`, `st-${s.id}-al`, `st-${s.id}-at`] : s.kind === "fill" ? [`st-${s.id}-f`, `st-${s.id}-l`] : s.kind === "line" ? [`st-${s.id}-c`, `st-${s.id}-l`] : s.kind === "label" ? [`st-${s.id}-t`] : s.kind === "arrow" ? [`st-${s.id}-a`] : s.kind === "icon" ? [`st-${s.id}-i`] : [`st-${s.id}-p`]);
   const EMPTY = { type: "FeatureCollection", features: [] };
   function features(s) {
     let fc = null;
@@ -99,12 +163,23 @@ export function createStage({ ctx, isDark }) {
     map.addSource(src, { type: "geojson", data: fc });
     const surf = color("var(--surface)"), ink = color("var(--ink)");
     const mz = s.minzoom != null ? { minzoom: s.minzoom } : {};
-    if (s.kind === "fill") {
+    if (s.kind === "area") {
+      addAreaLayers(map, `st-${s.id}`, src, ["get", "color"], { ...mz, halo: surf });
+    } else if (s.kind === "fill") {
       map.addLayer({ id: `st-${s.id}-f`, type: "fill", source: src, ...mz, paint: { "fill-color": ["get", "color"], "fill-opacity": ["coalesce", ["get", "fop"], 0.14] } });
       map.addLayer({ id: `st-${s.id}-l`, type: "line", source: src, ...mz, paint: { "line-color": ["get", "color"], "line-width": 1.6, "line-opacity": 0.8 } });
     } else if (s.kind === "line") {
-      map.addLayer({ id: `st-${s.id}-c`, type: "line", source: src, ...mz, layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": surf, "line-width": ["+", ["coalesce", ["get", "w"], 2.5], 2.5], "line-opacity": ["coalesce", ["get", "op"], 0.9] } });
-      map.addLayer({ id: `st-${s.id}-l`, type: "line", source: src, ...mz, layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["coalesce", ["get", "w"], 2.5], "line-opacity": ["coalesce", ["get", "op"], 0.9] } });
+      map.addLayer({ id: `st-${s.id}-c`, type: "line", source: src, ...mz, layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": surf, "line-width": ["+", ["coalesce", ["get", "w"], 2.5], 2.5], "line-opacity": ["coalesce", ["get", "op"], 0.9], "line-offset": ["coalesce", ["get", "off"], 0] } });
+      map.addLayer({ id: `st-${s.id}-l`, type: "line", source: src, ...mz, layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["coalesce", ["get", "w"], 2.5], "line-opacity": ["coalesce", ["get", "op"], 0.9], "line-offset": ["coalesce", ["get", "off"], 0] } });
+    } else if (s.kind === "icon") {
+      const img = `st-img-${s.id}`;
+      // image() → one picture for every feature; or images() → { key: ImageData } and each feature's `icon` property picks one
+      try {
+        if (s.image) { if (map.hasImage(img)) map.removeImage(img); map.addImage(img, s.image(), { pixelRatio: 2 }); }
+        if (s.images) for (const [k, im] of Object.entries(s.images())) { const n = `${img}-${k}`; if (map.hasImage(n)) map.removeImage(n); map.addImage(n, im, { pixelRatio: 2 }); }
+      } catch (e) { console.warn(`[stage] ${s.id} image:`, e?.message || e); }
+      map.addLayer({ id: `st-${s.id}-i`, type: "symbol", source: src, ...mz, layout: { "icon-image": s.images ? ["concat", `${img}-`, ["get", "icon"]] : img, "icon-size": s.iconSize ?? 1,
+        "icon-allow-overlap": true, "icon-ignore-placement": true, ...(s.images ? { "symbol-sort-key": ["coalesce", ["get", "sev"], 0] } : {}) } });
     } else if (s.kind === "arrow") {
       map.addLayer({ id: `st-${s.id}-a`, type: "symbol", source: src, ...mz, layout: { "icon-image": ["case", ["has", "rot"], "st-arrow", "st-dot"], "icon-rotate": ["coalesce", ["get", "rot"], 0], "icon-rotation-alignment": "map",
         "icon-size": ["coalesce", ["get", "size"], 0.85], "icon-allow-overlap": true, "icon-ignore-placement": true },
@@ -119,7 +194,7 @@ export function createStage({ ctx, isDark }) {
   }
   function removeSpec(id) {
     if (customs.has(id)) { try { customs.get(id)?.(); } catch { /* owner's cleanup */ } customs.delete(id); }
-    for (const l of [`st-${id}-f`, `st-${id}-l`, `st-${id}-c`, `st-${id}-a`, `st-${id}-t`, `st-${id}-p`]) if (map.getLayer(l)) map.removeLayer(l);
+    for (const l of [`st-${id}-af`, `st-${id}-al`, `st-${id}-at`, `st-${id}-f`, `st-${id}-l`, `st-${id}-c`, `st-${id}-a`, `st-${id}-t`, `st-${id}-i`, `st-${id}-p`]) if (map.getLayer(l)) map.removeLayer(l);
     if (map.getSource(`st-${id}`)) map.removeSource(`st-${id}`);
   }
   /** add / update the current page's layers; drop the rest. fresh = after a style load (everything is gone) */
@@ -136,9 +211,125 @@ export function createStage({ ctx, isDark }) {
     // polls: start what's shown, stop the rest
     for (const s of want) if (s.start && !running.has(s.id)) running.set(s.id, s.start(ctx, () => update()) || (() => {}));
     for (const [id, stop] of running) if (!ids.has(id)) { try { stop(); } catch { /* ignore */ } running.delete(id); }
+    drawCoverage(fresh); drawPlace(); drawFocus(fresh);
     paintChips();
   }
-  function update() { if (map && styleReady) for (const s of cur.specs.filter(isOn)) if (!s.custom && map.getSource(`st-${s.id}`)) map.getSource(`st-${s.id}`).setData(features(s)); paintChips(); }
+  function update() { if (map && styleReady) { for (const s of cur.specs.filter(isOn)) if (!s.custom && map.getSource(`st-${s.id}`)) map.getSource(`st-${s.id}`).setData(features(s)); drawCoverage(); drawPlace(); } paintChips(); }
+
+  // ---------------------------------------------------------------- coverage (see the header): cv-* layers under the basemap labels
+  const EMPTYF = { type: "FeatureCollection", features: [] };
+  /** the first basemap symbol layer: coverage sits under the place names and over land, water and roads */
+  const firstSymbol = () => map.getStyle().layers.find((l) => l.type === "symbol" && !/^(st-|cv-|fx-|pl-)/.test(l.id))?.id;
+  function coverageNow() { try { const c = cur.coverage?.(); return c && c.feature?.geometry ? c : null; } catch (e) { console.warn("[stage] coverage:", e?.message || e); return null; } }
+  function drawCoverage(fresh = false) {
+    if (!map || !styleReady || !map.style?._loaded) return;
+    const c = coverageNow(), g = c?.feature.geometry;
+    const first = g && (g.type === "Polygon" ? g.coordinates[0]?.[0] : g.coordinates[0]?.[0]?.[0]);
+    const sig = c ? `${c.label || ""}|${g.type}|${(g.coordinates || []).length}|${first?.join() || ""}|${JSON.stringify(g.coordinates).length}` : "";
+    cov = c;
+    const tint = color(cur.tint || "var(--accent)");
+    if (!map.getSource("cv")) {
+      const before = firstSymbol();
+      map.addSource("cv", { type: "geojson", data: EMPTYF }); map.addSource("cv-mask", { type: "geojson", data: EMPTYF }); map.addSource("cv-lab", { type: "geojson", data: EMPTYF });
+      map.addLayer({ id: "cv-dim", type: "fill", source: "cv-mask", paint: { "fill-color": "#000", "fill-opacity": isDark() ? 0.13 : 0.05 } }, before);
+      addAreaLayers(map, "cv", "cv", tint, { label: false, before });
+      map.setPaintProperty("cv-al", "line-opacity", 0.8);
+      // the name (every page shows it at its own zoom, so not the area labels' minzoom): a town-sized area gets it just
+      // above its northernmost point (a ragged municipal line can't carry text); a big one (a province, a country) along
+      // its outline, repeated, so some of it is always on screen
+      const lab = { "text-field": ["get", "label"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-letter-spacing": 0.04 };
+      const ink = { "text-color": tint, "text-halo-color": color("var(--surface)"), "text-halo-width": 1.6 };
+      map.addLayer({ id: "cv-t", type: "symbol", source: "cv", filter: ["==", ["get", "_big"], true], layout: { ...lab, "symbol-placement": "line", "symbol-spacing": 420,
+        "text-offset": [0, -0.85], "text-max-angle": 50, "text-keep-upright": true }, paint: ink });
+      map.addLayer({ id: "cv-tp", type: "symbol", source: "cv-lab", layout: { ...lab, "text-anchor": "bottom", "text-offset": [0, -0.35], "text-allow-overlap": true }, paint: ink });
+      covSig = "";
+    } else if (fresh) covSig = "";
+    for (const [l, p] of [["cv-af", "fill-color"], ["cv-al", "line-color"], ["cv-t", "text-color"], ["cv-tp", "text-color"]]) if (map.getLayer(l)) map.setPaintProperty(l, p, tint);
+    if (sig === covSig) return;
+    covSig = sig;
+    const bb = c && bboxOf(g), big = !!bb && Math.max(bb[1][0] - bb[0][0], bb[1][1] - bb[0][1]) > 1;   // wider than ~70 km: the name along the outline
+    let top = null;   // the northernmost vertex: where a small area's name sits
+    if (c && !big) { const walk = (x) => { if (typeof x[0] === "number") { if (!top || x[1] > top[1]) top = x; } else for (const y of x) walk(y); }; walk(g.coordinates); }
+    map.getSource("cv").setData(c ? { type: "FeatureCollection", features: [{ ...c.feature, properties: { ...(c.feature.properties || {}), label: c.label || "", _big: big } }] } : EMPTYF);
+    map.getSource("cv-lab").setData(top ? { type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "Point", coordinates: top }, properties: { label: c.label || "" } }] } : EMPTYF);
+    map.getSource("cv-mask").setData(c ? maskOf(g) : EMPTYF);
+    sameLine();
+  }
+  const geoSig = (g) => (g ? `${g.type}|${JSON.stringify(g.coordinates).length}|${JSON.stringify(g.coordinates).slice(0, 60)}` : "");
+  /** the coverage's dotted line steps aside where the coverage is the place itself (the dashed place line says it) */
+  function sameLine() { if (map.getLayer("cv-al")) map.setPaintProperty("cv-al", "line-opacity", cov && plSig && geoSig(cov.feature.geometry) === plSig ? 0 : 0.8); }
+
+  // ---------------------------------------------------------------- home (see the header): pl-* layers, the back button
+  function placeNow() { try { const f = home?.outline?.(); return f?.geometry ? f : null; } catch (e) { console.warn("[stage] outline:", e?.message || e); return null; } }
+  function drawPlace() {
+    if (!map || !styleReady || !map.style?._loaded) return;
+    const f = placeNow(), sig = f ? geoSig(f.geometry) : "";
+    if (!map.getSource("pl")) {
+      const before = map.getLayer("cv-t") ? "cv-t" : firstSymbol();
+      map.addSource("pl", { type: "geojson", data: EMPTYF });
+      map.addLayer({ id: "pl-c", type: "line", source: "pl", layout: { "line-join": "round" }, paint: { "line-color": color("var(--surface)"), "line-width": 3.5, "line-opacity": isDark() ? 0.35 : 0.6 } }, before);
+      map.addLayer({ id: "pl-l", type: "line", source: "pl", layout: { "line-join": "round" }, paint: { "line-color": color("var(--ink)"), "line-width": 1.4, "line-opacity": isDark() ? 0.6 : 0.55, "line-dasharray": [3, 2.5] } }, before);
+      plSig = null;
+    }
+    if (sig === plSig) return;
+    plSig = sig;
+    map.getSource("pl").setData(f ? { type: "FeatureCollection", features: [{ type: "Feature", geometry: f.geometry, properties: {} }] } : EMPTYF);
+    sameLine();
+  }
+  function homeControl() {
+    const b = el("button", { type: "button", class: "civ-home", "aria-label": "Back to the starting view" });
+    b.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>';
+    b.addEventListener("click", (e) => { e.stopPropagation(); goHome(); });
+    homeCtl = el("div", { class: "maplibregl-ctrl maplibregl-ctrl-group civ-homectl", hidden: "" }, b);
+    return { onAdd: () => homeCtl, onRemove: () => homeCtl.remove() };
+  }
+  function showHome(on) {
+    if (!homeCtl) return;
+    homeCtl.hidden = !on;
+    const t = `Back to ${home?.label || "the starting view"}`;
+    homeCtl.firstChild.title = t; homeCtl.firstChild.setAttribute("aria-label", t);
+  }
+  /** back to the page's starting view for this place: ends a focus, forgets the user's moves */
+  function goHome() {
+    lastInput = 0;
+    if (focus) setFocus(null);
+    userMoved = false; showHome(false);
+    const v = cur.view; if (!v) return;
+    if (v.bounds) map.fitBounds(v.bounds, { padding: 30, duration: 700, maxZoom: v.zoom + 1 });
+    else map.easeTo({ center: v.center, zoom: v.zoom, duration: 700 });
+  }
+
+  // ---------------------------------------------------------------- focus (see the header): fx-* layers on top
+  function drawFocus() {
+    if (!map || !styleReady || !map.style?._loaded) return;
+    const on = focus?.applied && focus.geo;
+    if (!map.getSource("fx")) {
+      map.addSource("fx", { type: "geojson", data: EMPTYF });
+      const surf = color("var(--surface)");
+      const poly = ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false], pnt = ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false];
+      map.addLayer({ id: "fx-f", type: "fill", source: "fx", filter: poly, paint: { "fill-color": ["get", "color"], "fill-opacity": 0.2 } });
+      map.addLayer({ id: "fx-c", type: "line", source: "fx", filter: ["!", pnt], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": surf, "line-width": 8, "line-opacity": 0.9 } });
+      map.addLayer({ id: "fx-l", type: "line", source: "fx", filter: ["!", pnt], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": 4 } });
+      map.addLayer({ id: "fx-r", type: "circle", source: "fx", filter: pnt, paint: { "circle-radius": 17, "circle-color": "transparent", "circle-stroke-color": ["get", "color"], "circle-stroke-width": 2.5, "circle-stroke-opacity": 0.75 } });
+      map.addLayer({ id: "fx-p", type: "circle", source: "fx", filter: pnt, paint: { "circle-radius": 7, "circle-color": ["get", "color"], "circle-stroke-color": surf, "circle-stroke-width": 2.5 } });
+    } else for (const l of ["fx-f", "fx-c", "fx-l", "fx-r", "fx-p"]) if (map.getLayer(l)) map.moveLayer(l);   // keep it on top of the page's layers
+    map.getSource("fx").setData(on ? { type: "FeatureCollection", features: [{ type: "Feature", geometry: focus.geo, properties: { color: color(focus.color || "var(--bad)") } }] } : EMPTYF);
+  }
+  function fitFocus(duration = 700) {
+    const b = bboxOf(focus?.geo); if (!b) return;
+    const pt = b[0][0] === b[1][0] && b[0][1] === b[1][1];
+    if (pt) map.easeTo({ center: b[0], zoom: focus.zoom ?? 12.5, duration });
+    else map.fitBounds(b, { padding: 60, maxZoom: focus.zoom ?? 13.5, duration });
+    showHome(true);
+  }
+  /** fit and highlight one geometry; null clears. f.page: the show() key it belongs to (fits when that page shows) */
+  function setFocus(f) {
+    const was = focus;
+    focus = f && f.geo ? { ...f, applied: false, fitted: false, at: Date.now() } : null;
+    if (!focus) { drawFocus(); if (was) onFocusEndCb?.(was); return; }
+    ensure();
+    if (!focus.page || focus.page === cur.key) { focus.page = cur.key; focus.applied = focus.fitted = true; if (styleReady) { closePopup(); drawFocus(); fitFocus(); } else map.once("style.load", () => fitFocus(0)); }
+  }
 
   // ---------------------------------------------------------------- chips (layer toggles)
   function paintChips() {
@@ -193,13 +384,21 @@ export function createStage({ ctx, isDark }) {
 
   // ---------------------------------------------------------------- the page's view
   /** show a page: key (stable per page), layer specs, where to look. padding: the free area between the panels */
-  function show({ key, specs = [], center = ctx.place.ll, zoom = 10, bounds = null, padding = null, animate = true }) {
+  function show({ key, specs = [], center = ctx.place.ll, zoom = 10, bounds = null, padding = null, animate = true, coverage = null, tint = null, home: h = null }) {
     ensure();
-    const moved = key !== cur.key || cur.view?.center?.join() !== center.join() || cur.view?.zoom !== zoom;
-    if (key !== cur.key) closePopup();
-    cur = { key, specs, view: { center, zoom, bounds } };
+    const fresh = key !== cur.key;
+    if (fresh) { closePopup(); userMoved = false; showHome(false); }
+    // the same page refreshing: a view the user has moved stays where it is
+    const moved = fresh || (!userMoved && (cur.view?.center?.join() !== center.join() || cur.view?.zoom !== zoom));
+    cur = { key, specs, view: { center, zoom, bounds }, coverage, tint };
+    home = h;
     if (padding) map.setPadding(padding);
-    if (moved) {
+    // a focus waiting for this page fits instead of the page's view; another page ends a focus that was shown
+    let fx = false;
+    if (focus && focus.page === key) { fx = true; if (!focus.applied) { focus.applied = true; closePopup(); } }
+    else if (focus && (focus.applied || Date.now() - (focus.at || 0) > 8000)) { const was = focus; focus = null; onFocusEndCb?.(was); }
+    if (fx) { if (!focus.fitted) { focus.fitted = true; if (styleReady) fitFocus(animate ? 700 : 0); else map.once("style.load", () => fitFocus(0)); } }
+    else if (moved) {
       if (bounds) map.fitBounds(bounds, { padding: 30, duration: animate ? 600 : 0, maxZoom: zoom + 1 });
       else if (animate && map.loaded()) map.easeTo({ center, zoom, duration: 600 });
       else map.jumpTo({ center, zoom });
@@ -213,11 +412,19 @@ export function createStage({ ctx, isDark }) {
     if (same) return;
     const v = cur.view;
     map.setPadding(p);
+    if (userMoved) return;          // the user's own view stays
+    if (map.opRefit?.()) return;   // an owner's selection keeps its own view (tlayers.js: a picked bus and its route ahead)
+    if (focus?.applied) { fitFocus(0); return; }   // a focused alert keeps its fit
     if (v?.bounds) map.fitBounds(v.bounds, { padding: 30, duration: 0, maxZoom: v.zoom + 1 });
     else if (v) map.jumpTo({ center: v.center, zoom: v.zoom });
   }
   addEventListener("themechange", () => { if (map) { styleReady = false; closePopup(); map.setStyle(STYLE[isDark() ? "dark" : "light"], { diff: false }); } });
   addEventListener("skinchange", () => { if (map && styleReady) { tint(); update(); for (const s of cur.specs) if (map.getSource(`st-${s.id}`)) removeSpec(s.id); draw(); } });
 
-  return { el: node, chips, show, update, pad, close: closePopup, resize: () => map?.resize(), get map() { return map; }, get key() { return cur.key; } };
+  return { el: node, chips, show, update, pad, close: closePopup, resize: () => map?.resize(), get map() { return map; }, get key() { return cur.key; },
+    focus: setFocus, get focused() { return focus; }, onFocusEnd: (cb) => { onFocusEndCb = cb; }, onMove: (cb) => { onMoveCb = cb; },
+    /** the coverage drawn now: { feature, label } | null */
+    get coverage() { return cov; },
+    /** true once the user has moved the map since this page showed (see "home" in the header) */
+    get moved() { return userMoved; }, home: goHome };
 }

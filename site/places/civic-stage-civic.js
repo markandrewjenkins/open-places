@@ -16,8 +16,10 @@ import * as d3 from "d3";
 import { el } from "../src/shared/ui.js";
 import { file, get as cached, ecccAlerts, nwsCount, km, provinceOf, countryOf, f0, parseDay } from "./civic-data.js";
 import { color } from "./civic-stage.js";
-import { langford, lnotices, water, grid, enso, outlook, unusual, ar, arSeries, tsunami, hazards, bigquakes, natalerts, wx, aq, ferry, bike, ttc, waterwaysNext } from "./civic-modules.js";
+import { lnotices, water, grid, enso, outlook, unusual, ar, arSeries, tsunami, hazards, bigquakes, natalerts, wx, aq, ferry, bike, ttc, waterwaysNext } from "./civic-modules.js";
 import { radarLayer, radarPanel } from "./civic-mod-weather.js";
+import { meetingsPanel } from "./civic-mod-local.js";   // City Notices: Langford's council and committee meetings
+import { parentView, arNowPanel, ensoNowPanel } from "./civic-mod-hazards.js";
 import * as TR from "../src/blink/transit.js";
 import "./civic-stage-civic.css";
 
@@ -72,37 +74,9 @@ function modPanel(m, ctx, { id, title, part = "main", list = part === "list", h,
 const swatches = (title, items) => el("div", { class: "civ-leg" }, title ? el("span", { class: "civ-leg-t" }, title) : null,
   ...items.map(([c, l]) => el("span", { class: "civ-leg-i" }, el("i", { style: `background:${c}` }), l)));
 
-// ================================================================== Growth & housing: CRD municipalities by new homes
+// ================================================================== City Notices (Langford)
+// Growth & Building (all of Greater Victoria) has its own stage in civic-mod-growth.js.
 const CSD = (ctx) => file("langford/crd_csd.json", ctx);
-const LF_BREAKS = [2, 5, 10, 15];
-const lfClass = (v) => LF_BREAKS.filter((b) => v >= b).length;   // 0–4
-const LF_CREDIT = "BC Stats permits & population (OGL-BC) · Statistics Canada 2021 boundaries (Statistics Canada Open Licence)";
-function lfRows(ctx) {
-  const d = need(langford, ctx), g = CSD(ctx).data; if (!d || !g) return null;
-  const rows = d.L.league.rows.slice().sort((a, b) => b.units_ttm_per_1000 - a.units_ttm_per_1000);
-  const by = new Map(rows.map((r, i) => [r.sgc, { ...r, rank: i + 1 }]));
-  return { d, g, by, n: rows.length };
-}
-const LF_FILL = { id: "lf-csd", title: "New homes per 1,000", icon: "building", color: "var(--m-langford, var(--accent))", kind: "fill",
-  data: (ctx) => {
-    const x = lfRows(ctx); if (!x) return null;
-    return fc(x.g.features.filter((f) => x.by.has(f.properties.id)).map((f) => {
-      const r = x.by.get(f.properties.id), v = r.units_ttm_per_1000;
-      return { type: "Feature", geometry: f.geometry, properties: { id: r.sgc, title: r.name, fop: 0.62, color: ramp("var(--m-langford, var(--accent))", lfClass(v) / 4),
-        body: `${v.toFixed(1)} new homes per 1,000 people in the last 12 months${r.units_ttm_suppressed ? " (some months suppressed)" : ""}`,
-        meta: `${f0(r.units_ttm)} homes permitted · ${f0(r.pop)} people (${r.pop_year}) · ${r.rank} of ${x.n} in the CRD` } };
-    }));
-  } };
-const LF_LABEL = { id: "lf-val", title: "Values", kind: "label", passive: true, color: "var(--ink)",
-  data: (ctx) => { const x = lfRows(ctx); if (!x) return null;
-    return fc(x.g.features.filter((f) => x.by.has(f.properties.id)).map((f) => pt(centroid(f.geometry), { title: x.by.get(f.properties.id).name, label: x.by.get(f.properties.id).units_ttm_per_1000.toFixed(1) }))); } };
-function lfPanel(ctx) {
-  const leg = swatches("Map: new homes per 1,000 people, 12 months", [0, 1, 2, 3, 4].map((k) => [`color-mix(in srgb, var(--m-langford, var(--accent)) ${Math.round((0.18 + 0.82 * k / 4) * 100)}%, var(--surface))`,
-    ["< 2", "2–5", "5–10", "10–15", "15+"][k]]));
-  return modPanel(langford, ctx, { id: "lf", title: "Homes Permitted", h: 210, legend: leg, credit: LF_CREDIT,
-    lede: (d) => { const r = lfRows(ctx)?.by.get("5917044"); return `Langford, full years. ${r ? `Its 12-month rate, ${r.units_ttm_per_1000.toFixed(1)} per 1,000, ranks ${r.rank} of ${lfRows(ctx).n} in the CRD.` : ""}`; } });
-}
-const CRD_CORE = [[-123.80, 48.32], [-123.25, 48.71]];
 
 // Municipal Notices: the notices carry no locations, so the map shows the City's boundary and the list floats over it
 const LF_OUTLINE = { id: "lf-outline", title: "City of Langford", kind: "fill", passive: true, color: "var(--m-lnotices, var(--accent))",
@@ -145,7 +119,7 @@ const gridAge = (d) => Math.floor((Date.now() - new Date(d.g.generated)) / 864e5
 const ENSO_BOX = [-170, -5, -120, 5];
 const N34 = { id: "n34", title: "Niño 3.4", icon: "thermo", color: "var(--m-enso, var(--accent))", kind: "fill",
   data: (ctx) => { const d = need(enso, ctx); if (!d) return null; const v = d.now.y;
-    return fc([rect(ENSO_BOX, { id: "n34", title: `Niño 3.4 region · ${d.phase}`, fop: 0.16 + Math.min(0.3, Math.abs(v) * 0.15), color: v >= 0.5 ? "var(--s2)" : v <= -0.5 ? "var(--s1)" : "var(--muted)",
+    return fc([rect(ENSO_BOX, { id: "n34", title: `Niño 3.4 region · ${d.phase}`, fop: 0.08 + Math.min(0.14, Math.abs(v) * 0.07), color: v >= 0.5 ? "var(--s2)" : v <= -0.5 ? "var(--s1)" : "var(--muted)",
       body: `${d.e.status || d.phase}. Relative index (RONI) ${v > 0 ? "+" : ""}${v.toFixed(1)} °C for ${d.now.s}; traditional ONI ${d.oniNow.y > 0 ? "+" : ""}${d.oniNow.y.toFixed(1)} °C.`,
       meta: `5°N–5°S, 170°W–120°W · NOAA CPC${d.e.issued ? `, ${d3.timeFormat("%b %-d")(parseDay(d.e.issued))}` : ""}` })]); } };
 const N34_LABEL = { id: "n34-l", title: "Niño 3.4 label", kind: "label", passive: true, color: "var(--ink)",
@@ -165,9 +139,9 @@ const sgnC = (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(1)
 const UN_OCEAN = { id: "un-sst", title: "Sea temperature", icon: "waves", color: "var(--s2)", kind: "fill",
   data: (ctx) => { const d = need(unusual, ctx), o = d?.ocean; if (!o?.sst || !o.last) return null;
     const b = o.sst.box, c = (v) => (v >= 0.5 ? "var(--s2)" : v <= -0.5 ? "var(--s1)" : "var(--muted)"), when = d3.timeFormat("%b %-d")(parseDay(o.last.t));
-    const out = [rect([b.lon[0], b.lat[0], b.lon[1], b.lat[1]], { id: "ne", title: `NE Pacific ${sgnC(o.last.mean)}`, fop: 0.1 + Math.min(0.35, Math.abs(o.last.mean) * 0.2), color: c(o.last.mean),
+    const out = [rect([b.lon[0], b.lat[0], b.lon[1], b.lat[1]], { id: "ne", title: `NE Pacific ${sgnC(o.last.mean)}`, fop: 0.06 + Math.min(0.16, Math.abs(o.last.mean) * 0.1), color: c(o.last.mean),
       body: `Sea-surface temperature anomaly vs 1991–2020, box average. ${Math.round(o.last.f15 * 100)}% of the box is at +1.5 °C or more${o.heat ? ": marine heatwave flagged (estimate)" : ""}.`, meta: `NOAA OISST v2.1 · week of ${when}` })];
-    if (o.coast) out.push(rect([-130, 46, -123.5, 51], { id: "shelf", title: `BC / Washington shelf ${sgnC(o.coast.mean)}`, fop: 0.12 + Math.min(0.35, Math.abs(o.coast.mean) * 0.2), color: c(o.coast.mean),
+    if (o.coast) out.push(rect([-130, 46, -123.5, 51], { id: "shelf", title: `BC / Washington shelf ${sgnC(o.coast.mean)}`, fop: 0.08 + Math.min(0.18, Math.abs(o.coast.mean) * 0.1), color: c(o.coast.mean),
       body: "Sea-surface temperature anomaly vs 1991–2020 over the continental shelf.", meta: `NOAA OISST v2.1 · week of ${when}` }));
     return fc(out); } };
 const UN_LBL = { id: "un-l", title: "Sea temperature labels", kind: "label", passive: true, color: "var(--ink)",
@@ -319,10 +293,10 @@ const TTC_ST = { id: "ttc-st", title: "Delays by station", icon: "train", color:
 // ================================================================== the stage entries
 const view = (center, zoom, bounds = null) => () => ({ center, zoom, bounds });
 export const CIVIC_STAGES = {
-  langford: { layout: "map", pane: "none", layers: [LF_FILL, LF_LABEL], view: view([-123.52, 48.5], 11, CRD_CORE), panels: (ctx) => [lfPanel(ctx)] },
   lnotices: { layout: "map", pane: "none", layers: [LF_OUTLINE],
     view: (ctx) => { const f = CSD(ctx).data?.features.find((x) => x.properties.id === "5917044"); return f ? { center: ctx.place.ll, zoom: 13, bounds: bboxOf([f.geometry]) } : { center: ctx.place.ll, zoom: 12.2 }; },
-    panels: (ctx) => [modPanel(lnotices, ctx, { id: "ln", title: "City News", list: true, lede: "Headlines from langford.ca, newest first; each opens the City's page. Notices carry no locations, so the map shows the City's boundary.",
+    panels: (ctx) => [{ id: "ln-meet", title: "Council & Committee Meetings", place: "left", el: meetingsPanel(ctx) },
+      modPanel(lnotices, ctx, { id: "ln", title: "City News", list: true, lede: "City of Langford news from langford.ca, newest first; each opens the City's page. Notices carry no locations, so the map shows the City's boundary.",
       credit: "City of Langford (headlines and links only, no open licence) · boundary: Statistics Canada Open Licence" })] },
 
   water: { layout: "map", pane: "none", layers: W_LAYERS, view: view([-114.5, 37.5], 6, [[-124.6, 31.4], [-104.6, 43.6]]),
@@ -333,7 +307,7 @@ export const CIVIC_STAGES = {
       lede: (d) => `${gridAge(d) >= 2 ? `Old snapshot: published ${gridAge(d)} days ago, so this is not tomorrow's forecast. ` : ""}Forecast net load (demand minus solar and wind, with its 80% range) and total demand (dashed), CAISO, ${d3.timeFormat("%a %b %-d")(new Date(d.g.tomorrow))}. Published data of ${d3.timeFormat("%b %-d")(new Date(d.g.generated))}.` })] },
 
   enso: { layout: "map", pane: "none", layers: [N34, N34_LABEL], view: () => ({ center: [-150, 4], zoom: 2.1 }),
-    panels: (ctx) => [modPanel(enso, ctx, { id: "en", title: "Niño 3.4 Index", h: 220, credit: "NOAA Climate Prediction Center (public domain), daily snapshot",
+    panels: (ctx) => [ensoNowPanel(ctx), modPanel(enso, ctx, { id: "en", title: "Niño 3.4 Index", h: 220, credit: "NOAA Climate Prediction Center (public domain), daily snapshot",
       lede: (d) => `${d.e.status || d.phase}. Relative index (solid), traditional ONI (dashed) and CPC's outlook; above +0.5 °C is El Niño, below −0.5 °C La Niña.` })] },
   outlook: { layout: "map", pane: "none", layers: [OUT_PTS, OUT_LBL],
     view: (ctx) => { const d = need(outlook, ctx), pts = d?.rows.filter((r) => r.ll).map((r) => r.ll) || [];
@@ -342,13 +316,14 @@ export const CIVIC_STAGES = {
     panels: (ctx) => [modPanel(outlook, ctx, { id: "out", title: "Odds by Region", h: 240, credit: isUS(ctx) ? "NOAA CPC seasonal outlook (public domain), daily snapshot" : "ECCC CanSIPS (Open Government Licence – Canada), daily snapshot",
       lede: (d, v) => `${v.sub} Map: each region's point, coloured the way its odds lean.` })] },
   unusual: { layout: "map", pane: "none", layers: [UN_OCEAN, UN_LBL, "warnings", UN_TIDE], view: view([-138, 48], 4, [[-161, 38.5], [-119, 57]]),
-    panels: (ctx) => [modPanel(unusual, ctx, { id: "un", title: "Pattern Watch", list: true, lede: "Live weather alerts, the NE Pacific sea-temperature anomaly and the year's highest predicted tides.",
+    panels: (ctx) => [modPanel(unusual, ctx, { id: "un", title: "Unusual Weather", list: true, lede: "Live weather alerts, the NE Pacific sea-temperature anomaly and the year's highest predicted tides.",
       credit: `${isUS(ctx) ? "NWS" : "ECCC"} alerts (live) · NOAA OISST and CO-OPS tide predictions (public domain)` })] },
 
   ar: { layout: "map", pane: "none", layers: [AR_PTS, AR_LBL], view: (ctx) => { const b = AR_VIEW[provinceOf(ctx.place)?.id] || AR_VIEW.bc; return { center: [(b[0][0] + b[1][0]) / 2, (b[0][1] + b[1][1]) / 2], zoom: 6, bounds: b }; },
-    panels: (ctx) => [modPanel(ar, ctx, { id: "ar", title: "Moisture Transport", h: 200, credit: "Open-Meteo GFS (CC BY 4.0), scored on the CW3E 1–5 scale: an estimate",
+    panels: (ctx) => [arNowPanel(ctx, need(ar, ctx)), modPanel(ar, ctx, { id: "ar", title: "Moisture Transport", h: 200, credit: "Open-Meteo GFS (CC BY 4.0), scored on the CW3E 1–5 scale: an estimate",
       lede: `Estimated water-vapour transport over ${ctx.place.name}, next 7 days (kg/m/s); 250 starts an atmospheric river. Map: the same estimate along the coast, arrows pointing where the moisture flows.` })] },
-  tsunami: { layout: "map", pane: "none", layers: [TSU_PTS], view: view([-156, 46], 3.2, [[-195, 30], [-118, 63]]),
+  // opens on the place's parent area (Langford → Greater Victoria), like Wildfires and Earthquakes; messages from further out stay on the map
+  tsunami: { layout: "map", pane: "none", layers: [TSU_PTS], view: parentView,
     panels: (ctx) => [modPanel(tsunami, ctx, { id: "tsu", title: "Latest Messages", list: true, lede: (d) => (d.level >= 1 ? "A tsunami message is in effect on this coast: follow local officials." : `No tsunami watch, advisory or warning for the ${d.prov.short} coast. Map: where the latest messages were centred.`),
       credit: "NOAA NTWC / PTWC (tsunami.gov) and NWS alerts, public domain" })] },
   hazards: { layout: "map", pane: "none", layers: HZ_LAYERS, view: view([-126.5, 54], 5, [[-139.1, 48.2], [-114, 60]]),

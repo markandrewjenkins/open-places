@@ -1,0 +1,37 @@
+/* Open Places: Sea Traffic panel (civic-mod-sea.js). The ship card and list reuse the aircraft card's look
+   (src/air/layer.css .air-card / .air-list); these rules add the focus switch, the legend and the card's header. */
+.sea-panel { display: flex; flex-direction: column; gap: 8px; }
+.sea-seg { display: flex; gap: 0; border: 1px solid var(--border, var(--line)); border-radius: 6px; overflow: hidden; width: max-content; max-width: 100%; }
+.sea-seg button { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 0; background: transparent; color: var(--ink-2, var(--muted)); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.sea-seg button + button { border-left: 1px solid var(--border, var(--line)); }
+.sea-seg button[aria-pressed="true"] { background: color-mix(in oklab, var(--m-ferries, var(--accent)) 22%, transparent); color: var(--ink); }
+.sea-seg button:hover { color: var(--ink); }
+.sea-seg button:focus-visible { outline: 2px solid var(--m-ferries, var(--accent)); outline-offset: -2px; }
+.sea-seg img { transform: rotate(90deg); }
+
+.sea-legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: row dense; gap: 1px 10px; font-size: 11.5px; color: var(--ink-2, var(--muted)); }
+.sea-legend li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 5px; min-height: 19px; }
+.sea-legend li.wide { grid-column: 1 / -1; }   /* a long class name gets the whole row */
+.sea-legend img { height: 17px; max-width: 18px; justify-self: center; object-fit: contain; }
+.sea-legend span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sea-legend b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.sea-card { padding: 8px 10px; border: 1px solid var(--border, var(--line)); border-left: 3px solid var(--sc, var(--accent)); border-radius: 6px; background: color-mix(in srgb, var(--surface) 70%, transparent); }
+.sea-card-h { align-items: center; }
+.sea-card-h img { flex: none; width: auto; }
+.sea-card-h b { font-size: 14px; }
+.sea-card-h span { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sea-x { flex: none; width: 22px; height: 22px; border: 1px solid var(--border, var(--line)); border-radius: 6px; background: transparent; color: var(--ink); font: inherit; font-size: 14px; line-height: 1; cursor: pointer; }
+.sea-x:hover, .sea-x:focus-visible { border-color: var(--sc, var(--accent)); }
+.sea-about { margin: 0 0 4px; font-size: 11.5px; line-height: 1.35; color: var(--ink-2, var(--muted)); }
+.sea-links { display: flex; gap: 14px; margin: 6px 0 0; font-size: 12px; }
+.sea-links a { color: var(--ink); font-weight: 600; text-decoration: none; border-bottom: 1px solid var(--sc, var(--accent)); }
+.sea-links a:hover { color: var(--ink); border-bottom-width: 2px; }
+.sea-list button { padding: 3px 2px; }
+
+/* Air Traffic panel (civic-modules.js airStagePanel): the selected aircraft's card, framed like the ship card */
+.air-selcard { position: relative; margin: 6px 0; padding: 8px 10px; border: 1px solid var(--border, var(--line)); border-left: 3px solid var(--m-airtraffic, var(--accent));
+  border-radius: 6px; background: color-mix(in srgb, var(--surface) 70%, transparent); }
+.air-selcard .air-card-h { padding-right: 26px; }
+.air-selx { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border: 1px solid var(--border, var(--line)); border-radius: 6px; background: transparent; color: var(--ink); font: inherit; font-size: 14px; line-height: 1; cursor: pointer; }
+.air-selx:hover, .air-selx:focus-visible { border-color: var(--m-airtraffic, var(--accent)); }

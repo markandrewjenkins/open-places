@@ -60,4 +60,8 @@
 .fer-cardhost .trl-legend { margin-bottom: 8px; background: transparent; border: 0; padding: 0; }
 .fer-cardhost .fer-hint { background: transparent; border: 0; padding: 0; }
 /* the selection card needs less room than the list on the map stage */
-.civ-sg[data-layout="map"] .civ-sg-right > .civ-pane:has(#ferries-main, #wsferries-main, #trails-main) { grid-template-rows: minmax(0, 0.9fr) minmax(0, 1.35fr); }
+.civ-sg[data-layout="map"] .civ-sg-right > .civ-pane:has(#trails-main) { grid-template-rows: minmax(0, 0.9fr) minmax(0, 1.35fr); }
+/* ferries: the selected-ferry card sizes to its content (up to 60vh) and the list below takes the rest */
+.civ-sg[data-layout="map"] .civ-sg-right > .civ-pane:has(#ferries-main, #wsferries-main) { grid-template-rows: auto minmax(0, 1fr); }
+.civ-sg[data-layout="map"] .civ-sg-right > .civ-pane > .civ-col > .civ-main:has(#ferries-main, #wsferries-main) { max-height: 60vh; overflow: auto; }
+.civ-sg[data-layout="map"] .civ-sg-right > .civ-pane > .civ-col > .civ-main:has(#ferries-main, #wsferries-main) > .chart { flex: none; height: auto; }

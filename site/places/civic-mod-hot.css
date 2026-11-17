@@ -1,0 +1,52 @@
+/* Open Places: What's Hot Now (civic-mod-hot.js). */
+:root { --m-hot: #c4532a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --m-hot: #ff8d5e; } }
+:root[data-theme="dark"] { --m-hot: #ff8d5e; }
+
+.hot-body { gap: 8px; }
+.hot-hero { --hc: var(--m-hot); display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; margin: 0 -2px; border-radius: 8px;
+  background: linear-gradient(160deg, color-mix(in oklab, var(--hc) 20%, transparent), color-mix(in oklab, var(--hc) 4%, transparent));
+  border: 1px solid color-mix(in oklab, var(--hc) 40%, transparent); }
+.hot-k { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font: 600 10.5px/1.3 var(--font); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.hot-tag[data-kind="live"] { color: var(--live, var(--accent)); }
+.hot-tag[data-kind="calendar"] { color: var(--ink-2); }
+.hot-reset { margin-left: auto; border: 0; background: none; padding: 0; color: var(--accent); font: 600 11px/1.3 var(--font); letter-spacing: 0; text-transform: none; cursor: pointer; }
+.hot-reset:hover { text-decoration: underline; }
+.hot-t { margin: 0; font-size: 22px; line-height: 1.15; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
+.hot-why { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.hot-go { align-self: flex-start; color: var(--accent); font-size: 12.5px; font-weight: 600; text-decoration: none; }
+.hot-go:hover { text-decoration: underline; }
+
+.hot-list { display: flex; flex-direction: column; }
+.hot-i { --hc: var(--accent); display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; grid-template-rows: auto 3px; gap: 3px 8px; align-items: center; width: 100%;
+  padding: 6px 4px; border: 0; border-bottom: 1px solid var(--grid); background: none; font: inherit; text-align: left; cursor: pointer; border-radius: 0; }
+.hot-i:hover, .hot-i:focus-visible { background: color-mix(in oklab, var(--hc) 9%, transparent); outline: none; }
+.hot-i.on { background: color-mix(in oklab, var(--hc) 15%, transparent); box-shadow: inset 2px 0 0 var(--hc); }
+.hot-i i { width: 9px; height: 9px; border-radius: 50%; background: var(--hc); }
+.hot-i b { font-size: 12.5px; color: var(--ink); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hot-i small { font: 500 11px/1.2 var(--fig); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+.hot-bar { grid-column: 2 / 4; height: 3px; border-radius: 2px; background: var(--grid); overflow: hidden; }
+.hot-bar span { display: block; height: 100%; background: var(--hc); opacity: 0.85; }
+
+/* the surf table */
+.hot-surf { display: flex; flex-direction: column; max-height: min(64vh, 760px); }
+.hot-sh, .hot-s { display: grid; grid-template-columns: minmax(0, 1fr) 92px 92px 78px; gap: 8px; align-items: center; }
+.hot-sh { padding: 0 4px 4px; font: 600 9.5px/1.2 var(--font); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--grid); }
+.hot-s { width: 100%; padding: 6px 4px; border: 0; border-bottom: 1px solid var(--grid); background: none; font: inherit; text-align: left; cursor: pointer; }
+.hot-s:hover, .hot-s:focus-visible { background: color-mix(in oklab, var(--m-hot) 9%, transparent); outline: none; }
+.hot-sn { display: flex; flex-direction: column; min-width: 0; }
+.hot-sn b { font-size: 12.5px; color: var(--ink); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hot-sn small, .hot-best small { font: 500 10.5px/1.25 var(--fig); color: var(--muted); white-space: nowrap; }
+.hot-now-v { font: 500 11px/1.3 var(--fig); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hot-best { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.hot-r { --rc: var(--muted); padding: 1px 6px; border-radius: 4px; font: 600 10px/1.4 var(--font); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink);
+  background: color-mix(in oklab, var(--rc) 20%, var(--surface)); border: 1px solid color-mix(in oklab, var(--rc) 55%, transparent); }
+.hot-r[data-r="good"] { --rc: var(--live, #2f8f45); }
+.hot-r[data-r="fair"] { --rc: var(--warn); }
+.hot-r[data-r="big"] { --rc: var(--bad); }
+.hot-r[data-r="na"] { display: none; }
+.hot-spark { display: block; }
+.hot-spark .hot-day { fill: color-mix(in oklab, var(--ink) 6%, transparent); }
+.hot-spark .hot-wa { fill: color-mix(in oklab, var(--m-hot) 22%, transparent); }
+.hot-spark .hot-wl { fill: none; stroke: var(--m-hot); stroke-width: 1.3; }
+.hot-spark .hot-now { stroke: var(--ink); stroke-width: 1; opacity: 0.6; }

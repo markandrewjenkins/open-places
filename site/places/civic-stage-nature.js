@@ -11,6 +11,8 @@ import { edgeCoords } from "../src/shared/route.js";
 import { file, dataKey, km, fDate, parseDay } from "./civic-data.js";
 import { color } from "./civic-stage.js";
 import { icon } from "./civic-icons.js";
+import { float } from "./civic-float.js";
+import { boatsLayer, whaleBoats, boatsState, boatLine, FLEET } from "./civic-whaleboats.js";
 import "./civic-stage-nature.css";
 
 // ================================================================== shared bits
@@ -90,6 +92,11 @@ function mount(leaf, map, ctx, o) {
   const onSkin = () => { remove(); add(); };
   map.on("click", onClick); map.on("mousemove", onMove); map.on("style.load", onStyle); addEventListener("skinchange", onSkin);
   const api = {
+    map,
+    /** re-add the layers (after the page changed what o.layers() returns, e.g. a filter) */
+    redraw() { close(); remove(); add(); },
+    /** fly to fit a box ([[w, s], [e, n]]) */
+    fit(b, maxZoom = 14) { map.fitBounds(b, { padding: 50, maxZoom, duration: 700 }); },
     /** fly to a feature from a panel row and open its popup (layer = suffix, props as on the map) */
     focus({ layer, props, ll, bounds, zoom }) {
       const go = () => open({ layer: { id: P + layer }, properties: props, geometry: { type: "Point", coordinates: ll } }, ll);
@@ -317,7 +324,7 @@ const foliageStage = {
   },
 };
 
-// ================================================================== Salish Sea Live
+// ================================================================== Whale Watching (was Salish Sea Live)
 // Whale reports (Acartia + iNaturalist, sightings.json) from the last 14 days, coloured by species and faded by age;
 // Orcasound hydrophones sized by listener reports (30 days) with next week's chance of whale calls; other hydrophones.
 const SALISH = "../salish/", SAL_DAYS = 14;
@@ -344,7 +351,34 @@ const salishStage = {
     const b = bboxOf([ctx.place.ll, ...core, ...Object.values(m?.s.hydrophones || {}).map((h) => [h.lon, h.lat])], 0.1);
     return { center: mid(b), zoom: 8.6, bounds: b };
   },
-  layers: (map, ctx) => mount("salish", map, ctx, {
+  // the whole Salish Sea, not the place: the reports, hydrophones and boats cover it all
+  coverage: () => ({ feature: SALISH_SEA, label: "Salish Sea (approximate)" }),
+  layers: (map, ctx) => { const a = salishLayers(map, ctx), b = boatsLayer(map, ctx); BOATS.layer = b; return () => { a(); b.destroy(); if (BOATS.layer === b) BOATS.layer = null; }; },
+  panels: (ctx) => [...salishPanels(ctx), boatsPanel(ctx)],
+};
+const BOATS = { layer: null };
+// the Strait of Georgia, Haro and Rosario Straits, the Strait of Juan de Fuca and Puget Sound, roughly (for the coverage outline)
+const SALISH_SEA = { type: "Feature", properties: { name: "Salish Sea" }, geometry: { type: "Polygon", coordinates: [[
+  // north shore of the Strait of Juan de Fuca, Haro Strait, the Gulf Islands side of Vancouver Island, up to Campbell River
+  [-124.73, 48.4], [-124.42, 48.56], [-124.05, 48.44], [-123.73, 48.36], [-123.48, 48.41], [-123.36, 48.4], [-123.27, 48.45], [-123.36, 48.62], [-123.5, 48.78],
+  [-123.72, 48.98], [-123.93, 49.18], [-124.2, 49.27], [-124.45, 49.36], [-124.75, 49.52], [-124.95, 49.7], [-125.15, 49.9], [-125.27, 50.04],
+  // across to the mainland coast: Powell River, the Sunshine Coast, Vancouver, the Fraser delta
+  [-125.0, 50.1], [-124.72, 49.98], [-124.52, 49.82], [-124.15, 49.62], [-123.85, 49.47], [-123.5, 49.38], [-123.27, 49.33], [-123.25, 49.25], [-123.18, 49.1],
+  [-123.1, 49.0], [-122.85, 48.95], [-122.6, 48.85], [-122.5, 48.72], [-122.55, 48.55], [-122.42, 48.32], [-122.3, 48.1], [-122.25, 47.92],
+  // Puget Sound to Olympia, Hood Canal, then west along the Olympic shore to Cape Flattery
+  [-122.38, 47.65], [-122.36, 47.4], [-122.45, 47.22], [-122.75, 47.08], [-122.95, 47.12], [-122.9, 47.35], [-123.1, 47.38], [-122.95, 47.65], [-122.75, 47.85],
+  [-122.72, 48.1], [-122.95, 48.08], [-123.25, 48.13], [-123.55, 48.13], [-123.9, 48.16], [-124.3, 48.27], [-124.62, 48.36], [-124.73, 48.4]]] } };
+function boatsPanel(ctx) {
+  const st = boatsState(), bs = st.at ? whaleBoats() : [];
+  const list = bs.length ? rows(bs.slice(0, 8).map((b, i) => [i + 1, b.name, boatLine(b), () => BOATS.layer?.focus(b.mmsi), `${b.op} · ${b.base}`]))
+    : el("p", { class: "note" }, st.err ? `Live ships aren't available (${st.err.message || st.err}).` : !st.at ? "Waiting for the live ship positions…"
+      : "No whale-watching boat is broadcasting right now. Most tours run spring to autumn; small boats often carry no AIS.");
+  return { id: "nt-boats", title: "Whale-Watch Boats", place: "right", el: body(
+    lead(tag("live", "Live"), " ", el("b", {}, `${bs.filter((b) => b.moving).length}`), ` under way, ${bs.length} on AIS in the last 6 hours. Ringed dots on the map; faded ones are stopped.`),
+    list,
+    cred(`Boats picked out of the live AIS feed (aisstream.io via the Open Places relay; not for navigation) by a hand list of ${FLEET.length} vessels from the operators' own fleet pages and the Pacific Whale Watch Association. Names as broadcast; no affiliation with any operator.`)) };
+}
+const salishLayers = (map, ctx) => mount("salish", map, ctx, {
     load: async (c) => { await Promise.all([whenFile("salish/salish.json", c), whenFile("salish/sightings.json", c)]); return salishModel(c); },
     sources: ({ s, reps }) => ({
       reps: { type: "geojson", data: fc(reps.slice().reverse().map((x) => { const h = (Date.now() - x.at) / 36e5;
@@ -382,8 +416,8 @@ const salishStage = {
           meta(r.src === 0 ? `Acartia data cooperative${r.ref ? ` · ${r.ref}` : ""}` : `iNaturalist, ${grade === "research" ? "research grade" : "needs ID"} · © the observer`)],
         r.src === 1 && obs ? `https://www.inaturalist.org/observations/${obs}` : SALISH, r.src === 1 && obs ? "Observation ↗" : "Full dashboard ↗");
     },
-  }),
-  panels: (ctx) => {
+  });
+const salishPanels = (ctx) => {
     const m = salishModel(ctx);
     if (!m) return [{ id: "nt-salish", title: "Whale Reports", place: "left", el: wait() }];
     const by = d3.rollups(m.wk, (v) => d3.sum(v, (x) => x.n > 0 ? 1 : 0), (x) => x.sp).sort((a, b) => b[1] - a[1]);
@@ -397,14 +431,44 @@ const salishStage = {
         focus("salish", { layer: "reps", props: { id: `r${r.id}` }, ll: r.ll, zoom: 10 })])),
       cred("Sightings: Acartia data cooperative, iNaturalist (© observers). Hydrophones: Orcasound (CC BY-NC-SA 4.0), SIMRES, Raincoast, OrcaLab, JASCO, Ocean Networks Canada."),
       foot(`Pipeline ran ${m.s.generated.slice(0, 10)} · not live`, SALISH)) }];
-  },
 };
 
-// ================================================================== Dark Sky Finder
-// The modelled sky-brightness raster (darksky/sqm_<view>_rgba.png, bounds from model.json as in src/darksky/main.js) under
-// the measured and modelled dark-sky sites (sites.json), coloured by Bortle class.
+// ================================================================== Light Pollution (was Dark Sky Finder)
+// How bright the night sky is here (the modelled sky brightness at the place, sampled from darksky/sqm_<view>.png, and how
+// much the night lights around it changed since 2014, model.json towns), the light-pollution map (the same model as an image
+// layer, or the change in night lights 2014 → 2025), then where the dark skies are (sites.json, by Bortle class).
+// Model: Open Places, from NASA Black Marble night lights (VNP46A2, public domain) trained on Globe at Night and SQM readings.
 const DARK = "../darksky/";
 const bortleColor = (b) => (b <= 3 ? "var(--live)" : b <= 5 ? "var(--warn)" : "var(--bad)");
+const BORTLE = ["", "Pristine: the zodiacal light and airglow are visible", "Truly dark: the Milky Way casts detail to the horizon", "Rural: the Milky Way is clear, some glow on the horizon",
+  "Rural / suburban edge: the Milky Way is visible but plain", "Suburban: the Milky Way is faint overhead and gone near the horizon", "Bright suburban: only hints of the Milky Way overhead",
+  "Suburban / urban: the sky is grey; no Milky Way", "City: only bright stars and planets", "Inner city: a handful of stars"];
+const SKY = { c: {}, busy: {} };
+/** { v, sqm, bortle, town, towns, model } at the place, from the published model; sqm is null until the image is decoded */
+function skyHere(ctx) {
+  const model = data("darksky/model.json", ctx); if (!model) return null;
+  const v = dataKey(ctx.place, "darksky") || "bc", V = model.views[v], Ly = model.layers[v]; if (!V || !Ly) return null;
+  const towns = model.towns.filter((t) => t.view === v).map((t) => ({ ...t, km: km([t.lon, t.lat], ctx.place.ll) })).sort((a, b) => a.km - b.km);
+  const town = towns[0] && towns[0].km < 12 ? towns[0] : null;
+  if (!SKY.c[v]) {
+    if (!SKY.busy[v]) {
+      SKY.busy[v] = true;
+      const img = new Image(); img.src = `../data/darksky/sqm_${v}.png`;
+      img.decode().then(() => { const c = document.createElement("canvas"); c.width = img.width; c.height = img.height; const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0); SKY.c[v] = g; ctx.refresh?.(); },
+        () => { SKY.busy[v] = false; });
+    }
+    return { v, sqm: null, bortle: null, town, towns, model };
+  }
+  const [lon, lat] = ctx.place.ll, [s, w, n, e] = V.bbox;
+  let sqm = null;
+  if (lat >= s && lat <= n && lon >= w && lon <= e) {
+    const [h, wd] = Ly.shape, x = Math.min(wd - 1, Math.floor(((lon - w) / (e - w)) * wd)), y = Math.min(h - 1, Math.floor(((n - lat) / (n - s)) * h));
+    const val = SKY.c[v].getImageData(x, y, 1, 1).data[0], [lo, hi] = Ly.sqm_range || [15.5, 22.3];
+    if (val) sqm = lo + ((val - 1) / 254) * (hi - lo);
+  }
+  const bortle = sqm == null ? null : (model.bortle.find(([t]) => sqm >= t) || [0, 9])[1];
+  return { v, sqm, bortle, town, towns, model };
+}
 function darkModel(ctx) {
   const all = data("darksky/sites.json", ctx);
   if (!all) return null;
@@ -412,17 +476,43 @@ function darkModel(ctx) {
   const sites = all.filter((s) => s.view === v).map((s) => ({ ...s, id: s.name, km: km([s.lon, s.lat], ctx.place.ll) })).sort((a, b) => a.km - b.km);
   return { v, sites, dark: sites.filter((s) => s.bortle <= 3) };
 }
+const DK = { layer: "sqm", el: null, ctx: null };
+const SQM_RAMP = ["#ffecb3", "#ffb74d", "#f06292", "#ab47bc", "#5e35b1", "#281e6e", "#0a0a28"];
+function setDarkLayer(k) { DK.layer = DK.layer === k ? "sqm" : k; live.darksky?.redraw(); darkPaint(); }
+function darkPaint() {
+  const ctx = DK.ctx, b = DK.el; if (!ctx || !b) return;
+  const h = skyHere(ctx), m = darkModel(ctx);
+  if (!h) { b.replaceChildren(el("p", { class: "note civ-empty" }, "Loading the light-pollution model…")); return; }
+  const name = ctx.place.short || ctx.place.name, t = h.town;
+  const near = h.towns.filter((x) => x.km < 80).sort((a, c) => c.change_pct - a.change_pct);
+  b.replaceChildren(...[
+    el("div", { class: "lp-hero" },
+      el("div", { class: "lp-num" }, el("b", {}, h.sqm != null ? h.sqm.toFixed(1) : "—"), el("small", {}, "mag/arcsec²")),
+      el("div", { class: "lp-txt" }, el("b", { style: `color:${h.bortle ? bortleColor(h.bortle) : "inherit"}` }, h.bortle ? `Bortle ${h.bortle}` : "Sky brightness"),
+        el("span", {}, h.bortle ? BORTLE[h.bortle] : "Reading the model…"))),
+    lead(tag("data", "Model"), ` Night-sky brightness at ${name} (higher is darker; 22 is pristine). `,
+      t ? el("span", {}, "Night lights around ", el("b", {}, t.name), ` ${t.change_pct >= 0 ? "brightened" : "dimmed"} `, el("b", {}, `${Math.abs(t.change_pct).toFixed(0)}%`), ` from ${h.model.years[0]} to ${h.model.years[1]}.`) : ""),
+    el("div", { class: "nt-seg", role: "group", "aria-label": "Map layer" },
+      el("button", { type: "button", "aria-pressed": String(DK.layer === "sqm"), onclick: () => setDarkLayer("sqm") }, "Sky brightness"),
+      el("button", { type: "button", "aria-pressed": String(DK.layer === "change"), title: DK.layer === "change" ? "Click again for sky brightness" : "Night lights then and now", onclick: () => setDarkLayer("change") }, `Change since ${h.model.years[0]}`)),
+    DK.layer === "change" ? ramp(["#1e88e5", "rgba(128,128,128,.25)", "#e53935"], ["Dimmer", "", "Brighter"]) : ramp(SQM_RAMP, ["City · 16", "19", "Pristine · 22"]),
+    near.length ? sub(`Night Lights Since ${h.model.years[0]}`) : null,
+    near.length ? rows(near.slice(0, 5).map((x, i) => [i + 1, x.name, `${x.change_pct >= 0 ? "+" : "−"}${Math.abs(x.change_pct).toFixed(0)}% · ${Math.round(x.km)} km`])) : null,
+    cred(`Model: Open Places, from NASA Black Marble night lights (VNP46A2, public domain) trained on ${f0(h.model.n_train)} Globe at Night (NOIRLab, CC BY 4.0) and SQM readings. Change: Black Marble ${h.model.years[0]} vs ${h.model.years[1]}.`),
+    m ? foot(`${m.sites.length} sky sites · ${m.v.toUpperCase()}`, DARK) : null].filter(Boolean));
+}
 const darkStage = {
   layout: "map",
+  // the place and the nearest dark skies
   view: (ctx) => { const m = darkModel(ctx); if (!m?.dark.length) return null; const b = bboxOf([ctx.place.ll, ...m.dark.slice(0, 4).map((s) => [s.lon, s.lat])], 0.15); return { center: mid(b), zoom: 8.6, bounds: b }; },
   layers: (map, ctx) => mount("darksky", map, ctx, {
     load: async (c) => { const [model] = await Promise.all([whenFile("darksky/model.json", c), whenFile("darksky/sites.json", c)]); const m = darkModel(c); return { m, bounds: model.layers[m.v]?.bounds }; },
     sources: ({ m, bounds }) => ({
-      ...(bounds ? { sqm: { type: "image", url: `../data/darksky/sqm_${m.v}_rgba.png`, coordinates: bounds } } : {}),
+      ...(bounds ? { sqm: { type: "image", url: `../data/darksky/sqm_${m.v}_rgba.png`, coordinates: bounds }, change: { type: "image", url: `../data/darksky/change_${m.v}_rgba.png`, coordinates: bounds } } : {}),
       sites: { type: "geojson", data: fc(m.sites.map((s) => pt([s.lon, s.lat], { id: s.id, name: s.name, c: color(bortleColor(s.bortle)), label: s.bortle <= 3 || /Star Park/.test(s.kind) ? s.name : "" }))) },
     }),
     layers: ({ bounds }) => [
-      ...(bounds ? [{ id: "sqm", type: "raster", source: "sqm", paint: { "raster-opacity": document.documentElement.dataset.theme === "dark" ? 0.62 : 0.45, "raster-resampling": "linear" } }] : []),
+      ...(bounds ? [{ id: DK.layer, type: "raster", source: DK.layer, paint: { "raster-opacity": document.documentElement.dataset.theme === "dark" ? 0.62 : 0.5, "raster-resampling": "linear" } }] : []),
       { id: "sel", type: "circle", source: "sites", filter: ["==", ["get", "id"], "__none"], paint: { "circle-radius": 13, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": ink(), "circle-stroke-width": 2 } },
       { id: "sites", type: "circle", source: "sites", paint: { "circle-color": ["get", "c"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 5, 10, 8], "circle-stroke-color": surf(), "circle-stroke-width": 2 } },
       { id: "site-l", type: "symbol", source: "sites", layout: { "text-field": ["get", "label"], "text-size": 11.5, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.2], "text-anchor": "top", "text-optional": true },
@@ -436,24 +526,29 @@ const darkStage = {
     },
   }),
   panels: (ctx) => {
+    DK.ctx = ctx;
+    if (!DK.el) DK.el = body();
+    darkPaint();
     const m = darkModel(ctx);
-    if (!m) return [{ id: "nt-darksky", title: "Nearest Dark Skies", place: "left", el: wait() }];
-    return [{ id: "nt-darksky", title: "Nearest Dark Skies", place: "left", el: body(
-      lead(tag("data", "Data"), " Nearest Bortle 3 sky: ", el("b", {}, m.dark[0]?.name || "—"), m.dark[0] ? `, ${Math.round(m.dark[0].km)} km. The shading is modelled sky brightness.` : ""),
-      ramp(["#ffecb3", "#ffb74d", "#f06292", "#ab47bc", "#5e35b1", "#281e6e", "#0a0a28"], ["City · 16", "19", "Pristine · 22"]),
+    const right = !m ? wait() : body(
+      lead(tag("data", "Data"), " Nearest Bortle 3 sky: ", el("b", {}, m.dark[0]?.name || "—"), m.dark[0] ? `, ${Math.round(m.dark[0].km)} km.` : ""),
       key([["var(--live)", "Bortle 1–3 (dark)", ""], ["var(--warn)", "Bortle 4–5", ""], ["var(--bad)", "Bortle 6+ (bright)", ""]]),
-      sub("Darkest Within Reach"),
       rows(m.dark.slice(0, 6).map((s, i) => [i + 1, s.name, `B${s.bortle} · ${s.sqm.toFixed(1)} · ${Math.round(s.km)} km`, focus("darksky", { layer: "sites", props: { id: s.id }, ll: [s.lon, s.lat], zoom: 9 }), s.note])),
-      cred("Night lights: NASA Black Marble (VNP46A2) via GIBS. Sky readings: Globe at Night (NOIRLab, CC BY 4.0). Model: Open Places."),
-      foot(`${m.sites.length} sites · ${m.v.toUpperCase()}`, DARK)) }];
+      cred("Sky readings: Globe at Night (NOIRLab, CC BY 4.0), RASC dark-sky sites; Bortle class from the reading."));
+    return [{ id: "nt-darksky", title: "Sky Here", place: "left", el: DK.el }, { id: "nt-darkest", title: "Dark Skies Nearby", place: "right", el: right }];
   },
 };
 
 // ================================================================== Sunday Wander
 // The curated scenic loops (sunday.json) drawn on the road network they were routed on (graph_<region>_<mode>.json,
-// decoded with the shared planner's loadGraph / edgeCoords).
+// decoded with the shared planner's loadGraph / edgeCoords). The panel's mode buttons (All · Drives · Rides · Walks) filter
+// the map and the list and fit the map to that mode's loops; the selected mode again goes back to all.
 const SUNDAY = "../sunday/";
-const MODE = { car: ["Drive", "var(--m-roads)"], bike: ["Ride", "var(--m-sunday)"], foot: ["Walk", "var(--m-salish)"] };
+const MODE = { car: ["Drive", "var(--m-roads)"], bike: ["Ride", "var(--m-sunday)"], foot: ["Walk", "var(--m-lstops)"] };
+const MODES_ORDER = ["car", "bike", "foot"];
+const PLURAL = { car: "Drives", bike: "Rides", foot: "Walks" };
+const SUN = { mode: "all", el: null, ctx: null };
+const modeFilter = () => (SUN.mode === "all" ? {} : { filter: ["==", ["get", "mode"], SUN.mode] });
 // only the geometry edgeCoords() needs (the planner's loadGraph also builds routing indexes this page has no use for)
 const graphs = new Map();
 const graph = (url) => graphs.get(url) || graphs.set(url, fetch(url).then((r) => { if (!r.ok) throw new Error(`${url}: ${r.status}`); return r.json(); }).then((j) => {
@@ -468,9 +563,35 @@ function sundayModel(ctx) {
   const k = dataKey(ctx.place, "sunday"), r = s.regions[k];
   return r ? { k, r, routes: r.routes.slice().sort((a, b) => b.score - a.score), gen: s.generated } : null;
 }
+const sunRoutes = (m) => (SUN.mode === "all" ? m.routes : m.routes.filter((x) => x.mode === SUN.mode));
+/** pick a travel mode (the same one again, or "all", shows every loop) */
+function setMode(md) {
+  SUN.mode = SUN.mode === md || md === "all" ? "all" : md;
+  const m = SUN.ctx && sundayModel(SUN.ctx);
+  live.sunday?.redraw();
+  if (m && live.sunday) live.sunday.fit(bboxOf(sunRoutes(m).flatMap((x) => x.waypoints), 0.01), 13.5);
+  sundayPaint();
+}
+function sundayPaint() {
+  const ctx = SUN.ctx, m = ctx && sundayModel(ctx);
+  if (!SUN.el) return;
+  if (!m) { SUN.el.replaceChildren(el("p", { class: "note civ-empty" }, "Loading the published data…")); return; }
+  const rs = sunRoutes(m), n = (md) => m.routes.filter((x) => x.mode === md).length;
+  const seg = el("div", { class: "nt-seg", role: "group", "aria-label": "Travel mode" },
+    el("button", { type: "button", "aria-pressed": String(SUN.mode === "all"), onclick: () => setMode("all") }, "All ", el("b", {}, `${m.routes.length}`)),
+    ...MODES_ORDER.filter(n).map((md) => el("button", { type: "button", "aria-pressed": String(SUN.mode === md), title: SUN.mode === md ? "Click again for every mode" : `Only ${PLURAL[md].toLowerCase()}`, onclick: () => setMode(md) },
+      el("i", { style: `background:${MODE[md][1]}` }), `${PLURAL[md]} `, el("b", {}, `${n(md)}`))));
+  SUN.el.replaceChildren(
+    lead(tag("data", "Data"), " ", el("b", {}, `${m.routes.length} curated loops`), ` in ${m.r.name}, ranked by scenic score: water, green, farms and sights along the way, minus busy roads.`),
+    seg,
+    sub(SUN.mode === "all" ? "Top Loops" : `Top ${PLURAL[SUN.mode]}`),
+    rows(rs.slice(0, 8).map((x, i) => [i + 1, x.name, `${MODE[x.mode]?.[0] || x.mode} · ${Math.round(x.km)} km · ${Math.round(x.minutes)} min`, focus("sunday", { layer: "lines", props: { id: x.id }, ll: x.waypoints[Math.floor(x.waypoints.length / 2)], bounds: bboxOf(x.waypoints, 0.004), zoom: 14 }), x.blurb])),
+    cred("Roads, paths and stops: © OpenStreetMap contributors (ODbL), via the Overpass API. Scores: Open Places."),
+    foot(`Published ${m.gen.slice(0, 10)}`, `${SUNDAY}#region=${m.k}`));
+}
 const sundayStage = {
   layout: "map",
-  view: (ctx) => { const m = sundayModel(ctx); if (!m) return null; const b = bboxOf(m.routes.flatMap((x) => x.waypoints), 0.01); return { center: mid(b), zoom: 11, bounds: b }; },
+  view: (ctx) => { const m = sundayModel(ctx); if (!m) return null; const b = bboxOf(sunRoutes(m).flatMap((x) => x.waypoints), 0.01); return { center: mid(b), zoom: 11, bounds: b }; },
   layers: (map, ctx) => mount("sunday", map, ctx, {
     load: async (c) => {
       await whenFile("sunday/sunday.json", c);
@@ -482,12 +603,12 @@ const sundayStage = {
     },
     sources: ({ lines }) => ({ lines: { type: "geojson", data: lines } }),
     layers: () => {
-      const col = ["match", ["get", "mode"], ...Object.entries(MODE).flatMap(([k, [, c]]) => [k, color(c)]), color("var(--accent)")];
+      const col = ["match", ["get", "mode"], ...Object.entries(MODE).flatMap(([k, [, c]]) => [k, color(c)]), color("var(--accent)")], only = modeFilter();
       return [
-        { id: "case", type: "line", source: "lines", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": surf(), "line-width": ["+", ["get", "w"], 3], "line-opacity": 0.9 } },
+        { id: "case", type: "line", source: "lines", ...only, layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": surf(), "line-width": ["+", ["get", "w"], 3], "line-opacity": 0.9 } },
         { id: "sel", type: "line", source: "lines", filter: ["==", ["get", "id"], "__none"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ink(), "line-width": ["+", ["get", "w"], 6], "line-opacity": 0.35 } },
-        { id: "lines", type: "line", source: "lines", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": col, "line-width": ["get", "w"], "line-opacity": 0.92 } },
-        { id: "names", type: "symbol", source: "lines", minzoom: 10.5, layout: { "symbol-placement": "line", "text-field": ["get", "name"], "text-size": 11.5, "text-font": ["Noto Sans Regular"], "symbol-spacing": 400 },
+        { id: "lines", type: "line", source: "lines", ...only, layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": col, "line-width": ["get", "w"], "line-opacity": 0.92 } },
+        { id: "names", type: "symbol", source: "lines", ...only, minzoom: 10.5, layout: { "symbol-placement": "line", "text-field": ["get", "name"], "text-size": 11.5, "text-font": ["Noto Sans Regular"], "symbol-spacing": 400 },
           paint: { "text-color": ink(), "text-halo-color": surf(), "text-halo-width": 1.6 } },
       ];
     },
@@ -496,20 +617,14 @@ const sundayStage = {
       const x = m.routes.find((r) => r.id === f.properties.id); if (!x) return null;
       return card("sunday", `${MODE[x.mode]?.[0] || x.mode} · ${x.tier} tier · #${m.routes.indexOf(x) + 1}`, x.name, [x.blurb,
         `${x.km.toFixed(1)} km · ${Math.round(x.minutes)} min${x.water_km >= 0.5 ? ` · ${x.water_km.toFixed(1)} km with water views` : ""}${x.green_km >= 0.5 ? ` · ${x.green_km.toFixed(1)} km of park & forest` : ""}.`,
-        meta(`Scenic score ${Math.round(x.score * 100)} · OpenStreetMap routes`)], SUNDAY);
+        meta(`Scenic score ${Math.round(x.score * 100)} · OpenStreetMap routes`)], `${SUNDAY}#region=${m.k}`);
     },
   }),
   panels: (ctx) => {
-    const m = sundayModel(ctx);
-    if (!m) return [{ id: "nt-sunday", title: "Scenic Loops", place: "left", el: wait() }];
-    const modes = d3.rollups(m.routes, (v) => v.length, (x) => x.mode);
-    return [{ id: "nt-sunday", title: "Scenic Loops", place: "left", el: body(
-      lead(tag("data", "Data"), " ", el("b", {}, `${m.routes.length} curated loops`), ` in ${m.r.name}, ranked by scenic score: water, green, farms and sights along the way, minus busy roads.`),
-      key(modes.map(([md, n]) => [MODE[md]?.[1] || "var(--accent)", `${MODE[md]?.[0] || md}s`, `${n}`])),
-      sub("Top Loops"),
-      rows(m.routes.slice(0, 7).map((x, i) => [i + 1, x.name, `${MODE[x.mode]?.[0] || x.mode} · ${Math.round(x.km)} km`, focus("sunday", { layer: "lines", props: { id: x.id }, ll: x.waypoints[Math.floor(x.waypoints.length / 2)], bounds: bboxOf(x.waypoints, 0.004), zoom: 14 }), x.blurb])),
-      cred("Roads, paths and stops: © OpenStreetMap contributors (ODbL), via the Overpass API. Scores: Open Places."),
-      foot(`Published ${m.gen.slice(0, 10)}`, SUNDAY)) }];
+    SUN.ctx = ctx;
+    if (!SUN.el) SUN.el = body();
+    sundayPaint();
+    return [{ id: "nt-sunday", title: "Scenic Loops", place: "left", el: SUN.el }];
   },
 };
 
@@ -579,4 +694,9 @@ const golfStage = {
 };
 
 // Galloping Goose & bike counters stays planned: the CRD's counter data has no open licence or API yet (see civic-modules.js).
-export const NATURE_STAGES = { blossom: blossomStage, foliage: foliageStage, salish: salishStage, darksky: darkStage, sunday: sundayStage, golf: golfStage };
+// every page here: no full-height pane (pane "none"), its panels float over the map and fold to their title (civic-float.js)
+const floated = (leaf, s) => ({ ...s, pane: "none", panels: (ctx) => s.panels(ctx).map((p) => ({ ...p, el: float(p.el, `${leaf}:${p.id}`, { keep: leaf === "sunday" }) })) });
+export const NATURE_STAGES = Object.fromEntries(Object.entries({ blossom: blossomStage, foliage: foliageStage, salish: salishStage, darksky: darkStage, sunday: sundayStage, golf: golfStage })
+  .map(([k, s]) => [k, floated(k, s)]));
+// for What's Hot Now (civic-mod-hot.js): the season models and the shared mount
+export { blossomModel, foliageModel, salishModel, SP as WHALE_SPECIES, bWin, dateOfDoy, fDate0, stName, mount, whenFile, bboxOf, mid, live, skyHere };

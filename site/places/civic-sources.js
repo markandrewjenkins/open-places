@@ -27,6 +27,10 @@ const SOURCES = [
   ["tsunami", "NTWC / PTWC tsunami messages", "Public domain", /\/tsunami\/|tsunami\.json/, 30, "live"],
   ["rainviewer", "RainViewer radar", "Free for personal and community use; credited", /rainviewer\.com/, 20, "live"],
   ["nowcoast", "NOAA nowCOAST radar", "Public domain", /nowcoast\.noaa\.gov/, 20, "live"],
+  ["bcws", "BC Wildfire Service & EMCR (ArcGIS)", "Open Government Licence – BC", /services6\.arcgis\.com\/ubm4tcTYICKBpist/, 30, "live"],
+  ["cwfis", "NRCan CWFIS fire danger", "Open Government Licence – Canada", /cwfis\.cfs\.nrcan\.gc\.ca/, 120, "live"],
+  ["wfigs", "NIFC WFIGS wildfires", "Public domain (US federal)", /services3\.arcgis\.com\/T4QMspbfLg3qTGWY/, 30, "live"],
+  ["nhc", "NOAA NHC / CPHC tropical cyclones", "Public domain", /mapservices\.weather\.noaa\.gov\/tropical/, 60, "live"],
   ["tiles", "OpenFreeMap basemap", "OpenStreetMap contributors, ODbL", /tiles\.openfreemap\.org/, 60 * 24 * 30, "map"],
   ["data", "Open Places published data", "Each project's sources (see its page)", /\/data\/(?!roads\/cams|blink\/agencies)/, 60 * 24 * 3, "data"],
 ].map(([id, name, licence, re, fresh, kind]) => ({ id, name, licence, re, fresh, kind }));
@@ -56,9 +60,10 @@ const MODULE_SOURCES = {
   alerts: ["eccc", "nws", "usgs", "drivebc", "openmeteo", "tsunami"], natalerts: ["eccc", "nws"],
   weather: ["openmeteo", "eccc-radar", "nowcoast", "rainviewer"], air: ["openmeteo-aq"],
   transit: ["gtfs", "bct"], lstops: ["gtfs", "bct"], route95: ["data", "gtfs", "bct"],
-  roads: ["drivebc", "drivebc-cams"], malahat: ["drivebc", "drivebc-cams"],
+  roads: ["drivebc", "drivebc-cams"], malahat: ["drivebc", "drivebc-cams"], biking: ["data", "openmeteo"],
   airtraffic: ["adsb", "data"], waterways: ["ais", "data"], ferries: ["ais"],
   quakes: ["usgs", "nrcan"], bigquakes: ["usgs"], tsunami: ["nws", "tsunami"], ar: ["openmeteo"], unusual: ["data", "eccc", "nws"],
+  hazards: ["bcws", "cwfis", "wfigs", "nws"], patterns: ["openmeteo", "nhc", "data", "eccc", "nws"], enso: ["data"], outlook: ["data"],
   trails: ["bcparks"], lnotices: ["langford"], crime: ["police", "data"], map: ["tiles"],
 };
 const sourcesOf = (m) => MODULE_SOURCES[m.id] || ["data"];

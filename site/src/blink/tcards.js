@@ -45,7 +45,11 @@ export function vehicleCard(key, { links = true } = {}) {
     const next = td?.stops.find((x) => x.time && x.time >= now - 30 && !x.skipped) || null;
     const nextId = next?.stop_id || v.stop_id, nextName = nextId ? stopName(v, nextId) : null;
     const delay = td?.delay ?? v.delay_s ?? null;
-    const pathTxt = placeOf(v) ? "The map draws its route ahead of it bright to the end of the line, and the part it has already driven fading behind it." : "The map draws its route bold (its position couldn't be matched to the route's published shape, so the part ahead isn't marked).";
+    const pl = placeOf(v);
+    const pathTxt = !pl ? "The map draws its route bright (its position couldn't be matched to the route's published shape, so the part ahead isn't marked)."
+      : pl.off === "start" ? "It is on its way to start this trip: the map draws the whole trip ahead of it bright, with a dashed line to where it starts."
+      : pl.off === "detour" ? "It is off the route's published shape (a detour or a variant): the map draws the route ahead from the nearest point, with a dashed line to it."
+      : "The map draws its route ahead of it bright to the end of the line, and the part it has already driven fading behind it.";
     host.replaceChildren(...kids(
       el("div", { class: "tr-dhead" }, badge(r), el("span", { class: "tr-vhead" }, h ? `→ ${h}` : r?.l || "", el("small", {}, `Vehicle ${v.label || String(v.vehicle).slice(-6)}`))),
       dStats([[sp ? `${Math.round(sp.kmh)} km/h` : "–", sp ? "speed (reported)" : "speed (not reported)"],

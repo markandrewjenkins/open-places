@@ -1,0 +1,19 @@
+/* Open Places: the Route 95 spotlight's compact panels (civic-transit-stage.js) */
+.civ-r95-live { gap: 4px; }
+.civ-r95-rows { display: flex; flex-direction: column; gap: 1px; overflow: auto; min-height: 0; max-height: 250px; }
+.civ-r95-row { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; padding: 4px 6px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--ink); font: 600 12px/1.3 var(--font); text-align: left; cursor: pointer; }
+.civ-r95-row:hover { background: var(--surface-2, rgba(127, 127, 127, 0.12)); }
+.civ-r95-row.on { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.civ-r95-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.civ-r95-row > small { font: 500 11px/1.3 var(--fig, var(--font)); color: var(--muted); white-space: nowrap; }
+.civ-r95-dot { width: 8px; height: 8px; border-radius: 50%; }
+.civ-r95 { gap: 6px; }
+.civ-r95-bars { display: flex; flex-direction: column; gap: 5px; }
+.civ-r95-bar { display: grid; grid-template-columns: 64px minmax(0, 1fr) 38px; align-items: center; gap: 8px; font: 500 11px/1.2 var(--font); color: var(--ink-2, var(--ink)); }
+.civ-r95-bar > b { font: 600 11px/1.2 var(--fig, var(--font)); text-align: right; color: var(--ink); }
+.civ-r95-t { height: 6px; border-radius: 3px; background: var(--grid, rgba(127, 127, 127, 0.18)); overflow: hidden; }
+.civ-r95-t > i { display: block; height: 100%; border-radius: 3px; background: var(--muted); opacity: 0.7; }
+.civ-r95-bar.is-95 { color: var(--ink); font-weight: 700; }
+.civ-r95-bar.is-95 .civ-r95-t > i { background: var(--r95, var(--accent)); opacity: 1; }
+.civ-r95-note { margin: 0; font-size: 11px; color: var(--muted); }

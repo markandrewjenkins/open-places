@@ -1,0 +1,10 @@
+/* Open Places: Surf (civic-mod-surf.js). The table and pills come from civic-mod-hot.css. */
+.hot-s.on { background: color-mix(in oklab, var(--m-hot) 15%, transparent); box-shadow: inset 2px 0 0 var(--m-hot); }
+.srf-det { gap: 6px; }
+.srf-top { display: flex; align-items: center; gap: 8px; }
+.srf-n { font-size: 17px; font-weight: 700; color: var(--ink); }
+.srf-top .trl-x { margin-left: auto; }
+.srf-l { margin: 0; font: 500 11.5px/1.35 var(--fig, var(--font)); color: var(--muted); }
+.srf-h { display: block; width: 100%; height: auto; }
+.srf-h .srf-g { stroke: var(--grid); stroke-width: 1; }
+.srf-h .srf-t { fill: var(--muted); font: 500 9.5px var(--font); }

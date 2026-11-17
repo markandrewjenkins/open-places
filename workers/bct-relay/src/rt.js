@@ -47,11 +47,17 @@ export function parseBbox(s) {
   return w < e && so < n && e - w <= 10 && n - so <= 10 ? b : null;
 }
 
+// A vehicle whose last position report is older than this (against the feed's own clock) is left out: feeds keep
+// listing buses that went out of service or whose tracker stopped (2026-11-16: BC Transit Victoria listed 44 of 45
+// buses with positions 47 minutes old), and drawing those as live would show buses frozen in place.
+const OLD_POS_S = 600;
 export function vehicles(a, buf, route, bbox) {
   const F = decodeFeed(buf, { only: "vehicle" });
-  const out = [];
+  const out = [], ref = F.timestamp || Math.floor(Date.now() / 1000);
+  let old = 0;
   for (const e of F.entities) {
     const v = e.vehicle; if (!v?.position) continue;
+    if (v.timestamp && ref - v.timestamp > OLD_POS_S) { old++; continue; }
     const { lat, lon } = v.position;
     if (bbox && !(lon >= bbox[0] && lon <= bbox[2] && lat >= bbox[1] && lat <= bbox[3])) continue;
     const rid = v.trip?.route_id ?? null, short = a.short ? a.short(rid) : rid;
@@ -63,7 +69,7 @@ export function vehicles(a, buf, route, bbox) {
       stop_id: v.stop_id ?? null, seq: v.current_stop_sequence ?? null, status: v.current_status ?? null, occupancy: v.occupancy_status ?? null, ts: v.timestamp ?? null,
     });
   }
-  return { as_of_epoch: F.timestamp, count: out.length, vehicles: out };
+  return { as_of_epoch: F.timestamp, count: out.length, old_dropped: old, vehicles: out };
 }
 
 export function alerts(a, buf, route) {

@@ -45,9 +45,18 @@ body.civic { font-size: var(--fs); font-variant-numeric: tabular-nums; backgroun
 #civ-head::after { content: ""; display: block; height: 2px;
   background: linear-gradient(90deg, var(--accent), var(--m-blossom) 22%, var(--m-salish) 44%, var(--m-weather) 62%, var(--m-foliage) 80%, var(--accent-2));
   background-size: 200% 100%; animation: civ-sweep 1.6s cubic-bezier(.2, .7, .2, 1) 1 both; }
-.civ-top { position: static; gap: 12px; padding: 8px 18px; background: linear-gradient(180deg, var(--top-1), var(--top-2)); backdrop-filter: none; border-bottom: 1px solid var(--border); }
+.topbar.civ-top { position: static; gap: 12px; padding: 8px 14px; background: linear-gradient(180deg, var(--top-1), var(--top-2)); backdrop-filter: none; border-bottom: 1px solid var(--border); }
 .civ-brand { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); flex: none; }
 .civ-brand svg .lit { fill: var(--lit); filter: drop-shadow(0 0 3px var(--lit)); }
+/* the logo (civic-globe.js): ring, dawn amber, sea bricks, land, night side; light values first, dark below */
+:root { --logo-ring: #1b2433; --logo-lit: #d9891c; --logo-tile: #3f7fbf; --logo-land: #2f5f8f; --logo-night: #1b2433; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --logo-ring: #e6ebf3; --logo-lit: #f6b440; --logo-tile: #4f8fd0; --logo-land: #b9d3ee; --logo-night: #050a14; } }
+:root[data-theme="dark"] { --logo-ring: #e6ebf3; --logo-lit: #f6b440; --logo-tile: #4f8fd0; --logo-land: #b9d3ee; --logo-night: #050a14; }
+.civ-globe .lg-t { fill: var(--logo-tile); }
+.civ-globe .lg-l { fill: var(--logo-land); }
+.civ-globe .lg-a { fill: var(--logo-lit); }
+.civ-globe .lg-grat { fill: none; stroke: var(--logo-ring); stroke-width: .5; opacity: .22; }
+.civ-globe .lg-night { fill: var(--logo-night); opacity: .45; }
 .civ-brand span { font-family: var(--display); font-weight: 700; font-size: 19px; letter-spacing: -0.01em; }
 .civ-crumbs { display: flex; align-items: center; gap: 1px; min-width: 0; font-size: 13px; padding-left: 12px; border-left: 1px solid var(--border); }
 .civ-crumb { border: 0; background: none; padding: 4px 6px; border-radius: var(--radius); color: var(--ink-2); text-decoration: none; cursor: pointer; white-space: nowrap; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
@@ -480,6 +489,11 @@ html.civ-world-open, html.civ-world-open body { overflow: hidden; }
 .civ-sg-right > .civ-fpanel { flex: 1 1 0; }
 .civ-sg-right .civ-atlas { display: none; }
 .civ-sg[data-layout="map"] .civ-sg-right > .civ-pane, .civ-sg[data-layout="map"] .civ-sg-right > .civ-alerts-pane { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.25fr) minmax(0, 1fr); }
+/* a main card that sizes to its content (class civ-fit on the card: a selection card, a short status): it takes what it
+   needs, up to 60% of the column, and the card below takes the rest (instead of the fixed 1.25 : 1 split) */
+.civ-sg[data-layout="map"] .civ-sg-right > .civ-pane:has(> .civ-col > .civ-fit) { grid-template-rows: auto minmax(0, 1fr); }
+.civ-sg[data-layout="map"] .civ-sg-right > .civ-pane > .civ-col > .civ-fit { max-height: 60vh; overflow: auto; }
+.civ-sg[data-layout="map"] .civ-sg-right > .civ-pane > .civ-col > .civ-fit > .chart { flex: none; height: auto; }
 .civ-sg-strip .cx-kpis { flex: 0 1 auto; max-width: 100%; margin: 0; padding: 6px 12px; background: color-mix(in oklab, var(--surface) 90%, transparent); border: 1px solid var(--border); border-radius: var(--radius);
   box-shadow: 0 6px 18px -10px rgba(0, 20, 40, 0.35); backdrop-filter: blur(12px); }
 .civ-sg-strip .cx-kpis:empty { display: none; }
@@ -677,3 +691,14 @@ a.civ-alr:hover .civ-alr-go { color: var(--accent); }
   .civ-ov-left, .civ-sg-left, .civ-ov-chips { align-self: stretch; }
   .civ-ov-right { order: 2; } .civ-ov-hero { order: 3; }
 }
+
+/* ------------------------------------------------------------ insets: a page inside a page (Route 95 in Transit, the Malahat in Traffic) */
+.civ-insets { display: inline-flex; gap: 6px; align-items: center; pointer-events: auto; flex: none; }
+.civ-inset { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; text-decoration: none;
+  font: 600 12px/1 var(--sans, inherit); color: var(--ink); background: color-mix(in srgb, var(--lc, var(--accent)) 16%, var(--panel, var(--surface)));
+  border: 1px solid color-mix(in srgb, var(--lc, var(--accent)) 55%, transparent); }
+.civ-inset:hover { background: color-mix(in srgb, var(--lc, var(--accent)) 28%, var(--panel, var(--surface))); }
+.civ-inset .civ-ic { color: var(--lc, var(--accent)); }
+.civ-inset-back { --lc: var(--muted, #8a94a7); }
+.civ-leaf.civ-leaf-parent-on { box-shadow: inset 0 -2px 0 var(--lc); }
+.civ-leaf.civ-leaf-inset .civ-lic::before { content: "↳"; margin-right: 2px; opacity: .6; }

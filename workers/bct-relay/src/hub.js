@@ -76,7 +76,7 @@ export class LiveHub {
     this.inflight = null; this.sleeping = false;
     // AIS
     this.ships = {}; this.statics = {}; this.ws = null; this.connecting = null; this.wsSince = 0; this.lastPos = 0;
-    this.heard = 0; this.fails = 0; this.reconnectAt = 0; this.aisErr = null;
+    this.heard = 0; this.fails = 0; this.reconnectAt = 0; this.aisErr = null; this.msgs = 0; this.badMsgs = 0;
     state.blockConcurrencyWhile(async () => {
       const meta = await state.storage.get("meta");
       if (meta?.key) { this.src = parseKey(meta.key); this.lastReq = meta.lastReq || 0; this.until = meta.until || 0; this.polls = meta.calls || 0; }
@@ -279,9 +279,12 @@ export class LiveHub {
 
   clean(msg) { const k = this.env.AISSTREAM_API_KEY; let s = String(msg); if (k) s = s.split(k).join("<key>"); return s.slice(0, 200); }
 
-  onAIS(ev, ws) {
-    let m;
-    try { m = JSON.parse(typeof ev.data === "string" ? ev.data : new TextDecoder().decode(ev.data)); } catch { return; }
+  async onAIS(ev, ws) {
+    // aisstream sends binary frames; with a recent compatibility date they arrive as Blob unless binaryType is set
+    // (openWS sets "arraybuffer"), so accept all three forms and count anything that still doesn't parse
+    let m; this.msgs++;
+    try { const d = ev.data; m = JSON.parse(typeof d === "string" ? d : new TextDecoder().decode(typeof Blob !== "undefined" && d instanceof Blob ? await d.arrayBuffer() : d)); }
+    catch { this.badMsgs++; return; }
     if (m.error) {   // e.g. a bad key: stop hammering, try again in 10 min
       if (this.ws === ws) this.ws = null;
       try { ws.close(1000, "error"); } catch { /* gone */ }
@@ -339,7 +342,7 @@ export class LiveHub {
     else if (k === "ais") parts = { ais: part("ais", CLOCK_S.ais, snap.data, snap.fetched ?? (snap.data?.count ? snap.data.as_of_epoch : null), snap.asOf, snap.error) };
     else parts = { roads: part("roads", CLOCK_S.roads, snap.data, snap.fetched, snap.asOf, snap.error) };
     return { key: this.src.key, kind: k, upstream_calls: this.polls, was_idle: this.wasIdle, fast: k === "air" ? Date.now() < this.fastUntil : undefined,
-      socket: k === "ais" ? (this.ws ? "open" : "closed") : undefined, parts };
+      socket: k === "ais" ? (this.ws ? "open" : "closed") : undefined, msgs: k === "ais" ? this.msgs : undefined, bad_msgs: k === "ais" ? this.badMsgs : undefined, parts };
   }
 }
 
@@ -425,7 +428,7 @@ async function live(url, env, ctx) {
       parts[p] = v?.parts?.[p] ? { ...v.parts[p], served } : { asOf: null, fetched: null, served, age_s: null, stale: true, error: v?.error || "unavailable", data: null };
     }
     const body = { set: id, name: set.name, region: set.region, ll: set.ll, served_epoch: served, parts };
-    if (debug) body.sources = Object.fromEntries(views.map(([k, v]) => [k, { upstream_calls: v.upstream_calls, was_idle: v.was_idle, fast: v.fast, socket: v.socket, error: v.error }]));
+    if (debug) body.sources = Object.fromEntries(views.map(([k, v]) => [k, { upstream_calls: v.upstream_calls, was_idle: v.was_idle, fast: v.fast, socket: v.socket, msgs: v.msgs, bad_msgs: v.bad_msgs, error: v.error }]));
     return jsonRes(body, LIVE_CACHE_S);
   });
 }

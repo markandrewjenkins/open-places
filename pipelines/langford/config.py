@@ -41,6 +41,13 @@ CENSUS_SDMX = "https://api.statcan.gc.ca/census-recensement/profile/sdmx/rest/da
 CENSUS_CHARS = {1: "pop_2021", 2: "pop_2016", 3: "pct_change", 4: "dwellings", 5: "dwellings_occupied",
                 6: "density_km2", 7: "land_km2"}
 
+# Statistics Canada table 34-10-0154-01 (CMHC housing starts, under construction and completions, selected CMAs,
+# monthly; Statistics Canada Open Licence). Member ids: geography 26 = Victoria CMA; estimate 1–3; type of unit 1–5.
+STARTS_PID = 34100154
+STARTS_GEO = 26
+STARTS_EST = {1: "starts", 2: "under", 3: "completions"}
+STARTS_UNIT = {1: "total", 2: "single", 3: "semi", 4: "row", 5: "apt"}
+
 # Comparison set: key → (label, StatCan SGC code, BC Stats population region code).
 # "crd" is the Capital Regional District (census division 5917); its BC Stats population is the sum of its CSDs.
 GEOS = {
@@ -89,6 +96,8 @@ LICENCES = {
                    "credit": "BC Stats, Sub-Provincial Population Estimates and Projections"},
     "census": {"name": "Open Government Licence – Canada", "url": "https://open.canada.ca/en/open-government-licence-canada",
                "credit": "Statistics Canada, 2021 Census of Population, Census Profile"},
+    "starts": {"name": "Statistics Canada Open Licence", "url": "https://www.statcan.gc.ca/en/reference/licence",
+               "credit": "Statistics Canada, Table 34-10-0154-01 (CMHC housing starts, under construction and completions), Victoria CMA"},
     "tracker": {"name": None, "note": "No licence stated by the City of Langford. Local use only until the City agrees."},
     "orthos": {"name": None, "note": "No licence stated by the City of Langford. Local use only until the City agrees."},
 }

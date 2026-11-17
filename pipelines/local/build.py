@@ -15,8 +15,17 @@ Sources, headline + date + link only (no release text, images or marks):
     each (c) its agency, headlines and links only. Names of missing people, suspects, accused and victims are taken out
     of the headlines by the same function the relay and the page use (site/src/shared/redact-names.js, run here through
     node: pipelines/local/redact_names.mjs). Without node the police section is not written (fails closed).
+  * BC RCMP provincial newsroom (rcmp.ca/en/bc/news): only releases datelined in a CRD municipality and not already in
+    a local detachment's list (e.g. BC Highway Patrol, IHIT, Island District), same terms as the other RCMP newsrooms.
   * Statistics Canada table 35-10-0063-01, Crime severity index by police service in BC (annual), Statistics Canada
     Open Licence.
+
+Release scan (Public Safety for Langford): each release from the last 45 days is read once (cached by link in
+data/local/raw/police_scan.json, one request every 2 s per host) to note which CRD municipalities its text names
+(`mentions`) and, for West Shore RCMP releases and releases naming Langford, one place the text names precisely enough
+to map (`loc`): an intersection or a hundred-block (BC Address Geocoder, OGL-BC; intersection, block or address matches
+in the expected municipality only) or an official lake, river, park or mountain within 12 km of Langford (BC
+Geographical Names, OGL-BC). None of the release text is kept; a release with no such place gets no `loc`.
 """
 from __future__ import annotations
 
@@ -25,6 +34,7 @@ import json
 import re
 import shutil
 import subprocess
+import time
 from datetime import date, datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -48,7 +58,15 @@ AGENCIES = [
     ("vicpd", "Victoria Police", [-123.362, 48.43], "rss", "https://engagement.vicpd.ca/tag/news-releases/rss/"),
     ("saanich", "Saanich Police", [-123.375, 48.468], "wp", "https://saanichpolice.ca/wp-json/wp/v2/posts?per_page=12&_fields=id,date,link,title"),
     ("oakbay", "Oak Bay Police", [-123.316, 48.427], "wp", "https://oakbaypolice.org/wp-json/wp/v2/posts?per_page=8&_fields=id,date,link,title"),
+    ("bcrcmp", "BC RCMP", [-122.849, 49.191], "rcmp-bc", "https://rcmp.ca/en/bc/news"),
 ]
+# the CRD's municipalities (release datelines and mentions); the West Shore detachment's area first
+CRD_MUNIS = ["Langford", "Colwood", "View Royal", "Metchosin", "Highlands", "Sooke", "Victoria", "Esquimalt", "Saanich", "Oak Bay",
+             "Central Saanich", "North Saanich", "Sidney"]
+WEST_SHORE = {"Langford", "Colwood", "View Royal", "Metchosin", "Highlands"}
+LOCAL_RCMP = ("/bc/west-shore/", "/bc/sooke/", "/bc/sidney-north-saanich/")
+RAW = ROOT / "data" / "local" / "raw"
+LANGFORD_LL = (-123.505, 48.449)
 # StatCan 35-10-0063-01 geography members: key → (member id, label)
 CSI_PID = 35100063
 CSI_GEO = {
@@ -108,12 +126,15 @@ def agency_news(a) -> list[dict]:
     aid, _name, _ll, kind, url = a
     r = S.get(url, timeout=60)
     r.raise_for_status()
-    if kind == "rcmp":   # rcmp.ca newsroom pages embed every release as JSON in drupal-settings (poweb.all_news.<view>)
+    if kind in ("rcmp", "rcmp-bc"):   # rcmp.ca newsroom pages embed every release as JSON in drupal-settings (poweb.all_news.<view>)
         m = re.search(r'data-drupal-selector="drupal-settings-json">(.*?)</script>', r.text, re.S)
         rows = next(iter(json.loads(m.group(1))["poweb"]["all_news"].values()))
         rows = json.loads(rows) if isinstance(rows, str) else rows
-        return [{"agency": aid, "title": clean(x["title"]), "date": (x.get("field_publish_date") or x["created"])[:10],
-                 "link": x["view_node"], "where": x.get("field_location")} for x in rows]
+        out = [{"agency": aid, "title": clean(x["title"]), "date": (x.get("field_publish_date") or x["created"])[:10],
+                "link": x["view_node"], "where": x.get("field_location")} for x in rows]
+        if kind == "rcmp-bc":   # the whole province: keep releases datelined in the CRD that no local newsroom lists
+            out = [x for x in out if any(m.lower() in (x["where"] or "").lower() for m in CRD_MUNIS) and not any(q in x["link"] for q in LOCAL_RCMP)]
+        return out
     if kind == "rss":
         out = []
         for it in re.findall(r"<item>(.*?)</item>", r.text, re.S):
@@ -124,6 +145,112 @@ def agency_news(a) -> list[dict]:
                         "link": clean(g("link")), "where": None})
         return out
     return [{"agency": aid, "title": clean(p["title"]["rendered"]), "date": p["date"][:10], "link": p["link"], "where": None} for p in r.json()]
+
+
+# ------------------------------------------------------------------ release scan: which municipalities, one mappable place
+_last: dict[str, float] = {}
+SUFFIX = r"(?:Road|Rd|Street|St|Avenue|Ave|Drive|Dr|Way|Parkway|Pkwy|Boulevard|Blvd|Highway|Hwy|Lane|Ln|Crescent|Cres|Place|Pl|Trail|Terrace|Court|Ct)\b\.?"
+STREET = rf"((?:[A-Z][\w'’.-]*\s){{1,3}}?{SUFFIX}|Highway \d+|Hwy\.? \d+)"
+INTERSECTION = re.compile(rf"{STREET}\s+(?:and|&|at|near)\s+{STREET}")
+BLOCK = re.compile(rf"(\d{{1,5}})[- ]block of\s+{STREET}")
+AREA = re.compile(r"\b((?:Mount|Mt\.) [A-Z][a-z]+|(?:[A-Z][a-z]+ ){1,2}(?:Lake|River|Creek|Park|Mountain|Valley|Hill))\b")
+
+
+def polite_get(url: str, **kw) -> requests.Response:
+    host = url.split("/")[2]
+    wait = _last.get(host, 0) + 2.0 - time.time()
+    if wait > 0:
+        time.sleep(wait)
+    _last[host] = time.time()
+    return S.get(url, timeout=60, **kw)
+
+
+def release_text(link: str) -> str:
+    h = polite_get(link).text
+    m = re.search(r"<article\b.*?</article>", h, re.S) or re.search(r"<main\b.*?</main>", h, re.S)
+    body = re.sub(r"<(script|style|nav|aside|footer|header|form)\b.*?</\1>", " ", m.group(0) if m else h, flags=re.S)
+    return clean(body)
+
+
+def km_from_langford(lon: float, lat: float) -> float:
+    return (((lon - LANGFORD_LL[0]) * 73.9) ** 2 + ((lat - LANGFORD_LL[1]) * 111.2) ** 2) ** 0.5
+
+
+def geocode(address: str, locality: str) -> dict | None:
+    """BC Address Geocoder (OGL-BC, no key): an intersection, block or address in the expected municipality only."""
+    r = polite_get("https://geocoder.api.gov.bc.ca/addresses.json", params={"addressString": f"{address}, {locality}, BC", "maxResults": 1, "minScore": 80})
+    if not r.ok or not r.json().get("features"):
+        return None
+    f = r.json()["features"][0]
+    p = f["properties"]
+    if p.get("matchPrecision") not in ("INTERSECTION", "BLOCK", "CIVIC_NUMBER") or (p.get("localityName") or "").lower() != locality.lower() or p.get("score", 0) < 85:
+        return None
+    lon, lat = f["geometry"]["coordinates"][:2]
+    kind = {"INTERSECTION": "intersection", "BLOCK": "block", "CIVIC_NUMBER": "block"}[p["matchPrecision"]]
+    name = p.get("fullAddress", address).replace(", BC", "")
+    if kind == "block":   # never a house number: round to the hundred-block
+        name = re.sub(r"^(\d+)", lambda mm: f"{int(mm.group(1)) // 100 * 100} block", name)
+    return {"ll": [round(lon, 4), round(lat, 4)], "name": name, "kind": kind}
+
+
+def gazetteer(name: str) -> dict | None:
+    """BC Geographical Names (OGL-BC): an official lake, river, park or mountain of that exact name within 12 km of Langford."""
+    r = polite_get("https://apps.gov.bc.ca/pub/bcgnws/names/search", params={"outputFormat": "json", "name": name, "outputSRS": 4326, "itemsPerPage": 10})
+    if not r.ok:
+        return None
+    for f in r.json().get("features", []):
+        lon, lat = f["geometry"]["coordinates"][:2]
+        if f["properties"]["name"].lower() == name.lower() and km_from_langford(lon, lat) <= 12:
+            return {"ll": [round(lon, 4), round(lat, 4)], "name": f["properties"]["name"], "kind": "area"}
+    return None
+
+
+def place_in(text: str, locality: str) -> dict | None:
+    for m in INTERSECTION.finditer(text):
+        g = geocode(f"{m.group(1).strip()} and {m.group(2).strip()}", locality)
+        if g:
+            return g
+    for m in BLOCK.finditer(text):
+        g = geocode(f"{m.group(1)} {m.group(2).strip()}", locality)
+        if g:
+            return g
+    for name in dict.fromkeys(m.group(1).replace("Mt.", "Mount") for m in AREA.finditer(text)):
+        if name.split()[0] in ("The", "This", "That", "West", "Langford", "Saanich", "Victoria") and name != "Langford Lake":
+            continue
+        g = gazetteer(name)
+        if g:
+            return g
+    return None
+
+
+def scan(items: list[dict]) -> None:
+    """add `mentions` (CRD municipalities the release names) and `loc` (one mappable place) to recent releases"""
+    RAW.mkdir(parents=True, exist_ok=True)
+    f = RAW / "police_scan.json"
+    cache = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    since = str(date.today() - timedelta(days=45))
+    for x in items:
+        if x["date"] < since:
+            continue
+        if x["link"] not in cache:
+            try:
+                text = release_text(x["link"])
+                mentions = [m for m in CRD_MUNIS if re.search(rf"\b{m}\b", text)]
+                where = (x.get("where") or "").strip()
+                loc = None
+                if x["agency"] == "westshore" or "Langford" in mentions or "langford" in where.lower():
+                    loc = place_in(text, where if where in WEST_SHORE else "Langford")
+                cache[x["link"]] = {"mentions": mentions, "loc": loc}
+            except Exception as e:   # one page must not sink the rest; it is tried again next run
+                print(f"  scan {x['link']}: {e}")
+                continue
+        c = cache[x["link"]]
+        x["mentions"] = c["mentions"]
+        if c.get("loc"):
+            x["loc"] = c["loc"]
+    keep = {x["link"] for x in items}
+    f.write_text(json.dumps({k: v for k, v in cache.items() if k in keep}, ensure_ascii=False, indent=0), encoding="utf-8")
+    print(f"  scan: {sum(1 for x in items if 'Langford' in x.get('mentions', []))} name Langford, {sum(1 for x in items if x.get('loc'))} mapped")
 
 
 def redact_titles(titles: list[str]) -> list[str]:
@@ -151,6 +278,9 @@ def police() -> dict:
             print(f"  {a[1]}: {e}")
             status.append({"id": a[0], "name": a[1], "ll": a[2], "page": a[4].split("/wp-json/")[0], "ok": False, "error": str(e)[:200]})
     items.sort(key=lambda x: x["date"], reverse=True)
+    seen: set[str] = set()
+    items = [x for x in items if not (x["link"] in seen or seen.add(x["link"]))]
+    scan(items)
     for x, t in zip(items, redact_titles([x["title"] for x in items])):   # raises (no police section written) if it can't
         x["title"] = t
     return {"items": items, "agencies": status, "names": "redacted"}

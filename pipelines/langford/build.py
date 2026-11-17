@@ -18,6 +18,7 @@ Pipeline (UNLICENSED source)
 Outputs (site/public/data/langford/)
     langford.json   OPEN: permits, population, census, forecast, freshness          (publishable)
     backtest.json   OPEN: every backtest origin × horizon × model                    (publishable)
+    crd.json        OPEN: every CRD municipality's permits, population, growth; Victoria CMA housing starts (publishable)
     tracker.json    UNLICENSED (City of Langford): applications, stages, durations   (langford_unlicensed: true)
     orthos.json     UNLICENSED (City of Langford): ortho services, hotspots          (langford_unlicensed: true)
 """
@@ -177,6 +178,71 @@ def league_table(b, names, popraw) -> dict:
                      "units_2018_on": full.sum(min_count=1), "units_2018_on_per_1000": full.sum(min_count=1) / pop_now * 1000})
     rows.sort(key=lambda r: -(r["units_ttm_per_1000"] or 0))
     return {"through": ym(last), "full_years": f"2018–{last.year - 1}", "rows": rows}
+
+
+# ============================================================================= Greater Victoria: every CRD municipality (open)
+
+# BC Stats / StatCan name → the Open Places place id (site/places/civic-data.js)
+PLACE_IDS = {"Victoria": "victoria-city", "Oak Bay": "oak-bay", "View Royal": "view-royal", "Central Saanich": "central-saanich",
+             "North Saanich": "north-saanich"}
+
+
+def crd_block(b, names, popraw, census) -> dict:
+    """crd.json: building permits, population and housing for each of the CRD's 13 municipalities and the CRD as a
+    whole (BC Stats permits and population, OGL-BC; 2021 census, OGL-C), plus Victoria CMA housing starts (StatCan
+    34-10-0154-01, Statistics Canada Open Licence) when raw/starts.json is there."""
+    last = b.month.max()
+    est = popraw[popraw.kind == "Estimate"]
+    y_now = int(est.year.max())
+    years = list(range(2016, y_now + 1))
+    cen = census.set_index("geo") if len(census) else pd.DataFrame()
+
+    def permits_for(g: pd.DataFrame) -> dict:
+        ttm = g[g.index > last - pd.DateOffset(months=12)]
+        annual = []
+        for yr, gy in g.groupby(g.index.year):
+            annual.append({"year": int(yr), "units": gy.units_total.sum(min_count=1), "months": int(len(gy)),
+                           "suppressed": int(gy.units_total.isna().sum()), "partial": int(len(gy)) < 12})
+        return {"units_ttm": ttm.units_total.sum(min_count=1), "units_ttm_suppressed": int(ttm.units_total.isna().sum()),
+                "value_ttm_k": ttm.value_total.sum(min_count=1), "res_value_ttm_k": ttm.value_res.sum(min_count=1),
+                "apt_ttm": ttm.units_apt.sum(min_count=1), "single_ttm": ttm.units_single.sum(min_count=1), "row_ttm": ttm.units_row.sum(min_count=1),
+                "annual": annual}
+
+    def pop_for(pp: pd.DataFrame) -> dict:
+        s = pp.groupby("year")["pop"].sum()
+        e = s[s.index <= y_now]
+        nxt = s.get(y_now + 5)
+        return {"years": years, "pop": [float(e.get(y)) if y in e.index else None for y in years],
+                "pop_now": float(e.get(y_now)), "pop_year": y_now,
+                "growth_1y": float(e.get(y_now) / e.get(y_now - 1) - 1) if e.get(y_now - 1) else None,
+                "growth_since_2016": float(e.get(y_now) / e.get(2016) - 1) if e.get(2016) else None,
+                "proj_5y": float(nxt) if nxt is not None else None}
+
+    rows = []
+    for sgc in sorted(c for c in names if c.startswith(CRD_PREFIX) and len(c) == 7):
+        pp = popraw[popraw.region == int(sgc[2:])]
+        if pp.empty:
+            continue                                        # Salt Spring Island and the electoral areas: no municipal estimate
+        name = names[sgc]
+        r = {"sgc": sgc, "name": name, "place": PLACE_IDS.get(name, name.lower().replace(" ", "-")),
+             **permits_for(geo_frame(b, sgc)), **pop_for(pp)}
+        r["units_ttm_per_1000"] = r["units_ttm"] / r["pop_now"] * 1000 if r["units_ttm"] == r["units_ttm"] and r["pop_now"] else None
+        if sgc in cen.index:
+            c = cen.loc[sgc]
+            r.update({"census_change_2016_2021": float(c["pct_change"]) / 100, "dwellings_2021": float(c["dwellings"]), "land_km2": float(c["land_km2"])})
+            r["density_now"] = r["pop_now"] / float(c["land_km2"]) if float(c["land_km2"]) else None
+        rows.append(r)
+    crd = {"sgc": CRD_PREFIX, "name": "Capital Regional District", "place": "crd", **permits_for(geo_frame(b, CRD_PREFIX)),
+           **pop_for(popraw[popraw.region // 1000 == 17])}
+    crd["units_ttm_per_1000"] = crd["units_ttm"] / crd["pop_now"] * 1000
+    out = {"through": ym(last), "munis": rows, "crd": crd, "starts": None}
+    f = RAW / "starts.json"
+    if f.exists():
+        st = json.loads(f.read_text(encoding="utf-8"))
+        months = sorted(st.get("starts:total", {}))
+        out["starts"] = {"geo": "Victoria CMA", "table": "34-10-0154-01", "months": months,
+                         **{k.replace(":", "_"): [v.get(m) for m in months] for k, v in st.items()}}
+    return out
 
 
 # ============================================================================= population (open)
@@ -346,7 +412,8 @@ def forecast_block(b, key: str, target: str) -> tuple[dict, dict]:
 
 def freshness(status: dict, ids: tuple[str, ...]) -> list[dict]:
     labels = {"permits": ("BC Stats building permits (monthly)", True), "population": ("BC Stats population estimates", True),
-              "census": ("Statistics Canada 2021 census", True), "tracker": ("City of Langford Development Tracker", False),
+              "census": ("Statistics Canada 2021 census", True),
+              "starts": ("Statistics Canada housing starts, Victoria CMA (monthly)", True), "tracker": ("City of Langford Development Tracker", False),
               "orthos": ("City of Langford aerial photos", False)}
     return [{"id": k, "label": lab, "open": op, **{f: (status.get(k) or {}).get(f) for f in ("ok", "attempted", "last_ok", "newest", "error", "skipped", "release")}}
             for k, (lab, op) in labels.items() if k in ids]
@@ -689,6 +756,11 @@ def main():
         })
         dump("backtest.json", {"generated": gen, "langford_unlicensed": False, "first_origin": ym(FIRST_ORIGIN), "horizon": H,
                                "model_labels": MODEL_LABELS, "series": bts})
+        # Greater Victoria (Open Places' Growth & Building page): every CRD municipality, open sources only
+        dump("crd.json", {"generated": gen, "langford_unlicensed": False,
+                          "licences": {k: LICENCES[k] for k in ("bper", "population", "census", "starts")},
+                          "freshness": freshness(status, ("permits", "population", "census", "starts")),
+                          **crd_block(b, names, popraw, census)})
     else:
         print("  open inputs missing: run `python -m pipelines.langford.fetch daily` first; langford.json left as is")
 

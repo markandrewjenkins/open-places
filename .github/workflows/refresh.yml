@@ -96,12 +96,12 @@ jobs:
         run: |
           python -m pipelines.sunday.fetch missing
           python -m pipelines.sunday.build
-      - name: "Langford Boom Tracker: BC Stats permits, population and the 12-month forecast"
+      - name: "Growth & Building (Greater Victoria) and the Langford Boom Tracker: BC Stats permits, population, StatCan housing starts, 12-month forecast"
         if: github.event_name != 'push'      # pushes publish the committed data straight away
         continue-on-error: true               # a flaky source keeps its last good data instead of blocking the site
         timeout-minutes: 30                   # open sources only: the City of Langford layers have no stated licence
         run: |
-          python -m pipelines.langford.fetch permits population census
+          python -m pipelines.langford.fetch permits population census starts
           python -m pipelines.langford.build
       - name: "Public Transit: every agency's open timetable, then Route 95's schedule, weather and reliability build"
         if: github.event_name != 'push'      # pushes publish the committed data straight away

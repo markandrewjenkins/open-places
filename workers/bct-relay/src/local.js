@@ -28,7 +28,12 @@ export const AGENCIES = [
   { id: "vicpd", name: "Victoria Police", ll: [-123.362, 48.43], kind: "rss", url: "https://engagement.vicpd.ca/tag/news-releases/rss/", covers: "Victoria, Esquimalt" },
   { id: "saanich", name: "Saanich Police", ll: [-123.375, 48.468], kind: "wp", url: "https://saanichpolice.ca/wp-json/wp/v2/posts?per_page=12&_fields=id,date,link,title", covers: "Saanich" },
   { id: "oakbay", name: "Oak Bay Police", ll: [-123.316, 48.427], kind: "wp", url: "https://oakbaypolice.org/wp-json/wp/v2/posts?per_page=8&_fields=id,date,link,title", covers: "Oak Bay" },
+  // the provincial newsroom (Highway Patrol, IHIT, Island District…): only releases datelined in the CRD that no local newsroom lists
+  { id: "bcrcmp", name: "BC RCMP", ll: [-122.849, 49.191], kind: "rcmp-bc", url: "https://rcmp.ca/en/bc/news", covers: "British Columbia (provincial units)" },
 ];
+const CRD_MUNIS = ["Langford", "Colwood", "View Royal", "Metchosin", "Highlands", "Sooke", "Victoria", "Esquimalt", "Saanich", "Oak Bay", "Central Saanich", "North Saanich", "Sidney"];
+const LOCAL_RCMP = ["/bc/west-shore/", "/bc/sooke/", "/bc/sidney-north-saanich/"];
+export const inCRD = (x) => CRD_MUNIS.some((m) => (x.where || "").toLowerCase().includes(m.toLowerCase())) && !LOCAL_RCMP.some((p) => x.link.includes(p));
 export const POLICE_CREDIT = `Headlines and links from each agency's newsroom: RCMP (non-commercial reproduction with attribution), Victoria Police, Saanich Police, Oak Bay Police (© each department). Not endorsed by any agency. ${NAMES_NOTE}`;
 
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", rsquo: "’", lsquo: "‘", ldquo: "“", rdquo: "”", ndash: "–", mdash: "—", hellip: "…" };
@@ -62,6 +67,7 @@ export const parseWp = (json, a) => json.map((p) => ({ agency: a.id, title: unes
 
 async function agencyNews(a) {
   if (a.kind === "rcmp") return parseRcmp(await text(a.url), a);
+  if (a.kind === "rcmp-bc") return parseRcmp(await text(a.url), a).filter(inCRD);
   if (a.kind === "rss") return parseRss(await text(a.url), a);
   return parseWp(JSON.parse(await text(a.url, { headers: { Accept: "application/json" } })), a);
 }

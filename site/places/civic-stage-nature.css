@@ -28,3 +28,22 @@ button.nt-row:hover, button.nt-row:focus-visible { background: color-mix(in okla
 .nt-row small { font: 500 11px/1.2 var(--fig); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 .nt-cred { margin: 2px 0 0; font-size: 10.5px; line-height: 1.4; color: var(--muted); }
+
+/* a segmented choice inside a panel (Sunday Wander's travel modes) */
+.nt-seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.nt-seg button { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--border); background: none;
+  font: 600 12px/1.2 var(--font); color: var(--ink-2); cursor: pointer; }
+.nt-seg button b { font: 600 11px/1 var(--fig); color: var(--muted); font-variant-numeric: tabular-nums; }
+.nt-seg button i { width: 9px; height: 9px; border-radius: 50%; }
+.nt-seg button:hover, .nt-seg button:focus-visible { border-color: color-mix(in oklab, var(--tc, var(--accent)) 60%, var(--border)); color: var(--ink); outline: none; }
+.nt-seg button[aria-pressed="true"] { color: var(--ink); background: color-mix(in oklab, var(--tc, var(--accent)) 18%, transparent); border-color: color-mix(in oklab, var(--tc, var(--accent)) 60%, transparent); }
+.nt-seg button[aria-pressed="true"] b { color: var(--ink); }
+
+/* Light Pollution: the sky-here readout */
+.lp-hero { display: flex; align-items: center; gap: 12px; padding: 4px 2px 2px; }
+.lp-num { display: flex; flex-direction: column; align-items: flex-start; }
+.lp-num b { font: 700 30px/1 var(--fig, var(--font)); color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.lp-num small { font: 500 10.5px/1.3 var(--font); color: var(--muted); }
+.lp-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lp-txt b { font: 700 14px/1.2 var(--font); }
+.lp-txt span { font-size: 12px; line-height: 1.35; color: var(--ink-2); }

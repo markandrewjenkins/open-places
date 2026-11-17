@@ -12,7 +12,7 @@
 //       returns the same feed, and stop() only ends it when its last user stops.
 //   addAirLayers(map, opts) → { update(), select(id), destroy(), aircraft(), feed }
 //       Adds the aircraft (silhouette by airframe, colour by kind, size by weight class, fade when held or stale),
-//       their vapor trails, parked dots, rare rings, a selection ring and callsign labels. Re-adds itself after a
+//       their contrails (soft white smoke along the path flown, fading with age), parked dots, rare rings, a selection ring and callsign labels. Re-adds itself after a
 //       style change (light/dark). Options:
 //         lat, lon, rangeKm = 40   the circle (its own feed is created unless `aircraft` or `feed` is given)
 //         feed                     an airFeed() to draw (shared with panels)
@@ -25,7 +25,8 @@
 //         tick = 1000              ms between position updates (0: the caller calls update())
 //       The layer ids are `${prefix}-ac` (airborne/taxiing), `${prefix}-parked`, `${prefix}-sel`, `${prefix}-rare`,
 //       `${prefix}-hear`, `${prefix}-lbl`, `${prefix}-vt` (trails); feature property `id` is idOf(a).
-//   aircraftCard(a, { place }) → HTMLElement   one aircraft: callsign, type, kind, height, speed, phase, distance
+//   aircraftCard(a, { place, image = true }) → HTMLElement   one aircraft: callsign, type photo or drawing (typeImage),
+//                                    type, kind, height, speed, phase, distance
 //   overheadList(list, { limit = 8, selected, onPick, range }) → HTMLElement   compact "overhead now" list
 //   feedStrip(state) → HTMLElement   "LIVE · updated 8 s ago" / "DELAYED · …" / "FEED DOWN · …"
 //   feedText(state) → string          the same in a sentence, for notes and status tooltips
@@ -38,6 +39,8 @@ import { fetchPoint, fromHub, FETCH_NM, SHAPES, KINDS, KIND, kindColor, planeSVG
   bearingDeg, compass, callsign, fAlt, fFL, NM } from "./feed.js";
 import { createTrack, ingest, aircraftOf, reckon, feedState, agoS, poller } from "./tracker.js";
 import { livePart, hubAirCovers } from "../shared/livehub.js";
+import { typeFigure } from "../shared/typephoto.js";
+import { familyOf, FAMILIES, profileURI } from "./profiles.js";
 
 export const idOf = (a) => a.hex || `p${a.lat},${a.lon}`;
 const PH = { climbing: "↑", descending: "↓", level: "→", ground: "·" };
@@ -126,28 +129,53 @@ export function addAirLayers(map, opts = {}) {
       properties: { id: idOf(a), img: `${P}-${a.shape}-${a.kind}`, rot: a.track ?? 0, alt: -(a.alt ?? 0), cs: a.flight ? callsign(a) : "", sz: airborne(a) ? a.size : a.size * 0.6,
         park: !airborne(a) && !a.taxi ? 1 : 0, rare: a.rare ? 1 : 0, hear: a.hex && a.hex === hear ? 1 : 0, spin, op: a.fade ?? 1 } })) };
   }
-  // the vapor trail: three fading pieces behind each plane; length shows speed, strength shows height
+  // the contrail: a soft white smoke trail along the path each aircraft really flew (sampled every 2 s from its drawn
+  // position, seeded on first sight by a straight run back along its track), whatever the aircraft's colour. One line
+  // per aircraft (so no bright dots where pieces overlap), fading to nothing at its tail through a line gradient; its
+  // length shows speed (TRAIL_S of flight), its strength height; width scales with zoom (paint) and slightly with the
+  // aircraft's size. In light theme the smoke is grey-white over a faint darker edge so it reads on the pale basemap.
+  const TRAIL_S = 30, STEP_S = 2, hist = new Map();
   function trailGeo() {
-    const feats = [];
+    const feats = [], now = Date.now() / 1000, seen = new Set();
     for (const a of list()) {
       if (!airborne(a) || a.track == null || (a.gs ?? 0) < 30 || !filter(a)) continue;
-      const lat = a.nlat ?? a.lat, lon = a.nlon ?? a.lon;
-      const len = (Math.min(40, Math.max(8, a.gs * 0.07)) / 200) * rangeOf(), tr = (a.track * Math.PI) / 180;
-      const op = (0.15 + 0.6 * Math.min(1, Math.max(0, (a.alt ?? 0) / 38000))) * (a.fade ?? 1), kx = 111.32 * Math.cos((lat * Math.PI) / 180);
-      const at = (f) => [lon - (Math.sin(tr) * len * f) / kx, lat - (Math.cos(tr) * len * f) / 110.57];
-      for (let k = 0; k < 3; k++) feats.push({ type: "Feature", properties: { c: cssVar(KIND[a.kind].v) || KIND[a.kind].hex, op: op * (1 - k / 3), w: 2.6 - k * 0.6 },
-        geometry: { type: "LineString", coordinates: [at(0.12 + k / 3), at(0.12 + (k + 1) / 3)] } });
+      const id = idOf(a), lat = a.nlat ?? a.lat, lon = a.nlon ?? a.lon;
+      seen.add(id);
+      let h = hist.get(id);
+      if (!h) {   // first sight: seed the trail straight back along the track at its ground speed
+        h = []; const v = (a.gs * NM) / 3600, tr = (a.track * Math.PI) / 180, kx = 111.32 * Math.cos((lat * Math.PI) / 180);
+        for (let t = TRAIL_S; t > 0; t -= STEP_S * 2) h.push([lon - (Math.sin(tr) * v * t) / kx, lat - (Math.cos(tr) * v * t) / 110.57, now - t]);
+        hist.set(id, h);
+      }
+      if (!h.length || now - h.at(-1)[2] >= STEP_S) h.push([lon, lat, now]);
+      while (h.length && now - h[0][2] > TRAIL_S) h.shift();
+      const pts = [...h, [lon, lat, now]];
+      let i = pts.length - 1;   // walk back from the aircraft until a jump (a new fix far off)
+      while (i > 0 && Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]) <= 0.5) i--;
+      const line = pts.slice(i).map((q) => q.slice(0, 2));
+      if (line.length < 2) continue;
+      feats.push({ type: "Feature", properties: { op: (0.5 + 0.4 * Math.min(1, Math.max(0, (a.alt ?? 0) / 35000))) * (a.fade ?? 1), w: 0.8 + 0.35 * (a.size ?? 1) },
+        geometry: { type: "LineString", coordinates: line } });
     }
+    for (const k of hist.keys()) if (!seen.has(k)) hist.delete(k);
     return { type: "FeatureCollection", features: feats };
   }
+  /** transparent at the tail (line-progress 0) to full at the aircraft, easing in like (1 - age)^1.4 */
+  const fade = (rgb) => ["interpolate", ["linear"], ["line-progress"], 0, `rgba(${rgb},0)`, 0.25, `rgba(${rgb},0.14)`, 0.5, `rgba(${rgb},0.38)`, 0.75, `rgba(${rgb},0.67)`, 1, `rgba(${rgb},1)`];
   async function add() {
     if (dead || !map.getStyle() || map.getSource(`${P}-ac`)) return;
     await images();
     if (dead || map.getSource(`${P}-ac`)) return;
     const ink = cssVar("--ink") || "#222", ink2 = cssVar("--ink-2") || cssVar("--muted") || "#666", surf = cssVar("--surface") || "#fff", B = opts.beforeId && map.getLayer(opts.beforeId) ? opts.beforeId : undefined;
     const L = (spec) => map.addLayer(spec, B);
-    map.addSource(`${P}-vt`, { type: "geojson", data: trailGeo() });
-    L({ id: `${P}-vt`, type: "line", source: `${P}-vt`, layout: { "line-cap": "round" }, paint: { "line-color": ["get", "c"], "line-width": ["get", "w"], "line-opacity": ["get", "op"] } });
+    map.addSource(`${P}-vt`, { type: "geojson", data: trailGeo(), lineMetrics: true });
+    // width by zoom (a top-level interpolate whose stops scale each trail's own w): f × w + add
+    const dark = isDark(), W = (f, add = 0) => ["interpolate", ["exponential", 1.5], ["zoom"], 7, ["+", add, ["*", 1.7 * f, ["get", "w"]]], 10, ["+", add, ["*", 3.4 * f, ["get", "w"]]], 13, ["+", add, ["*", 6.5 * f, ["get", "w"]]]];
+    // light theme: a faint slate edge under grey-white smoke; dark theme: white smoke alone
+    if (!dark) L({ id: `${P}-vte`, type: "line", source: `${P}-vt`, layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-gradient": fade("79,93,112"), "line-width": W(1, 2.2), "line-opacity": ["*", 0.6, ["get", "op"]], "line-blur": 1.4 } });
+    L({ id: `${P}-vt`, type: "line", source: `${P}-vt`, layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-gradient": fade(dark ? "243,246,250" : "233,237,242"), "line-width": W(1), "line-opacity": ["*", dark ? 0.85 : 1, ["get", "op"]], "line-blur": W(0.4) } });
     map.addSource(`${P}-ac`, { type: "geojson", data: acGeo() });
     const hearC = cssVar("--k-hear") || "#178a6a";
     L({ id: `${P}-hear`, type: "circle", source: `${P}-ac`, filter: ["==", ["get", "hear"], 1],
@@ -157,7 +185,7 @@ export function addAirLayers(map, opts = {}) {
       "icon-size": ["interpolate", ["linear"], ["zoom"], 7, ["*", 0.5, ["get", "sz"]], 12, ["*", 0.8, ["get", "sz"]]] }, paint: { "icon-opacity": ["get", "op"] } });
     L({ id: `${P}-sel`, type: "circle", source: `${P}-ac`, filter: ["==", ["get", "id"], sel], paint: { "circle-radius": 19, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": ink, "circle-stroke-width": 2 } });
     L({ id: `${P}-ac`, type: "symbol", source: `${P}-ac`, filter: ["==", ["get", "park"], 0], layout: { "icon-image": ["get", "img"], "icon-rotate": ["get", "rot"], "icon-rotation-alignment": "map",
-      "icon-allow-overlap": true, "icon-ignore-placement": true, "icon-size": ["interpolate", ["linear"], ["zoom"], 7, ["*", 0.6, ["get", "sz"]], 12, ["*", 0.95, ["get", "sz"]]], "symbol-sort-key": ["get", "alt"] },
+      "icon-allow-overlap": true, "icon-ignore-placement": true, "icon-size": ["interpolate", ["linear"], ["zoom"], 7, ["*", 0.72, ["get", "sz"]], 10, ["*", 0.88, ["get", "sz"]], 12, ["*", 0.98, ["get", "sz"]]], "symbol-sort-key": ["get", "alt"] },
       paint: { "icon-opacity": ["get", "op"] } });
     L({ id: `${P}-lbl`, type: "symbol", source: `${P}-ac`, minzoom: 9, filter: ["==", ["get", "park"], 0], layout: { "text-field": ["get", "cs"], "text-font": ["Noto Sans Regular"], "text-size": 11,
       "text-offset": [0, 1.6], "text-anchor": "top", "text-optional": true }, paint: { "text-color": ink, "text-halo-color": surf, "text-halo-width": 1.4, "text-opacity": ["get", "op"] } });
@@ -171,20 +199,23 @@ export function addAirLayers(map, opts = {}) {
   const enter = () => { map.getCanvas().style.cursor = "pointer"; }, leave = () => { map.getCanvas().style.cursor = ""; };
   map.on("style.load", add);
   if (map.isStyleLoaded()) add(); else map.once("idle", add);
-  if (opts.onSelect) { map.on("click", click); map.on("mouseenter", `${P}-ac`, enter); map.on("mouseleave", `${P}-ac`, leave); }
+  // mousemove, not mouseenter: the Open Places stage clears the cursor on every move that misses its own layers
+  if (opts.onSelect) { map.on("click", click); map.on("mousemove", `${P}-ac`, enter); map.on("mouseleave", `${P}-ac`, leave); }
   if (feed) feed.on(update);
   if (opts.tick !== 0) timer = setInterval(() => { if (!document.hidden) update(); }, opts.tick || 1000);
   return {
     update,
     select(id) { sel = id || ""; if (map.getLayer(`${P}-sel`)) map.setFilter(`${P}-sel`, ["==", ["get", "id"], sel]); },
+    /** where an aircraft is drawn now ([lon, lat]) or null */
+    where(id) { const a = list().find((x) => idOf(x) === id); return a ? [a.nlon ?? a.lon, a.nlat ?? a.lat] : null; },
     aircraft: () => list().filter(filter),
     feed,
     destroy() {
       dead = true; clearInterval(timer);
       map.off("style.load", add);
-      if (opts.onSelect) { map.off("click", click); map.off("mouseenter", `${P}-ac`, enter); map.off("mouseleave", `${P}-ac`, leave); }
+      if (opts.onSelect) { map.off("click", click); map.off("mousemove", `${P}-ac`, enter); map.off("mouseleave", `${P}-ac`, leave); }
       if (feed) { feed.off(update); if (own) feed.stop(); }
-      for (const l of ["lbl", "ac", "sel", "rare", "parked", "hear", "vt"]) if (map.getLayer(`${P}-${l}`)) map.removeLayer(`${P}-${l}`);
+      for (const l of ["lbl", "ac", "sel", "rare", "parked", "hear", "vt", "vte"]) if (map.getLayer(`${P}-${l}`)) map.removeLayer(`${P}-${l}`);
       for (const s of ["ac", "vt"]) if (map.getSource(`${P}-${s}`)) map.removeSource(`${P}-${s}`);
     },
   };
@@ -204,10 +235,19 @@ export function feedStrip(s) {
   const lv = s?.level || "connecting";
   return el("div", { class: `air-strip ${lv}`, title: feedText(s) }, el("i", { class: "air-dot" }), el("span", {}, LABEL[lv]), s?.age != null ? el("b", {}, `updated ${agoS(s.age)}`) : "");
 }
-export function aircraftCard(a, { place = "the centre" } = {}) {
+/** an example photo of its type (Wikimedia Commons, credited), else a drawing of its type family; null when unknown */
+export function typeImage(a) {
+  const fam = familyOf(a);
+  if (!fam && !a.type) return null;
+  const root = document.documentElement.dataset.theme, dark = root ? root === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  return typeFigure({ set: "aircraft", key: String(a.type || "").toUpperCase(), label: fam ? FAMILIES[fam] : "",
+    drawing: fam ? profileURI(fam, { dark, accent: (KIND[a.kind] || KIND.other).hex }) : "" });
+}
+export function aircraftCard(a, { place = "the centre", image = true } = {}) {
   const row = (k, v) => [el("dt", {}, k), el("dd", {}, v)];
   return el("div", { class: "air-card" },
     el("div", { class: "air-card-h" }, el("i", { style: { background: kindColor(a.kind || "other") } }), el("b", {}, callsign(a)), el("span", {}, a.tname || typeInfo(a.type, a.cat).name)),
+    image ? typeImage(a) : null,
     el("dl", {},
       ...row("Kind", KIND[a.kind || "other"].label),
       ...row("Height", airborne(a) ? `${fFL(a.alt)}${a.alt != null && a.alt >= 18000 ? ` (${fAlt(a.alt)})` : ""}` : a.taxi ? "taxiing" : "parked"),

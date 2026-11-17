@@ -156,6 +156,25 @@ export const nwsCount = (ctx) => get("nws:count", () => json("https://api.weathe
 // DriveBC Open511 (Open Government Licence – BC, CORS-open): active road events in BC
 export const open511 = (ctx) => get("open511", () => json("https://api.open511.gov.bc.ca/events?format=json&status=ACTIVE&limit=500").then((j) => j.events), ctx);
 
+// ------------------------------------------------------------------ boundaries: the outline of a place (coverage, place-switch prompt)
+// municipalities: StatCan census subdivisions (Open Licence – Statistics Canada), data/langford/crd_csd.json;
+// Greater Victoria and the provinces/states: data/places/boundaries.json (tools/fetch_boundaries.mjs: the CSD union and
+// Natural Earth admin-1, public domain); countries: world-atlas 1:110m (Natural Earth, public domain), loaded lazily.
+const ISO_N = { ca: "124", us: "840" };
+const feat = (geometry, properties = {}) => (geometry ? { type: "Feature", geometry, properties } : null);
+const atlas = (ctx) => get("atlas:countries", () => Promise.all([import("world-atlas/countries-110m.json"), import("topojson-client")])
+  .then(([w, t]) => { const topo = w.default || w; return t.feature(topo, topo.objects.countries).features; }), ctx);
+/** the place's outline as a GeoJSON Feature, or null (still loading, or no outline for it: other regions, clicked spots) */
+export function boundaryOf(p, ctx) {
+  if (!p || p.anywhere) return null;
+  if (p.level === "muni") { const c = file("langford/crd_csd.json", ctx); const f = c.data?.features.find((x) => x.properties.name === p.name); return f ? feat(f.geometry, { id: p.id, name: p.name }) : null; }
+  if (p.level === "region" || p.level === "province") { const c = file("places/boundaries.json", ctx); const f = c.data?.features.find((x) => x.id === p.id); return f ? feat(f.geometry, { id: p.id, name: p.name }) : null; }
+  if (p.level === "country" && ISO_N[p.id]) { const c = atlas(ctx); const f = c.data?.find((x) => String(x.id) === ISO_N[p.id]); return f ? feat(f.geometry, { id: p.id, name: p.name }) : null; }
+  return null;
+}
+/** true when the place has an outline at all (else a circle stands in) */
+export const hasBoundary = (p) => !!p && !p.anywhere && (p.level === "muni" || p.level === "province" || p.id === "crd" || !!ISO_N[p.id]);
+
 // Canada's AQHI from 3-hour means of NO2, O3 (ppb) and PM2.5 (µg/m³), from Open-Meteo's model values (an estimate:
 // ECCC's published AQHI uses station observations)
 export function aqhi(aq) {

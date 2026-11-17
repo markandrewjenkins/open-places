@@ -1,0 +1,34 @@
+/* Open Places: Biking on the map stage (civic-mod-bike.js). Riding conditions (left), the network key (right). */
+.civ-bk { gap: 8px; font-size: 12.5px; color: var(--ink-2); }
+
+/* riding conditions: verdict, now, the next hours */
+.civ-bk-verdict { display: flex; flex-direction: column; gap: 2px; padding: 7px 10px; border-radius: 7px; border-left: 3px solid var(--tone); background: color-mix(in oklab, var(--tone) 11%, transparent); }
+.civ-bk-verdict b { font-size: 15px; font-weight: 650; color: var(--ink); }
+.civ-bk-verdict span { font-size: 12px; color: var(--ink-2); }
+.civ-bk-now { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
+.civ-bk-now span { display: flex; flex-direction: column; font-size: 11px; color: var(--muted); line-height: 1.25; }
+.civ-bk-now b { font: 650 17px/1.15 var(--fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.civ-bk-hours { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 3px; }
+.civ-bk-h { display: grid; grid-template-rows: auto 38px auto auto auto; justify-items: center; gap: 2px; padding: 3px 0; border-radius: 5px; font: 500 10.5px/1.15 var(--fig); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.civ-bk-h.dark { background: color-mix(in oklab, var(--ink) 9%, transparent); }
+.civ-bk-h .t { color: var(--muted); font-size: 10px; }
+.civ-bk-h .bar { position: relative; width: 9px; height: 38px; border-radius: 3px; background: var(--grid); overflow: hidden; }
+.civ-bk-h .bar i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--m-weather); border-radius: 3px; }
+.civ-bk-h .g { color: var(--ink); font-weight: 650; }
+.civ-bk-h .g.mid { color: var(--warn); }
+.civ-bk-h .g.hi { color: var(--bad); }
+.civ-bk-h .d { color: var(--muted); }
+.civ-bk-key { margin: 0; font-size: 10.5px; line-height: 1.35; color: var(--muted); }
+
+/* the network key: line samples in the map's colours and dashes */
+.civ-bk-leg { display: grid; gap: 1px; }
+.civ-bk-li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 3px 2px; }
+.civ-bk-li .l { color: var(--ink); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.civ-bk-li .v { font: 500 11px/1 var(--fig); color: var(--muted); font-variant-numeric: tabular-nums; }
+.civ-bk-dot { justify-self: center; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-2); box-shadow: 0 0 0 1.5px var(--surface); }
+.civ-bk-rep { justify-self: center; width: 15px; height: 15px; border-radius: 50%; background: var(--m-bike); box-shadow: 0 0 0 1.5px var(--surface); position: relative; }
+.civ-bk-rep::after { content: ""; position: absolute; left: 4px; top: 6.5px; width: 8px; height: 2.2px; border-radius: 2px; background: var(--surface); transform: rotate(-45deg); }
+.civ-bk-plan { display: flex; flex-direction: column; gap: 5px; padding-top: 6px; border-top: 1px solid var(--grid); }
+.civ-bk-plan p { margin: 0; font-size: 11.5px; line-height: 1.4; color: var(--ink-2); }
+.civ-bk-plan b { color: var(--ink); font-weight: 650; }
+.civ-bk-sw { display: flex; align-items: center; }

@@ -1,0 +1,24 @@
+/* Open Places · Traffic: the Bus Speeds panel and the Malahat inset's panels (civic-mod-traffic.js). Theme tokens only. */
+.civ-trf { gap: 0; }
+.civ-trf-leg .civ-leg-i i { width: 16px; height: 5px; border-radius: 3px; border: 0; }
+.civ-trf-leg .civ-leg-i i.none { opacity: 0.45; }
+.civ-trf-now { margin: 2px 0 6px; font-size: 12.5px; line-height: 1.4; color: var(--ink); }
+.civ-trf-rows { max-height: 320px; margin-bottom: 4px; }
+.civ-trf-rows .civ-row-l { gap: 6px; }
+.civ-trf-rows .civ-row-l b { color: var(--ink); font-weight: 600; }
+.civ-trf-note { margin: 6px 0 4px; font-size: 11px; line-height: 1.4; color: var(--muted); }
+/* the Malahat inset: compact panels that keep their own height (not the column's) */
+.civ-sg-right > .civ-fpanel[data-p="malcams"] { flex: 0 1 auto; }
+.civ-trf-malbox { height: auto; }
+.civ-trf-malbox .civ-malst { font-size: 18px; }
+.civ-trf-malbox .civ-malev { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.civ-trf-mal { position: relative; height: 92px; flex: none; }
+.civ-trf-malbox .civ-fp-rows { max-height: 220px; }
+.civ-trf-cams { height: 560px; min-height: 0; overflow: auto; margin-bottom: 6px; }
+.civ-trf-cams .civ-cams { height: auto; }
+.civ-trf-mal text.axis-t { fill: var(--ink-2); font-size: 10.5px; }
+.civ-trf-more { margin: 0 0 4px; font-size: 11px; color: var(--muted); }
+/* the map's "no recent buses" stretches (BUS_TRAFFIC): a slate that shows on the light basemap's grey roads */
+:root { --trf-none: #56627a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --trf-none: var(--muted); } }
+:root[data-theme="dark"] { --trf-none: var(--muted); }

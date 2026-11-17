@@ -1,0 +1,78 @@
+/* Open Places: Parks & Trails on the map stage (civic-mod-trails.js). Park classes, advisory list and detail. */
+:root { --pk-national: #a3407d; --pk-provincial: #2f7d5b; --pk-regional: #1f6e86; --pk-municipal: #8a6d1f; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --pk-national: #e086bf; --pk-provincial: #6cc79d; --pk-regional: #5fc1d3; --pk-municipal: #d8b65a; } }
+:root[data-theme="dark"] { --pk-national: #e086bf; --pk-provincial: #6cc79d; --pk-regional: #5fc1d3; --pk-municipal: #d8b65a; }
+
+/* left: the advisories */
+.trx-adv { flex: 1 1 auto; }
+.trx-leg { padding: 0; background: none; border: 0; box-shadow: none; backdrop-filter: none; }
+.trx-list { display: flex; flex-direction: column; gap: 2px; margin: 0 -4px; padding: 0 4px; max-height: calc(100vh - 400px); }
+.trx-pk { display: flex; flex-direction: column; padding-bottom: 4px; border-bottom: 1px solid var(--grid); }
+.trx-pk:last-child { border-bottom: 0; }
+.trx-pk-h, .trx-ad, .trx-tr, .trx-back { font: inherit; color: inherit; background: none; border: 0; text-align: left; cursor: pointer; border-radius: 6px; }
+.trx-pk-h { display: flex; align-items: center; gap: 7px; padding: 6px 4px 3px; }
+.trx-pk-h b { flex: 1 1 auto; min-width: 0; font-size: 12.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trx-pk-h em { font: 500 11px/1 var(--fig); font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
+.trx-ad { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 7px; align-items: baseline; padding: 4px 4px 4px 21px; font-size: 12px; color: var(--ink-2); }
+.trx-det .trx-ad { padding-left: 4px; }
+.trx-ad-t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; }
+.trx-ad small { font: 500 10.5px/1.2 var(--fig); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.trx-pk-h:hover, .trx-ad:hover, .trx-tr:hover, .trx-pk-h:focus-visible, .trx-ad:focus-visible, .trx-tr:focus-visible { background: color-mix(in oklab, var(--m-trails) 10%, transparent); outline: none; }
+.trx-pk-h.on, .trx-ad.on { background: color-mix(in oklab, var(--m-trails) 18%, transparent); box-shadow: inset 2px 0 0 var(--m-trails); }
+.trx-more { flex: none; font-size: 12px; color: var(--ink-2); }
+.trx-more summary { cursor: pointer; color: var(--muted); font: 600 10.5px/1.6 var(--font); letter-spacing: 0.05em; text-transform: uppercase; }
+.trx-more .trl-links { margin-top: 6px; max-height: 180px; overflow: auto; }
+
+/* right, top: the park key (each class toggles) */
+.trx-key { display: grid; gap: 2px; }
+.trx-kc { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 4px 4px; border: 0; border-radius: 6px; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.trx-kc:hover, .trx-kc:focus-visible { background: color-mix(in oklab, var(--kc) 10%, transparent); outline: none; }
+.trx-kc i { width: 15px; height: 11px; border-radius: 3px; border: 1.8px dotted var(--kc); background: color-mix(in oklab, var(--kc) 22%, transparent); }
+.trx-kc span { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.trx-kc b { font-size: 12.5px; color: var(--ink); font-weight: 600; }
+.trx-kc small { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trx-kc em { font: 600 11.5px/1 var(--fig); font-style: normal; color: var(--ink); font-variant-numeric: tabular-nums; }
+.trx-kc[aria-pressed="false"] { opacity: 0.45; }
+.trx-kc[aria-pressed="false"] i { background: none; }
+.trx-hint { margin: 2px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--muted); }
+
+/* right, below: the selected park or advisory */
+.trx-top { display: flex; align-items: center; gap: 8px; }
+.trx-top > :first-child { flex: 1 1 auto; min-width: 0; }
+.trx-back { padding: 2px 4px; margin-left: -4px; color: var(--accent); font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trx-back:hover { text-decoration: underline; }
+.trx-cls { display: inline-flex; align-items: center; gap: 6px; font: 650 10.5px/1.3 var(--font); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.trx-cls small { font-weight: 500; color: var(--muted); text-transform: none; letter-spacing: 0; font-size: 11px; }
+.trx-cls i { flex: none; width: 13px; height: 10px; border-radius: 3px; border: 1.8px dotted var(--kc); background: color-mix(in oklab, var(--kc) 22%, transparent); }
+.trx-h { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 650; color: var(--ink); }
+.trx-facts { margin: -4px 0 0; font: 500 11.5px/1.3 var(--fig); color: var(--muted); font-variant-numeric: tabular-nums; }
+.trx-scroll { display: flex; flex-direction: column; gap: 8px; max-height: min(56vh, 700px); padding-right: 2px; }
+.trx-acts { display: flex; flex-wrap: wrap; gap: 4px; }
+.trx-act { padding: 2px 7px; border-radius: 999px; font-size: 11.5px; color: var(--ink); background: color-mix(in oklab, var(--m-trails) 13%, var(--surface)); border: 1px solid color-mix(in oklab, var(--m-trails) 35%, transparent); }
+.trx-dog { background: color-mix(in oklab, var(--warn) 12%, var(--surface)); border-color: color-mix(in oklab, var(--warn) 35%, transparent); }
+.trx-dim { background: none; color: var(--muted); }
+.trx-also { margin: 0; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
+.trx-sub { margin: 2px 0 4px; font: 650 10px/1.2 var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.trx-trails { display: flex; flex-direction: column; }
+.trx-tr { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 4px 4px; border-bottom: 1px solid var(--grid); border-radius: 0; font-size: 12.5px; }
+.trx-tr-n { color: var(--ink); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trx-tr small { font: 500 11px/1 var(--fig); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.trx-d { --dc: var(--ink-2); padding: 1px 6px; border-radius: 4px; font: 600 10px/1.4 var(--font); letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink);
+  background: color-mix(in oklab, var(--dc) 18%, var(--surface)); border: 1px solid color-mix(in oklab, var(--dc) 50%, transparent); white-space: nowrap; }
+.trx-d[data-d="easy"] { --dc: var(--live, #2f8f45); }
+.trx-d[data-d="moderate"] { --dc: var(--warn); }
+.trx-d[data-d="hard"] { --dc: var(--bad); }
+.trx-d[data-d="na"] { color: var(--muted); background: none; border-style: dashed; }
+.trx-note { margin: 4px 0 0; font-size: 10.5px; line-height: 1.4; color: var(--muted); }
+.trx-tags { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.trx-tag { padding: 1px 6px; border-radius: 4px; font-size: 10.5px; color: var(--ink-2); border: 1px solid var(--border); }
+.trx-tag.trx-bad { color: var(--ink); border-color: color-mix(in oklab, var(--bad) 55%, transparent); background: color-mix(in oklab, var(--bad) 14%, transparent); }
+.trx-dates { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 0; font-size: 12px; }
+.trx-dates dt { color: var(--muted); }
+.trx-dates dd { margin: 0; color: var(--ink); font-variant-numeric: tabular-nums; }
+.trx-text { font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.trx-text p, .trx-text ul, .trx-text ol { margin: 0 0 7px; }
+.trx-text ul, .trx-text ol { padding-left: 18px; }
+.trx-text h5 { margin: 8px 0 4px; font-size: 12.5px; color: var(--ink); }
+.trx-text a, .trx-links a { color: var(--accent); }
+.trx-links { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; }

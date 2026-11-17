@@ -46,6 +46,8 @@ const P = {
   sparkles: "M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0l1.58 6.14a2 2 0 0 0 1.44 1.44l6.14 1.58a.5.5 0 0 1 0 .96l-6.14 1.58a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0z",
   calendar: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z",
   info: "M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0M12 16v-4M12 8h.01",
+  arrowL: "m12 19-7-7 7-7M19 12H5",
+  ticket: "M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2ZM13 5v2M13 17v2M13 11v2",
   layers: "M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83zM2 12l9.17 4.17a2 2 0 0 0 1.66 0L22 12M2 17l9.17 4.17a2 2 0 0 0 1.66 0L22 17",
   clock: "M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0M12 6v6l4 2",
   database: "M3 5a9 3 0 1 0 18 0 9 3 0 1 0-18 0M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0",
@@ -53,13 +55,13 @@ const P = {
 };
 
 /** rail topics (TOPICS ids in civic-modules.js, plus the console's own overview and about) */
-export const TOPIC_ICON = { overview: "grid", now: "radio", "weather-air": "cloudSun", "getting-around": "signpost", hazard: "alert", local: "landmark", safety: "shield",
-  seasons: "flower", outdoors: "trees", growth: "building", "water-power": "droplet", climate: "thermo", about: "info" };
+export const TOPIC_ICON = { overview: "grid", now: "radio", weather: "cloudSun", "getting-around": "signpost", hazard: "alert", civic: "landmark",
+  nature: "trees", lifestyle: "ticket", about: "info" };
 /** leaves (module ids) */
 export const LEAF_ICON = { summary: "grid", alerts: "bell", natalerts: "siren", weather: "cloudSun", air: "wind", transit: "bus", roads: "car", route95: "timer", airtraffic: "plane",
-  waterways: "anchor", "waterways-next": "anchor", malahat: "mountain", ferries: "ship", goose: "bike", ferry: "ship", bike: "bike", ttc: "train", quakes: "activity", tsunami: "waves",
+  waterways: "anchor", "waterways-next": "anchor", malahat: "mountain", ferries: "ship", goose: "bike", biking: "bike", ferry: "ship", bike: "bike", ttc: "train", quakes: "activity", tsunami: "waves",
   ar: "cloudRain", hazards: "flame", bigquakes: "globe", lnotices: "megaphone", lstops: "pin", crime: "shield", blossom: "flower", foliage: "leaf", salish: "waveform", darksky: "moon",
-  sunday: "route", trails: "footprints", golf: "flag", langford: "building", water: "droplet", grid: "zap", unusual: "sparkles", enso: "globe", outlook: "calendar" };
+  sunday: "route", trails: "footprints", hot: "sparkles", surf: "waves", events: "calendar", golf: "flag", langford: "building", water: "droplet", grid: "zap", unusual: "sparkles", enso: "globe", outlook: "calendar", patterns: "wind" };
 
 /** an inline SVG icon (aria-hidden; label the control it sits in). name: a key of P, or a topic / leaf id */
 export function icon(name, { size = 16, cls = "civ-ic", title = null } = {}) {

@@ -30,7 +30,7 @@ import requests
 from pipelines.common.http import USER_AGENT, get_json
 
 from .config import (ARCGIS_INTERVAL, BPER_PACKAGE, BPER_RESOURCES, CENSUS_CHARS, CENSUS_SDMX, CKAN, CRD_PREFIX, GEOS,
-                     HOTSPOTS, ORTHOS_FOLDER, POP_PACKAGE, POP_RESOURCE, RAW, THUMB_HALF_M, THUMB_PX, TRACKER, TRACKER_DROP)
+                     HOTSPOTS, ORTHOS_FOLDER, POP_PACKAGE, POP_RESOURCE, RAW, STARTS_EST, STARTS_GEO, STARTS_PID, STARTS_UNIT, THUMB_HALF_M, THUMB_PX, TRACKER, TRACKER_DROP)
 
 S = requests.Session()
 S.headers["User-Agent"] = USER_AGENT
@@ -204,6 +204,32 @@ def census() -> dict:
     return {"newest": "2021", "n": int(len(df))}
 
 
+# ============================================================================= StatCan housing starts (Statistics Canada Open Licence)
+
+def starts() -> dict:
+    """Monthly housing starts, under construction and completions for the Victoria CMA (StatCan table 34-10-0154-01,
+    CMHC data published by Statistics Canada under the Statistics Canada Open Licence), last 10 years, by unit type.
+    No municipal split exists in StatCan's tables (CMHC's own portal has one, but not under an open licence)."""
+    RAW.mkdir(parents=True, exist_ok=True)
+    coords = [{"productId": STARTS_PID, "coordinate": f"{STARTS_GEO}.{est}.{unit}.0.0.0.0.0.0.0", "latestN": 120}
+              for est in STARTS_EST for unit in STARTS_UNIT]
+    r = S.post("https://www150.statcan.gc.ca/t1/wds/rest/getDataFromCubePidCoordAndLatestNPeriods", json=coords, timeout=120)
+    r.raise_for_status()
+    out = {}
+    for row in r.json():
+        if row.get("status") != "SUCCESS":
+            continue
+        o = row["object"]
+        _, est, unit = o["coordinate"].split(".")[:3]
+        out[f"{STARTS_EST[int(est)]}:{STARTS_UNIT[int(unit)]}"] = {p["refPer"][:7]: p["value"] for p in o["vectorDataPoint"]}
+    if "starts:total" not in out or len(out["starts:total"]) < 24:
+        raise RuntimeError("housing starts: Victoria CMA series missing (table changed?)")
+    (RAW / "starts.json").write_text(json.dumps(out, indent=0), encoding="utf-8")
+    newest = max(out["starts:total"])
+    print(f"  starts: {len(out)} series, Victoria CMA, to {newest}")
+    return {"newest": newest}
+
+
 # ============================================================================= Langford Development Tracker (UNLICENSED)
 
 def arcgis_query_all(layer: str, params: dict, page: int = 1000) -> list[dict]:
@@ -331,8 +357,8 @@ def orthos() -> dict:
 
 # ============================================================================= CLI
 
-SOURCES = {"permits": permits, "population": population, "census": census, "tracker": tracker, "orthos": orthos}
-GROUPS = {"daily": ["permits", "population", "census", "tracker"], "all": list(SOURCES)}
+SOURCES = {"permits": permits, "population": population, "census": census, "starts": starts, "tracker": tracker, "orthos": orthos}
+GROUPS = {"daily": ["permits", "population", "census", "starts", "tracker"], "all": list(SOURCES)}
 
 
 def record(name: str, ok: bool, info: dict | None = None, error: str | None = None) -> None:

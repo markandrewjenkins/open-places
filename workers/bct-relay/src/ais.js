@@ -44,10 +44,12 @@ export async function openWS() {
     const res = await fetch(STREAM.replace("wss:", "https:"), { headers: { Upgrade: "websocket" } });
     const ws = res.webSocket;
     if (!ws) throw new Error(`aisstream refused the connection (${res.status})`);
+    try { ws.binaryType = "arraybuffer"; } catch { /* older runtimes: already ArrayBuffer */ }
     ws.accept();
     return ws;
   }
   const ws = new WebSocket(STREAM);
+  ws.binaryType = "arraybuffer";
   await new Promise((ok, no) => { ws.addEventListener("open", ok, { once: true }); ws.addEventListener("error", () => no(new Error("aisstream connection failed")), { once: true }); });
   return ws;
 }

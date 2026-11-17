@@ -65,12 +65,36 @@ const SHAPES = {
     + `<path d="M7 8.5Q11 13 12.6 19.5" fill="none" stroke="${T.halo}" stroke-width="2.4" stroke-linecap="round"/>`
     + `<path d="M7 8.5Q11 13 12.6 19.5" fill="none" stroke="${T.ink}" stroke-width="0.9" stroke-linecap="round"/>`
     + `<circle cx="7" cy="8.5" r="1.3" fill="${T.ink}"/>`),
+  // Open Places' Sea Traffic classes (classes.js) add five more outlines:
+  // a short double-ended ferry (inter-island), a small passenger boat with a long cabin (foot ferry, water taxi, tour
+  // boat), a catamaran (high-speed craft), and a patrol boat with a plain orange diagonal band (Coast Guard, rescue, pilot; no service's own marks)
+  ferrys: (c, T) => svg(14, 32,
+    hull(T, "M7 1C11 2.4 13 6 13 9.5V22.5C13 26 11 29.6 7 31C3 29.6 1 26 1 22.5V9.5C1 6 3 2.4 7 1Z", c)
+    + `<path d="M4.8 4.4V8.6M7 3.2V8.6M9.2 4.4V8.6M4.8 23.4V27.6M7 23.4V28.8M9.2 23.4V27.6" stroke="${T.deck}" stroke-width="0.7" stroke-linecap="round" opacity="0.7"/>`
+    + rect(3, 10, 8, 12, 2.2, T.deck, `stroke="${T.ink}" stroke-width="0.5"`)
+    + rect(3.7, 11, 6.6, 1.5, 0.5, T.win) + rect(3.7, 19.5, 6.6, 1.5, 0.5, T.win)),
+  foot: (c, T) => svg(10, 24,
+    hull(T, "M5 1C8.2 4 9 8 9 11V21Q9 23 7 23H3Q1 23 1 21V11C1 8 1.8 4 5 1Z", c)
+    + rect(2.3, 7.5, 5.4, 12.5, 1.6, T.deck, `stroke="${T.ink}" stroke-width="0.4"`)
+    + [9.5, 12.5, 15.5].map((y) => rect(2.9, y, 4.2, 1.3, 0.4, T.win)).join("")),
+  hsc: (c, T) => svg(16, 32,
+    `<path d="M3.5 2C6 5 6 9 6 12V29H1V12C1 9 1 5 3.5 2ZM12.5 2C15 5 15 9 15 12V29H10V12C10 9 10 5 12.5 2Z" fill="none" stroke="${T.halo}" stroke-width="3.2" stroke-linejoin="round"/>`
+    + `<path d="M3.5 2C6 5 6 9 6 12V29H1V12C1 9 1 5 3.5 2ZM12.5 2C15 5 15 9 15 12V29H10V12C10 9 10 5 12.5 2Z" fill="${c}" stroke="${T.ink}" stroke-width="0.8" stroke-linejoin="round"/>`
+    + rect(2, 10, 12, 16, 2.4, T.deck, `stroke="${T.ink}" stroke-width="0.5"`)
+    + `<path d="M3 13.2Q8 10.6 13 13.2" fill="none" stroke="${T.win}" stroke-width="1.5" stroke-linecap="round"/>`),
+  gov: (c, T) => svg(12, 30,
+    hull(T, "M6 1C10 5 11 10 11 14V27Q11 29 9 29H3Q1 29 1 27V14C1 10 2 5 6 1Z", c)
+    + `<path d="M1.4 15.5L10.6 9.5V12.8L1.4 18.8Z" fill="#e8742a"/>`
+    + rect(3, 17.5, 6, 6.5, 1.2, T.deck, `stroke="${T.ink}" stroke-width="0.5"`) + rect(3.6, 18.2, 4.8, 1.3, 0.4, T.win)),
   other: (c, T) => svg(10, 18,
     hull(T, "M5 1C8 4 9 7 9 10V15Q9 17 7 17H3Q1 17 1 15V10C1 7 2 4 5 1Z", c)
     + rect(3, 7, 4, 4, 0.8, T.deck)),
 };
 /** the SVG markup for a kind (light-map halo by default) */
 export const shipSVG = (kind, dark = false) => SHAPES[kind] ? SHAPES[kind](KIND_COLOR[kind], THEME[dark ? "dark" : "light"]) : SHAPES.other(KIND_COLOR.other, THEME.light);
+/** any outline above in any colour (Open Places' Sea Traffic classes, src/ships/classes.js) */
+export const vesselSVG = (shape, color, dark = false) => (SHAPES[shape] || SHAPES.other)(color, THEME[dark ? "dark" : "light"]);
+export const VESSEL_PR = PR;
 export const shipURI = (kind, dark = false) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(shipSVG(kind, dark))}`;
 
 const sets = {};

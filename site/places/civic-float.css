@@ -1,0 +1,13 @@
+/* Open Places: compact, collapsible floating panels over the map (civic-float.js). */
+.civ-fpanel.flt { flex: none; max-height: 100%; }
+.civ-fpanel.flt > .flt-h { cursor: pointer; user-select: none; }
+.civ-fpanel.flt > .flt-h > span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flt-fold { flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin: -3px -6px -3px 0; padding: 0; border: 0; border-radius: 6px;
+  background: none; color: var(--muted); cursor: pointer; transition: transform .15s, color .15s; }
+.flt-fold:hover, .flt-fold:focus-visible { color: var(--ink); background: color-mix(in oklab, var(--tc, var(--accent)) 14%, transparent); outline: none; }
+.civ-fpanel.flt[data-folded] .flt-fold { transform: rotate(-90deg); }
+.civ-fpanel.flt[data-folded] > :not(.civ-fp-h) { display: none; }
+.civ-fpanel.flt[data-folded] > .civ-fp-h { border-bottom-color: transparent; }
+.flt-body { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
+/* a scrolling list inside a float panel */
+.flt-scroll { overflow: auto; min-height: 0; flex: 1 1 auto; overscroll-behavior: contain; scrollbar-width: thin; }

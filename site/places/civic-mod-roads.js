@@ -1,4 +1,4 @@
-// Open Places: Roads & Cameras and the Malahat corridor (DriveBC). Data, camera thumbnails, the corridor strip and the
+// Open Places: Traffic (events and cameras) and the Malahat corridor (DriveBC). Data, camera thumbnails, the corridor strip and the
 // op-alert events for both; the two module definitions themselves sit in civic-modules.js (blocks `roads`, `malahat`).
 //
 // Sources, all Open Government Licence – British Columbia (credit DriveBC / BC Ministry of Transportation and Transit):
@@ -17,6 +17,7 @@ import { el, tooltip, tipRow, cssVar } from "../src/shared/ui.js";
 import { file, km } from "./civic-data.js";
 import { relayURL } from "../src/shared/relay.js";
 import { livePart, hubSetFor, eventsInBox, boxInside } from "../src/shared/livehub.js";
+import * as RS from "./civic-mod-roadsigns.js";   // road-event signs for the corridor strip
 
 const tip = tooltip();
 export const DBC_CREDIT = "DriveBC, BC Ministry of Transportation and Transit · Open Government Licence – BC";
@@ -219,33 +220,61 @@ export function camGrid(host, sites, o = {}) {
     })));
   watchCams();
 }
-/** the tile's row of thumbnails: as many as fit at the tile's height (no captions, the time on hover) */
+/** the tile's (or popup's) row of thumbnails: as many as fit at the height (no captions, the time on hover); each one is
+ *  a button that opens the lightbox (camDialog) on its site */
 export function camStrip(host, sites) {
   css();
   const W = host.clientWidth || 200, H = host.clientHeight || 60, w = Math.max(56, H * 4 / 3), k = Math.max(1, Math.min(sites.length, 6, Math.floor((W + 4) / (w + 4))));
   host.replaceChildren(el("div", { class: "civ-camstrip", style: { gridTemplateColumns: `repeat(${k}, minmax(0, 1fr))` } },
-    ...sites.slice(0, k).map((s) => camFig(s.main, { caption: false, title: `${s.name}, looking ${dirName(s.main.ori)}${s.km != null ? ` · ${s.km.toFixed(1)} km` : ""}` }))));
+    ...sites.slice(0, k).map((s) => {
+      const b = camFig(s.main, { button: true, caption: false, title: `${s.name}, looking ${dirName(s.main.ori)}${s.km != null ? ` · ${s.km.toFixed(1)} km` : ""}. ${s.cams.length > 1 ? `Click for all ${s.cams.length} views.` : "Click to enlarge."}` });
+      b.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); camDialog(s); });
+      return b;
+    })));
   watchCams();
 }
+// ------------------------------------------------------------------ the lightbox: one <dialog> over the page
+// A site with several directions opens on a grid of all its angles; a click on one enlarges it ("← All views" goes back).
+// A site with one camera (or camDialog(site, cam)) opens straight on the large picture. Esc, × or a click outside close it.
 let dlg = null;
-export function camDialog(site) {
+const credit = () => el("p", { class: "note civ-camdlg-f" }, "Images: ", el("a", { href: "https://www.drivebc.ca/cameras", target: "_blank", rel: "noopener" }, "DriveBC"),
+  ", BC Ministry of Transportation and Transit, ", el("a", { href: OGL_BC, target: "_blank", rel: "noopener" }, "Open Government Licence – BC"),
+  ". Each camera posts a new picture every few minutes; the time is when DriveBC took it.");
+export function camDialog(site, one = null) {
   css();
   if (!dlg) {
-    dlg = el("dialog", { class: "civ-camdlg", "aria-label": "Traffic camera" });
+    dlg = el("dialog", { class: "civ-camdlg", "aria-label": "Highway camera" });
     dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });   // a click on the backdrop closes it
     document.body.append(dlg);
   }
   const cams = [...site.cams].sort((a, b) => (a.id === site.main.id ? -1 : b.id === site.main.id ? 1 : 0));
-  dlg.replaceChildren(
-    el("header", { class: "civ-camdlg-h" },
-      el("div", {}, el("h3", { class: "civ-camdlg-t" }, site.name), el("p", { class: "note" }, [site.main.caption, site.km != null ? `${site.km.toFixed(1)} km from the place.` : null].filter(Boolean).join(" "))),
-      el("button", { type: "button", class: "civ-camdlg-x", "aria-label": "Close", onclick: () => dlg.close() }, "×")),
-    el("div", { class: "civ-camdlg-g", style: { gridTemplateColumns: `repeat(${cams.length === 3 ? 3 : cams.length > 1 ? 2 : 1}, minmax(0, 1fr))` } },
-      ...cams.map((c) => el("div", { class: "civ-camdlg-c" }, camFig(c, { big: true, label: c.ori ? `Looking ${dirName(c.ori)}` : siteName(c) }),
-        el("a", { class: "civ-camdlg-a", href: CAM_PAGE(c.id), target: "_blank", rel: "noopener" }, "DriveBC camera page ↗")))),
-    el("p", { class: "note civ-camdlg-f" }, "Images: ", el("a", { href: "https://www.drivebc.ca/cameras", target: "_blank", rel: "noopener" }, "DriveBC"),
-      ", BC Ministry of Transportation and Transit, ", el("a", { href: OGL_BC, target: "_blank", rel: "noopener" }, "Open Government Licence – BC"),
-      ". Each camera posts a new picture every few minutes; the time is when DriveBC took it."));
+  const label = (c) => (c.ori ? `Looking ${dirName(c.ori)}` : siteName(c));
+  const head = (sub) => el("header", { class: "civ-camdlg-h" },
+    el("div", {}, el("h3", { class: "civ-camdlg-t" }, site.name), el("p", { class: "note" }, sub)),
+    el("button", { type: "button", class: "civ-camdlg-x", "aria-label": "Close", title: "Close (Esc)", onclick: () => dlg.close() }, "×"));
+  const where = [site.main.caption, site.km != null ? `${site.km.toFixed(1)} km from the place.` : null].filter(Boolean).join(" ");
+  const grid = () => {
+    dlg.dataset.view = "grid";
+    dlg.replaceChildren(head(`${where} ${cams.length} views: click one to enlarge.`.trim()),
+      el("div", { class: "civ-camdlg-g", style: { gridTemplateColumns: `repeat(${cams.length === 3 ? 3 : 2}, minmax(0, 1fr))` } },
+        ...cams.map((c) => {
+          const b = camFig(c, { button: true, big: true, label: label(c), title: `${label(c)}: click to enlarge` });
+          b.addEventListener("click", () => full(c));
+          return el("div", { class: "civ-camdlg-c" }, b, el("a", { class: "civ-camdlg-a", href: CAM_PAGE(c.id), target: "_blank", rel: "noopener" }, "DriveBC camera page ↗"));
+        })),
+      credit());
+  };
+  const full = (c) => {
+    dlg.dataset.view = "full";
+    dlg.replaceChildren(head(where),
+      el("div", { class: "civ-camdlg-full" }, camFig(c, { big: true, label: label(c) })),
+      el("div", { class: "civ-camdlg-nav" },
+        cams.length > 1 ? el("button", { type: "button", class: "civ-camdlg-back", onclick: grid }, `← All ${cams.length} views`) : el("span"),
+        cams.length > 1 ? el("span", { class: "civ-camdlg-alts" }, ...cams.filter((x) => x !== c).map((x) => el("button", { type: "button", class: "civ-camdlg-alt", onclick: () => full(x) }, label(x)))) : null,
+        el("a", { class: "civ-camdlg-a", href: CAM_PAGE(c.id), target: "_blank", rel: "noopener" }, "DriveBC camera page ↗")),
+      credit());
+  };
+  if (one || cams.length === 1) full(one || cams[0]); else grid();
   if (!dlg.open) dlg.showModal();
   watchCams();
 }
@@ -275,11 +304,11 @@ export function roadAlerts(place, near, at) {
 
 // ------------------------------------------------------------------ the Malahat corridor: Hwy 1, West Shore Parkway → Mill Bay
 // The line follows DriveBC's own Highway 1 camera sites (close enough for a schematic strip and a 1.2 km event filter).
-const CORRIDOR = [[-123.5378, 48.4577], [-123.5465, 48.4745], [-123.555, 48.4927], [-123.5569, 48.5071], [-123.5601, 48.5324], [-123.5697, 48.5612],
+export const CORRIDOR = [[-123.5378, 48.4577], [-123.5465, 48.4745], [-123.555, 48.4927], [-123.5569, 48.5071], [-123.5601, 48.5324], [-123.5697, 48.5612],
   [-123.5525, 48.5665], [-123.5421, 48.5679], [-123.5351, 48.601], [-123.5482, 48.6272], [-123.5611, 48.6573]];
 const CUM = CORRIDOR.reduce((a, p, i) => (a.push(i ? a[i - 1] + km(CORRIDOR[i - 1], p) : 0), a), []);
 export const MAL_LEN = CUM[CUM.length - 1];
-const LANDMARKS = [["West Shore Pkwy", [-123.5378, 48.4577]], ["Goldstream", [-123.555, 48.4927]], ["Malahat Summit", [-123.5421, 48.5679]], ["Mill Bay", [-123.5611, 48.6573]]];
+export const MAL_LANDMARKS = [["West Shore Pkwy", [-123.5378, 48.4577]], ["Goldstream", [-123.555, 48.4927]], ["Malahat Summit", [-123.5421, 48.5679]], ["Mill Bay", [-123.5611, 48.6573]]];
 /** distance (km) from the corridor and chainage (km from West Shore Parkway) of a lon/lat */
 function onCorridor(p) {
   let best = { d: Infinity, at: 0 };
@@ -293,7 +322,7 @@ function onCorridor(p) {
   }
   return best;
 }
-const LM = LANDMARKS.map(([name, p]) => ({ name, at: onCorridor(p).at }));
+const LM = MAL_LANDMARKS.map(([name, p]) => ({ name, at: onCorridor(p).at }));
 const isHwy1 = (e) => e.roads?.some((r) => /^Highway 1$/i.test(r.name || ""));
 
 // in effect now? Open511's schedule gives the overall period; the daily window ("From 8:00 PM to 5:00 AM", "weekdays")
@@ -358,14 +387,15 @@ export function malahatAlerts(m, place) {
 }
 
 /** the corridor strip: Hwy 1 as a line from West Shore Parkway (left) to Mill Bay (right), camera sites as ticks
- *  (click: the larger view), events as dots or spans coloured by severity, the line itself red where it's closed */
+ *  (click: the larger view), events as road signs coloured by severity (civic-mod-roadsigns.js), spans also as bars,
+ *  the line itself red where it's closed */
 export function corridorStrip(host, m, o = {}) {
   css();
   const W = Math.max(120, host.clientWidth), H = Math.max(36, host.clientHeight || 90), mini = o.mini || H < 80;
   host.replaceChildren();
   const ml = mini ? 6 : 14, mr = mini ? 6 : 14, x = d3.scaleLinear([0, MAL_LEN], [ml, W - mr]), y = mini ? Math.round(H * 0.45) : Math.round(H * 0.5);
   const svg = d3.select(host).append("svg").attr("class", "civ-mal").attr("viewBox", `0 0 ${W} ${H}`).attr("width", W).attr("height", H);
-  const tone = (x_) => (evSev(x_) === 3 ? "var(--bad)" : x_.live ? "var(--warn)" : "var(--muted)");
+  const live = (x_) => x_.live || evClosed(x_.e), tone = (x_) => RS.SIGN_TONES.find((t) => t.k === RS.evTone(x_.e, live(x_))).css;
   svg.append("line").attr("class", "civ-mal-road").attr("x1", x(0)).attr("x2", x(MAL_LEN)).attr("y1", y).attr("y2", y)
     .style("stroke", m.status.key === "closed" ? "var(--bad)" : "var(--m-malahat, var(--s1))");
   // landmarks (labels under the line; at tile size only the two ends)
@@ -386,8 +416,10 @@ export function corridorStrip(host, m, o = {}) {
   // events
   const es = svg.selectAll("g.ev").data(m.evs).join("g").attr("class", "ev");
   es.filter((d) => d.at2 != null).append("rect").attr("x", (d) => x(d.at)).attr("width", (d) => Math.max(4, x(d.at2) - x(d.at))).attr("y", y - (mini ? 3 : 4)).attr("height", mini ? 6 : 8).attr("rx", 3).style("fill", tone);
-  es.filter((d) => d.at2 == null).append("circle").attr("cx", (d) => x(d.at)).attr("cy", y).attr("r", mini ? 4 : 6).style("fill", tone).style("stroke", "var(--surface)").style("stroke-width", 1.5);
-  es.on("pointermove", (e, d) => tip.show(e.clientX, e.clientY, (t) => t.append(el("div", { class: "t-title" }, `${cap(String(d.e.event_type).toLowerCase())} · ${d.at.toFixed(1)} km`),
+  // each event as its road sign (works, closure, incident, conditions) in its severity colour; a span also as a bar
+  const sz = mini ? 13 : 19;
+  es.append("g").attr("transform", (d) => `translate(${x(d.at) - sz / 2},${y - sz / 2}) scale(${sz / 24})`).html((d) => RS.signMarkup(RS.evKind(d.e), RS.evTone(d.e, live(d))));
+  es.on("pointermove", (e, d) => tip.show(e.clientX, e.clientY, (t) => t.append(el("div", { class: "t-title" }, `${RS.KIND_LABEL[RS.evKind(d.e)]} · ${d.at.toFixed(1)} km`),
     tipRow(cssVar(evSev(d) === 3 ? "--bad" : d.live ? "--warn" : "--muted"), d.live ? "in effect now" : "scheduled, not in effect now", ""), el("div", { class: "t-note" }, firstSentence(d.e.description)))))
     .on("pointerleave", () => tip.hide());
   if (!mini) svg.append("text").attr("class", "axis-t").attr("x", x(MAL_LEN)).attr("y", y - 24).attr("text-anchor", "end").text(`${MAL_LEN.toFixed(0)} km`);
@@ -418,8 +450,17 @@ button.civ-cam:hover, button.civ-cam:focus-visible { border-color: var(--m-roads
 .civ-cam.big .civ-cam-cap b { font-size: 13px; }
 .civ-camstrip { display: grid; gap: 4px; height: 100%; align-items: stretch; }
 .civ-camstrip .civ-cam { border-radius: 4px; }
+.civ-camstrip button.civ-cam, .civ-camdlg-g button.civ-cam { cursor: zoom-in; }
 .civ-camstrip .civ-cam-img { aspect-ratio: auto; height: 100%; }
-.civ-camdlg { width: min(1040px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius, 9px); background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.civ-camdlg { width: min(1040px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius, 9px); background: var(--surface); color: var(--ink); box-shadow: var(--shadow); overflow: auto; }
+.civ-camdlg[data-view="full"] { width: min(1320px, calc(100vw - 32px)); }
+.civ-camdlg-full .civ-cam-img { aspect-ratio: auto; height: min(calc(100vh - 230px), 960px); background: #000; }
+.civ-camdlg-full .civ-cam-img img { object-fit: contain; }
+.civ-camdlg-nav { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.civ-camdlg-nav .civ-camdlg-a { margin-left: auto; }
+.civ-camdlg-alts { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.civ-camdlg-back, .civ-camdlg-alt { all: unset; cursor: pointer; font: 600 12px/1 var(--font); padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink); background: var(--surface-2); }
+.civ-camdlg-back:hover, .civ-camdlg-alt:hover, .civ-camdlg-back:focus-visible, .civ-camdlg-alt:focus-visible { border-color: var(--m-roads, var(--accent)); }
 .civ-camdlg::backdrop { background: rgba(10, 16, 24, 0.55); }
 .civ-camdlg-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .civ-camdlg-h .note { margin: 2px 0 0; }

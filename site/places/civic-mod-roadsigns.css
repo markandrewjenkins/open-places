@@ -1,0 +1,31 @@
+/* Open Places: road-event signs (civic-mod-roadsigns.js). Sign colours stay the same in light and dark, like real signs. */
+:root { --sev-minor: #f2c12e; --sev-moderate: #f08a24; --sev-major: #d8352a; --sev-off: #9aa1ab; }
+.civ-sign { display: inline-flex; flex: none; line-height: 0; vertical-align: -3px; }
+.civ-sign svg { overflow: visible; }
+
+/* the key */
+.civ-signleg { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 6px; font-size: 11.5px; color: var(--ink-2); }
+.civ-signleg-r { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.civ-signleg-i { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.civ-signleg-t { font-size: 10.5px; color: var(--muted); }
+.civ-signleg-t i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* event rows with a sign in front */
+.civ-evrows { display: flex; flex-direction: column; overflow: auto; min-height: 0; }
+.civ-evrow { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 4px 2px; border-bottom: 1px solid var(--grid); font-size: 12.5px; }
+.civ-evrow:last-child { border-bottom: 0; }
+.civ-evrow b { color: var(--ink); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.civ-evrow em { font: 500 11.5px/1.2 var(--fig); font-style: normal; color: var(--ink-2); white-space: nowrap; }
+
+/* the distance strip */
+.civ-sstrip { display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 100%; min-height: 0; padding: 4px 10px 0 0; }
+.civ-sstrip-row { display: grid; grid-template-columns: minmax(70px, 22%) minmax(0, 1fr); align-items: center; gap: 10px; }
+.civ-sstrip-1 .civ-sstrip-row { grid-template-columns: minmax(0, 1fr); }
+.civ-sstrip-l { font-size: 11.5px; color: var(--ink-2); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.civ-sstrip-t { position: relative; height: 22px; border-bottom: 1px dashed var(--grid); }
+.civ-sstrip-t .civ-sign { position: absolute; top: 50%; transform: translate(-50%, -50%); cursor: help; }
+.civ-sstrip-ax .civ-sstrip-t { height: 14px; border: 0; }
+.civ-sstrip-tk { position: absolute; top: 0; transform: translateX(-50%); font: 500 10.5px/1 var(--fig); color: var(--muted); white-space: nowrap; }
+.civ-sstrip-tk:first-child { transform: none; }
+.civ-sstrip-tk:last-child { transform: translateX(-100%); }
+.civ-sstrip-box { flex: 1 1 auto; min-height: 0; height: calc(100% - 46px); }

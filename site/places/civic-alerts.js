@@ -7,6 +7,8 @@
 //   place  optional place id or name; events for places outside the current place's chain are ignored
 //   seed   optional: the first-load state ("2 warnings active"), shown but never sounded
 //   since  optional: when the condition began (ISO time); the Overview shows "since …", else when it was noticed
+//   geo    optional: where it is, a GeoJSON geometry (a road segment, a warning polygon, an epicentre, a fire, a park);
+//          zoom optional: the most the map zooms in on it. Detector items (below) may carry the same two fields.
 // The feed keeps the last 50 per place in sessionStorage ("odp-alerts:<place id>"), newest first, and renders them as a
 // one-line strip near the top of #overview (with an "All" list), in the All Alerts pane (#alerts-feed) and on each topic's
 // Summary page.
@@ -29,6 +31,29 @@ const ss = {
   set: (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch { /* storage blocked or full */ } },
 };
 const LEVEL_NAME = { info: "Information", notice: "Notice", warn: "Warning" };
+
+// Alert links (the strip, the feed, the All list, the alert lists, the briefing, a Summary's feed):
+//   - one carrying its alert (tagAlert) is handed to the shell as an "op-focus" event { alert, href }: the shell opens
+//     the page, fits the map to the alert's geometry, highlights it and shows its detail on the left; the same alert
+//     again clears it (civic.js, "alerts on the map")
+//   - an alert about one thing with its own selection (a ship, an aircraft, a park advisory) links to #topic/leaf/<id>
+//     and the page selects it; clicking it again while it is the selection clears it by going to the leaf's own hash
+const ALERT_LINKS = ".civ-fd, .civ-al-i, .civ-al-new, .civ-al-top, .civ-brf, .civ-alert";
+/** attach the alert an element stands for (any producer's shape: title, text/body, sev/level, geo, href, id) → node */
+export function tagAlert(node, alert) { if (node && alert) { node.opAlert = alert; node.dataset.alert = ""; } return node; }
+document.addEventListener("click", (e) => {
+  const a = e.target.closest?.(ALERT_LINKS);
+  if (!a || a.tagName !== "A" || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  const h = a.getAttribute("href") || "", parts = h.replace(/^#\/?/, "").split("/");
+  const own = parts.length >= 3 && parts[2] !== "world";   // the page selects the thing itself
+  if (a.opAlert && !own) { e.preventDefault(); dispatchEvent(new CustomEvent("op-focus", { detail: { alert: a.opAlert, href: h } })); return; }
+  if (!own || decodeURI(h) !== decodeURI(location.hash)) return;
+  e.preventDefault();
+  location.hash = `#${parts.slice(0, 2).join("/")}`;
+}, true);
+// geometries are kept in memory for this page; small ones are also stored with the alert (sessionStorage stays small)
+const GEO = new Map();
+const geoSmall = (g) => { try { return JSON.stringify(g).length <= 6000; } catch { return false; } };
 
 /** "now", "4 min", "3 h", "2 d" */
 export function rel(t, now = Date.now()) {
@@ -64,6 +89,7 @@ export function createAlerts({ ctx, colorOf = () => "var(--accent)", nameOf = (t
     const a = { id, topic: String(d.topic || ""), level: LEVELS.includes(d.level) ? d.level : "info", title: String(d.title).slice(0, 140),
       body: d.body ? String(d.body).slice(0, 400) : "", href: typeof d.href === "string" && d.href.startsWith("#") ? d.href : "", t: Date.now(), seed: !!d.seed,
       where: d.place != null && !known(String(d.place).toLowerCase()) ? String(d.place).slice(0, 80) : "", dist: distOf(d.place), since: d.since ? Date.parse(d.since) || null : null };
+    if (d.geo?.type) { GEO.set(id, d.geo); if (geoSmall(d.geo)) a.geo = d.geo; if (d.zoom != null) a.zoom = +d.zoom; }
     items.unshift(a);
     if (items.length > MAX) items.length = MAX;
     ss.set(key(), items);
@@ -86,6 +112,7 @@ export function createAlerts({ ctx, colorOf = () => "var(--accent)", nameOf = (t
       el("small", { class: "civ-fd-k" }, [nameOf(a.topic), a.seed ? "at load" : null].filter(Boolean).join(" · ")),
       el("time", { class: "civ-fd-w", datetime: new Date(a.t).toISOString() }, rel(a.t)));
     n.style.setProperty("--tc", colorOf(a.topic));
+    if (a.href) tagAlert(n, { ...a, src: nameOf(a.topic), geo: a.geo || GEO.get(a.id) });
     return n;
   }
   /** a vertical list of rows (the All list, the alerts pane, a topic summary) */
@@ -130,7 +157,7 @@ export function createAlerts({ ctx, colorOf = () => "var(--accent)", nameOf = (t
   const runKey = () => `odp-alert-run:${ctx.place?.id || "none"}`;
   const stamp = () => { const d = new Date(); return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}`; };
   function emit(x, m, seed) {
-    dispatchEvent(new CustomEvent("op-alert", { detail: { id: x.id, topic: m.id, level: x.level || "info", title: x.title, body: x.body || "", place: ctx.place?.id, href: x.href || `#${m.id}`, seed: !!seed } }));
+    dispatchEvent(new CustomEvent("op-alert", { detail: { id: x.id, topic: m.id, level: x.level || "info", title: x.title, body: x.body || "", place: ctx.place?.id, href: x.href || `#${m.id}`, seed: !!seed, geo: x.geo, zoom: x.zoom } }));
   }
   function run(mods) {
     if (!ctx.place) return;

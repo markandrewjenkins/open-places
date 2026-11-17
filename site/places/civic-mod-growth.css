@@ -1,0 +1,21 @@
+/* Open Places: Growth & Building (civic-mod-growth.js). Metric switch, the ranked municipalities, the picked one. */
+.gr-rankp { gap: 0; }
+.gr-sw { display: flex; gap: 2px; padding: 2px; margin: 0 0 8px; border-radius: 8px; background: color-mix(in oklab, var(--ink) 6%, transparent); }
+.gr-swb { flex: 1 1 0; min-width: 0; padding: 4px 6px; border: 0; border-radius: 6px; background: none; font: 600 11.5px/1.2 var(--font); color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.gr-swb:hover, .gr-swb:focus-visible { color: var(--ink); background: color-mix(in oklab, var(--m-langford, var(--accent)) 12%, transparent); outline: none; }
+.gr-swb[aria-checked="true"] { color: var(--ink); background: var(--surface); box-shadow: 0 0 0 1px color-mix(in oklab, var(--m-langford, var(--accent)) 55%, transparent); }
+.gr-rank { display: flex; flex-direction: column; min-height: 0; overflow: auto; margin: 0 -4px 6px; }
+.gr-row { display: grid; grid-template-columns: 18px minmax(0, 7.5em) minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 3px 4px; border: 0; border-radius: 6px;
+  background: none; font: inherit; font-size: 12.5px; color: var(--ink-2); text-align: left; cursor: pointer; }
+.gr-row em { font: 500 10.5px/1 var(--fig); font-style: normal; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.gr-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-bar { height: 8px; border-radius: 3px; background: color-mix(in oklab, var(--ink) 6%, transparent); overflow: hidden; }
+.gr-bar i { display: block; height: 100%; border-radius: 3px; }
+.gr-row b { font: 600 12px/1 var(--fig); color: var(--ink); font-variant-numeric: tabular-nums; min-width: 3.4em; text-align: right; }
+.gr-row:hover, .gr-row:focus-visible { background: color-mix(in oklab, var(--m-langford, var(--accent)) 10%, transparent); outline: none; }
+.gr-row.here { color: var(--ink); font-weight: 650; box-shadow: inset 2px 0 0 var(--ink); }
+.gr-row.on { background: color-mix(in oklab, var(--m-langford, var(--accent)) 18%, transparent); color: var(--ink); }
+.gr-pick { margin: 0 0 6px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
+.gr-pick b { color: var(--ink); }
+.gr-pick a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.gr-pick a:hover { text-decoration: underline; }

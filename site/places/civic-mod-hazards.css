@@ -1,0 +1,113 @@
+/* Open Places: Hazards pages (civic-mod-hazards.js): Wildfires, Earthquakes, Weather Patterns. Harbour tokens only. */
+:root { --m-patterns: #2a7fa8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --m-patterns: #62c0e6; } }
+:root[data-theme="dark"] { --m-patterns: #62c0e6; }
+/* wildfire "under control": a green-grey (BCWS stages: red out of control, amber being held, green-grey under control, grey out) */
+:root { --hz-uc: #5f8a6c; --hz-hi: #2563c9; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --hz-uc: #8fb59a; --hz-hi: #6ea8ff; } }
+:root[data-theme="dark"] { --hz-uc: #8fb59a; --hz-hi: #6ea8ff; }
+
+/* compact label · value rows with a colour dot */
+.hz-rows { display: flex; flex-direction: column; min-width: 0; }
+.hz-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--grid); font-size: 12.5px; color: var(--ink-2); line-height: 1.3; }
+.hz-row:last-child { border-bottom-width: 0; }
+.hz-row-l { display: flex; align-items: center; gap: 7px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hz-row-l > span { overflow: hidden; text-overflow: ellipsis; }
+.hz-row-l b { color: var(--ink); font-weight: 600; }
+.hz-row-v { font-family: var(--fig); font-weight: 500; font-size: 11.5px; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hz-row-v a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.hz-row-v a:hover { text-decoration: underline; }
+.hz-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); }
+.hz-list { max-height: none; }
+.hz-more { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--accent); text-decoration: none; }
+.hz-more:hover { text-decoration: underline; }
+
+/* status pill: Active / Watch / Quiet */
+.hz-pill { flex: none; display: inline-block; padding: 2px 7px; border-radius: var(--pill); font: 650 9.5px/1.3 var(--fig); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); }
+.hz-pill[data-s="active"] { color: var(--bad); background: color-mix(in oklab, var(--bad) 14%, var(--surface)); border-color: color-mix(in oklab, var(--bad) 40%, transparent); }
+.hz-pill[data-s="watch"] { color: var(--warn); background: color-mix(in oklab, var(--warn) 14%, var(--surface)); border-color: color-mix(in oklab, var(--warn) 40%, transparent); }
+.hz-pill[data-s="quiet"] { color: var(--live, var(--good)); background: color-mix(in oklab, var(--live, var(--good)) 10%, var(--surface)); border-color: color-mix(in oklab, var(--live, var(--good)) 32%, transparent); }
+
+/* Wildfires: the situation panel */
+.hz-head { display: flex; align-items: center; gap: 8px; margin: 2px 0 6px; font: 650 15px/1.2 var(--font); color: var(--ink); }
+.hz-sit .hz-rows { margin-bottom: 8px; }
+
+/* Earthquakes: Nearby | Worldwide M6+ */
+.hz-seg { display: flex; flex: none; margin: 2px 0 8px; border: 1px solid var(--border); border-radius: var(--pill); overflow: hidden; }
+.hz-seg a { flex: 1 1 0; padding: 5px 8px; text-align: center; font-size: 12px; font-weight: 600; color: var(--ink-2); text-decoration: none; background: var(--surface); }
+.hz-seg a + a { border-left: 1px solid var(--border); }
+.hz-seg a:hover { color: var(--ink); }
+.hz-seg a[aria-current="page"] { color: var(--ink); background: color-mix(in oklab, var(--m-quakes, var(--accent)) 20%, var(--surface)); }
+
+/* Weather Patterns: one compact card per pattern */
+.hz-cards { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow: auto; margin-bottom: 6px; }
+.hz-card { display: block; padding: 7px 9px 7px 10px; border: 1px solid var(--border); border-left: 3px solid var(--muted); border-radius: 6px; background: color-mix(in oklab, var(--surface-2) 45%, transparent);
+  color: inherit; text-decoration: none; }
+a.hz-card:hover { border-color: color-mix(in oklab, var(--m-patterns) 45%, var(--border)); }
+.hz-card[data-s="active"] { border-left-color: var(--bad); }
+.hz-card[data-s="watch"] { border-left-color: var(--warn); }
+.hz-card[data-s="quiet"] { border-left-color: var(--live, var(--good)); }
+.hz-card-h { display: flex; align-items: center; gap: 8px; }
+.hz-card-n { flex: 1 1 auto; min-width: 0; font: 650 12px/1.25 var(--font); color: var(--ink); }
+a.hz-card .hz-card-n::after { content: " →"; color: var(--muted); font-weight: 500; }
+.hz-card-k { margin: 2px 0 1px; font: 600 16px/1.2 var(--fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+/* icon + sparkline: the card's status colour (quiet = muted, so only live patterns draw the eye) */
+.hz-card { --st: var(--muted); }
+.hz-card[data-s="active"] { --st: var(--bad); }
+.hz-card[data-s="watch"] { --st: var(--warn); }
+.hz-card-ic { flex: none; width: 17px; height: 17px; fill: none; stroke: var(--st); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.hz-card[data-s="quiet"] .hz-card-ic { stroke: var(--ink-2); }
+.hz-card-m { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.hz-spark { flex: none; overflow: visible; }
+.hz-spark-l { fill: none; stroke: var(--st); stroke-width: 1.5; stroke-linejoin: round; }
+.hz-card[data-s="quiet"] .hz-spark-l { stroke: var(--ink-2); }
+.hz-spark-l.fc { stroke-dasharray: 2.5 2; opacity: 0.85; }
+.hz-spark rect { fill: var(--st); }
+.hz-card[data-s="quiet"] .hz-spark rect { fill: var(--ink-2); }
+.hz-spark rect.past { opacity: 0.45; }
+.hz-spark-thr { stroke: color-mix(in srgb, var(--warn) 70%, transparent); stroke-width: 1; stroke-dasharray: 2 2; }
+.hz-spark-zero { stroke: var(--grid); stroke-width: 1; }
+.hz-card-s { margin: 0; font-size: 11.5px; line-height: 1.35; color: var(--ink-2); }
+.hz-card-src { margin: 3px 0 0; font: 500 9.5px/1.3 var(--fig); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+
+/* panel heights in the right column (pane "none" stacks them at their natural height) */
+.civ-sg[data-pane="none"] .civ-fpanel[data-p="hz-latest"] .civ-fpl,
+.civ-sg[data-pane="none"] .civ-fpanel[data-p="qk-list"] .civ-fpl { max-height: min(34vh, 460px); }
+.civ-sg[data-pane="none"] .civ-fpanel[data-p="qk-other"] .civ-fpl { max-height: none; }
+
+/* Wildfires: link cards to a fire's BCWS page (photos there are Crown copyright, so linked, never shown) */
+.hz-photo { display: flex; align-items: center; gap: 9px; margin: 5px 0 2px; padding: 6px 9px; border: 1px solid var(--border); border-radius: 6px;
+  background: color-mix(in oklab, var(--surface-2) 55%, transparent); color: inherit; text-decoration: none; cursor: pointer; }
+.hz-photo:hover { border-color: color-mix(in oklab, var(--m-hazards, var(--accent)) 50%, var(--border)); }
+.hz-photo-ic { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 5px; color: var(--ink-2);
+  background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--ink) 6%, transparent) 0 6px, transparent 6px 12px); border: 1px solid var(--grid); }
+.hz-photo-t { display: flex; flex-direction: column; min-width: 0; }
+.hz-photo-t b { font-size: 12px; font-weight: 600; color: var(--accent); }
+.hz-photo-t small { font-size: 10.5px; color: var(--muted); }
+.hz-note + .hz-note { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--grid); }
+.hz-note .hz-row { border-bottom: 0; }
+
+/* "What's Happening": plain-language summary at the top of the AR and ENSO inset pages */
+.hz-now p { margin: 0 0 6px; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.hz-now p.hz-now-lead { font-size: 14.5px; line-height: 1.4; color: var(--ink); font-weight: 600; }
+.hz-now .civ-fp-foot { margin-top: 4px; }
+
+/* Wildfires map legend: flames by status, by size, the "of note" glow */
+.hz-fleg { display: flex; flex-direction: column; gap: 5px; margin: 8px 0 2px; }
+.hz-fleg-r { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 12px; font-size: 11.5px; color: var(--ink-2); }
+.hz-fleg-r .civ-leg-t { min-width: 42px; align-self: center; }
+.hz-fleg-i { display: inline-flex; align-items: flex-end; gap: 4px; white-space: nowrap; }
+.hz-flame { display: block; flex: none; }
+.hz-fleg-glow { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--bad) 45%, transparent) 0, color-mix(in srgb, var(--bad) 12%, transparent) 62%, transparent 72%);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--bad) 85%, transparent); }
+.hz-fleg-n { margin: 0; font-size: 11px; color: var(--muted); }
+.hz-pop-st .hz-dot { display: inline-block; margin-right: 6px; vertical-align: 1px; }
+
+/* Weather Patterns map symbols legend (the same glyphs as the cards) */
+.hz-symleg { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 11.5px; color: var(--ink-2); }
+.hz-symleg-i { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.hz-lg-ic { flex: none; fill: none; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+.hz-lh { font: 800 14px/1 system-ui, "Segoe UI", sans-serif; width: 15px; text-align: center; }
+.hz-lg-box { width: 14px; height: 9px; border-radius: 2px; opacity: 0.6; }

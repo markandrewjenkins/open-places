@@ -1,11 +1,15 @@
-"""Public Transit: key West Shore roads, and how fast buses usually move along them (the "typical" for the page's
+"""Public Transit: Greater Victoria's bus roads, and how fast buses usually move along them (the "typical" for the page's
 traffic estimate). There is no open traffic-speed feed for Greater Victoria, so the page estimates congestion from
 bus movements: consecutive GTFS-Realtime positions of every bus on a corridor give an average bus speed, which it
 compares with the typical bus speed for that hour from this file.
 
   python -m pipelines.blink.traffic          # → site/public/data/blink/corridors.json (~30 KB)
 
-For each corridor (CORRIDORS below):
+Corridors: the five key West Shore roads (CORRIDORS below: their ids feed the Transit page's road-speed alerts), plus
+every other named major road in the OSM extract (motorway to tertiary, Langford to Saanich and Oak Bay) that buses run
+along for at least AUTO_MIN_M ("auto": true; the traffic map colours them, but they raise no alerts).
+
+For each corridor:
   spine     the longest stretch of any bus route's GTFS shape that runs along the road (OpenStreetMap ways by name,
             within 30 m), clipped to the West Shore; the page projects bus positions onto it (chainage in metres)
   typical   bus speed per direction, day type (weekday / Saturday / Sunday) and hour, km/h:
@@ -25,6 +29,7 @@ Rules shared with site/src/blink/traffic.js (keep them in step):
 from __future__ import annotations
 
 import json
+import re
 import sys
 import zipfile
 from datetime import datetime, timezone
@@ -47,8 +52,17 @@ WAY_M = 30                               # a shape point this close to the road'
 GAP_CLOSE_M = 400                        # a shape that briefly leaves the road (to a stop off the highway) still counts
 MIN_DT, MAX_DT, STILL_MAX, MAX_KMH = 5, 120, 120, 110
 LOG_MIN_VEH, LOG_MIN_S = 3, 900
+SEC_M = 800                              # the map's stretches: about this long, each with its own share of the scheduled speed
+SEC_LOG_VEH, SEC_LOG_S = 4, 240             # a stretch's logged typical needs this many buses and seconds of movement
+SEC_MIN_T = 1800                         # scheduled seconds a stretch needs (all day types together) before it gets its own share
 
-# id, label (headings and alerts), long name, OSM names, kind ("radial": inbound/outbound; "ns"/"ew": compass), clip
+AUTO_HW = {"motorway", "trunk", "primary", "secondary", "tertiary"}   # named roads of these classes become auto corridors
+AUTO_MIN_M = 1200                                # ... when a bus route runs along them for at least this far end to end
+ABBR = [("Cross Road", "X Rd"), ("Street", "St"), ("Avenue", "Ave"), ("Road", "Rd"), ("Highway", "Hwy"), ("Parkway", "Pkwy"),
+        ("Drive", "Dr"), ("Boulevard", "Blvd"), ("Crescent", "Cres"), ("Place", "Pl")]
+
+# id, label (headings and alerts), long name, OSM names, kind ("radial": inbound/outbound; "ns"/"ew": compass; "auto":
+# compass from the spine's own run), clip
 CORRIDORS = [
     ("hwy1", "Hwy 1", "Trans-Canada Hwy 1, Millstream Rd to McKenzie Ave", ["Trans-Canada Highway"], "radial", (-123.56, 48.40, -123.37, 48.49)),
     ("veterans", "Veterans Memorial Pkwy", "Veterans Memorial Parkway, Langford", ["Veterans Memorial Parkway"], "ns", (-123.56, 48.40, -123.37, 48.49)),
@@ -56,6 +70,68 @@ CORRIDORS = [
     ("sooke", "Sooke Rd", "Sooke Road / Hwy 14, Glen Lake to Colwood", ["Sooke Road"], "radial", (-123.545, 48.40, -123.37, 48.49)),
     ("island", "Island Hwy", "Island Highway, Colwood to View Royal (Six Mile)", ["Island Highway"], "radial", (-123.56, 48.40, -123.37, 48.49)),
 ]
+
+
+WIDE = RAW / "osm_ways_crd.parquet"        # named major roads across every bus route's extent (Sooke, the Peninsula)
+
+
+def wide_ways(shapes: pd.DataFrame) -> pd.DataFrame | None:
+    """Named major roads (AUTO_HW) over the whole bus network's extent, from the cached Victoria extract
+    (data/osm/Victoria.osm.pbf, read-only; no download, no Overpass), saved as WIDE. Needs the osmium package
+    (requirements.txt); without it, or without the extract, None (the auto corridors then use osm_ways.parquet only,
+    whose extent follows the logged routes: about Langford to Saanich and Oak Bay)."""
+    if WIDE.exists():
+        return pd.read_parquet(WIDE)
+    pbf = RAW.parents[1] / "osm" / "Victoria.osm.pbf"
+    try:
+        import osmium
+    except ImportError:
+        print("  osmium isn't installed: auto corridors stay inside osm_ways.parquet's extent (pip install osmium to widen)", flush=True)
+        return None
+    if not pbf.exists():
+        print(f"  no {pbf.name}: auto corridors stay inside osm_ways.parquet's extent", flush=True)
+        return None
+    la, lo = shapes.shape_pt_lat.astype(float), shapes.shape_pt_lon.astype(float)
+    s_, w_, n_, e_ = la.min() - 0.01, lo.min() - 0.01, la.max() + 0.01, lo.max() + 0.01
+    rows = []
+
+    class H(osmium.SimpleHandler):
+        def way(self, w):
+            hw, name = w.tags.get("highway"), w.tags.get("name")
+            if hw not in AUTO_HW or not name:
+                return
+            try:
+                pts = [(n.lat, n.lon) for n in w.nodes]
+            except osmium.InvalidLocationError:
+                return
+            if not any(s_ <= a <= n_ and w_ <= b <= e_ for a, b in pts):
+                return
+            rows.append({"way": w.id, "name": name, "highway": hw, "lats": [round(a, 6) for a, _ in pts], "lons": [round(b, 6) for _, b in pts]})
+
+    H().apply_file(str(pbf), locations=True)
+    df = pd.DataFrame(rows)
+    df.to_parquet(WIDE, index=False)
+    print(f"  wide OSM roads: {len(df):,} named major ways over the bus network's extent → {WIDE.name}", flush=True)
+    return df
+
+
+def auto_corridors(ways: pd.DataFrame) -> list[tuple]:
+    """Every named major road (AUTO_HW) not in CORRIDORS, as a corridor clipped to its own ways' extent."""
+    manual = {n for c in CORRIDORS for n in c[3]}
+    w = ways[ways.highway.isin(AUTO_HW) & ways.name.notna() & (ways.name != "") & ~ways.name.isin(manual)]
+    out, ids = [], {c[0] for c in CORRIDORS}
+    for name, g in w.groupby("name"):
+        la = np.concatenate([np.asarray(x, float) for x in g.lats]); lo = np.concatenate([np.asarray(x, float) for x in g.lons])
+        cid = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+        if cid in ids:
+            continue
+        ids.add(cid)
+        label = name
+        for a, b in ABBR:
+            label = re.sub(rf"\b{a}\b", b, label)
+        label = re.sub(r"\b(East|West|North|South)$", lambda m: m[1][0], label)
+        out.append((cid, label, name, [name], "radial" if "Highway" in name else "auto", (lo.min() - 0.003, la.min() - 0.002, lo.max() + 0.003, la.max() + 0.002)))
+    return out
 
 
 def densify(lats, lons, step=8.0):
@@ -175,6 +251,9 @@ def build_spines(z: zipfile.ZipFile) -> list[dict]:
     the same way so a positive chainage change means direction 0 on either."""
     ways = pd.read_parquet(RAW / "osm_ways.parquet")
     sh = table(z, "shapes.txt")
+    wide = wide_ways(sh)
+    if wide is not None:     # the wide set's roads beyond osm_ways.parquet (same names merge: one corridor per name)
+        ways = pd.concat([ways, wide[~wide.way.isin(ways.way)]], ignore_index=True)
     for c in ("shape_pt_lat", "shape_pt_lon"):
         sh[c] = sh[c].astype(float)
     sh["shape_pt_sequence"] = sh.shape_pt_sequence.astype(int)
@@ -182,12 +261,14 @@ def build_spines(z: zipfile.ZipFile) -> list[dict]:
     groups = {sid: dense_latlon(g.shape_pt_lat.to_numpy(), g.shape_pt_lon.to_numpy()) for sid, g in sh.groupby("shape_id")}
     out = []
     dx, dy = xy(DOWNTOWN[0], DOWNTOWN[1])
-    for cid, label, long, names, kind, clip in CORRIDORS:
+    for cid, label, long, names, kind, clip in CORRIDORS + auto_corridors(ways):
+        auto = cid not in {c[0] for c in CORRIDORS}
         w = ways[ways.name.isin(names)]
         tree = cKDTree(np.vstack([densify(r.lats, r.lons) for r in w.itertuples()]))
         runs = candidate_runs(groups, tree, clip)
-        if not runs:
-            print(f"  {cid}: no bus route runs along it", flush=True)
+        if not runs or (auto and runs[0][0] < AUTO_MIN_M):
+            if not auto:
+                print(f"  {cid}: no bus route runs along it", flush=True)
             continue
         disp, sid, la, lo = runs[0]
         A = Spine(la, lo)
@@ -206,7 +287,7 @@ def build_spines(z: zipfile.ZipFile) -> list[dict]:
         if kind == "radial":
             first_nearer = np.hypot(x[0] - dx, y[0] - dy) < np.hypot(x[1] - dx, y[1] - dy)
             dirs = ["outbound", "inbound"] if first_nearer else ["inbound", "outbound"]
-        elif kind == "ns":
+        elif kind == "ns" or (kind == "auto" and abs(y[1] - y[0]) >= abs(x[1] - x[0])):
             dirs = ["northbound", "southbound"] if y[1] > y[0] else ["southbound", "northbound"]
         else:
             dirs = ["eastbound", "westbound"] if x[1] > x[0] else ["westbound", "eastbound"]
@@ -224,7 +305,7 @@ def build_spines(z: zipfile.ZipFile) -> list[dict]:
             on = d2 <= NEAR_M
             if on.sum() >= 2 and np.ptp(c2[on]) >= 500 and on.sum() * 15 >= 500:
                 runs_along.add(s2)
-        out.append({"id": cid, "label": label, "long": long, "kind": kind, "dirs": dirs, "shape": [str(sid)] + ([str(bsid)] if bsid else []),
+        out.append({"id": cid, "label": label, "long": long, "kind": kind, "auto": auto, "dirs": dirs, "shape": [str(sid)] + ([str(bsid)] if bsid else []),
                     "spines": spines, "spine": spines[0], "len_m": round(disp), "shapes_along": runs_along})
         print(f"  {cid}: {len(spines)} spine(s) from shape(s) {sid}{f', {bsid}' if bsid else ''}, {disp / 1000:.1f} km end to end, dir 0 = {dirs[0]}", flush=True)
     return out
@@ -249,8 +330,9 @@ def daytype(ts: pd.Series) -> tuple[pd.Series, pd.Series]:
     return np.where(wd == 5, "sat", np.where(wd == 6, "sun", "weekday")), t.dt.hour
 
 
-def logged(spines: list[dict]) -> dict:
-    """{(cid, dir, daytype, hour): [dist_m, secs, n_vehicles]} from the collector's vehicle positions."""
+def logged(spines: list[dict], seclog: dict | None = None) -> dict:
+    """{(cid, dir, daytype, hour): [dist_m, secs, n_vehicles]} from the collector's vehicle positions. With seclog (a
+    dict), also the same movements shared out over each spine's map stretches (sec_log_add), all hours together."""
     vp = logio.read_all("vp")
     if vp is None or vp.empty:
         print("  no logged positions: typical speeds come from the timetable only", flush=True)
@@ -263,6 +345,10 @@ def logged(spines: list[dict]) -> dict:
         c, d, k = project_any(S, vp.lat.to_numpy(float), vp.lon.to_numpy(float))
         df = pd.DataFrame({"veh": vp.vehicle.astype(str).to_numpy(), "trip": vp.trip_id.astype(str).to_numpy(), "ts": vp.ts.to_numpy(np.int64),
                            "seq": pd.to_numeric(vp.seq, errors="coerce").fillna(99).to_numpy(), "c": c, "k": k, "on": d <= NEAR_M})
+        near = df.on | df.on.shift(1, fill_value=False) | df.on.shift(-1, fill_value=False)
+        df = df[near.to_numpy()].reset_index(drop=True)
+        if df.empty:
+            continue
         dt_, hr = daytype(df.ts)
         df["dt"], df["hr"] = dt_, hr.to_numpy()
         still = {}
@@ -284,6 +370,8 @@ def logged(spines: list[dict]) -> dict:
                         k = (S["id"], dr, prev.dt, int(prev.hr))
                         a = acc.setdefault(k, [0.0, 0, set()])
                         a[0] += abs(dc); a[1] += dt; a[2].add(r.veh)
+                        if seclog is not None:
+                            sec_log_add(seclog, S, dr, int(r.k), prev.c, r.c, dt, r.veh)
                 elif not (prev.on and r.on):
                     still[r.veh] = 0
             else:
@@ -293,8 +381,83 @@ def logged(spines: list[dict]) -> dict:
     return {k: [v[0], v[1], len(v[2])] for k, v in acc.items()}
 
 
-def timetable(z: zipfile.ZipFile, spines: list[dict]) -> dict:
-    """{(cid, dir, daytype, hour): [dist_m, secs, n_trips]} from scheduled stop times on a typical day."""
+def sec_n(length: float) -> int:
+    """how many equal stretches (about SEC_M each) a spine is split into; the page splits it the same way"""
+    return max(1, int(round(length / SEC_M)))
+
+
+def sec_pairs(sec: dict, S: dict, c0, c1, dt, k) -> None:
+    """Share each scheduled stop-to-stop pair's distance and time out over the stretches of the spine its stops sit on
+    (by overlap), per direction of travel."""
+    acc = sec.setdefault(S["id"], {"n": [sec_n(sp.length) for sp in S["spines"]], "L": [sp.length for sp in S["spines"]], "d": {}, "t": {}})
+    for a, b, t, kk in zip(c0, c1, dt, k):
+        if not (np.isfinite(a) and np.isfinite(b) and np.isfinite(t)) or t < 0 or t > 1800 or abs(b - a) < 20:
+            continue
+        if t > 0 and not (3 <= abs(b - a) / t * 3.6 <= MAX_KMH):    # a loop off the road and back, or a bad time
+            continue
+        d, kk = (0 if b > a else 1), int(kk)
+        lo, hi, n = min(a, b), max(a, b), acc["n"][kk]
+        w = acc["L"][kk] / n
+        for i in range(max(0, int(lo // w)), min(n, int(hi // w) + 1)):
+            o = min(hi, (i + 1) * w) - max(lo, i * w)
+            if o <= 0:
+                continue
+            share = o / (hi - lo)
+            acc["d"][(d, kk, i)] = acc["d"].get((d, kk, i), 0.0) + abs(b - a) * share
+            acc["t"][(d, kk, i)] = acc["t"].get((d, kk, i), 0.0) + t * share
+
+
+def sec_log_add(seclog: dict, S: dict, d: int, k: int, a: float, b: float, dt: float, veh) -> None:
+    """one logged movement (a pair of positions) shared out over spine k's stretches: distance and time by overlap,
+    a bus standing still wholly to the stretch it stands in (the page's rule)"""
+    acc = seclog.setdefault(S["id"], {"n": [sec_n(sp.length) for sp in S["spines"]], "L": [sp.length for sp in S["spines"]], "d": {}, "t": {}, "v": {}})
+    n = acc["n"][k]; w = acc["L"][k] / n
+    lo, hi = min(a, b), max(a, b)
+    for i in range(max(0, int(lo // w)), min(n, int(hi // w) + 1)):
+        if hi - lo > 1:
+            o = min(hi, (i + 1) * w) - max(lo, i * w)
+            if o <= 0:
+                continue
+            share = o / (hi - lo)
+        elif i * w <= lo < (i + 1) * w:
+            share = 1.0
+        else:
+            continue
+        key = (d, k, i)
+        acc["d"][key] = acc["d"].get(key, 0.0) + abs(b - a) * share
+        acc["t"][key] = acc["t"].get(key, 0.0) + dt * share
+        acc["v"].setdefault(key, set()).add(veh)
+
+
+def sec_logged(acc: dict | None) -> list | None:
+    """[per direction: [per spine: [logged bus speed km/h, or null where fewer than SEC_LOG_VEH buses or SEC_LOG_S
+    seconds were logged]]] (all logged hours together)"""
+    if not acc:
+        return None
+    return [[[round(acc["d"][(d, kk, i)] / acc["t"][(d, kk, i)] * 3.6, 1)
+              if acc["t"].get((d, kk, i), 0) >= SEC_LOG_S and len(acc["v"].get((d, kk, i), ())) >= SEC_LOG_VEH else None
+              for i in range(n)] for kk, n in enumerate(acc["n"])] for d in (0, 1)]
+
+
+def sec_factors(acc: dict | None) -> dict | None:
+    """{"n": [stretches per spine], "f": [per direction: [per spine: [factor per stretch]]]}: each stretch's scheduled
+    bus speed as a share of the whole corridor's in that direction (1 = the corridor average; a stretch with stops or a
+    signalised junction is slower). A stretch with too little schedule gets 1."""
+    if not acc:
+        return None
+    f = []
+    for d in (0, 1):
+        keys = [k for k in acc["t"] if k[0] == d]
+        D, T = sum(acc["d"][k] for k in keys), sum(acc["t"][k] for k in keys)
+        avg = D / T if T > 0 else None
+        f.append([[round(float(np.clip((acc["d"].get((d, kk, i), 0) / acc["t"][(d, kk, i)]) / avg, 0.35, 2.5)), 2)
+                   if avg and acc["t"].get((d, kk, i), 0) >= SEC_MIN_T else 1.0 for i in range(n)] for kk, n in enumerate(acc["n"])])
+    return {"m": SEC_M, "n": acc["n"], "f": f}
+
+
+def timetable(z: zipfile.ZipFile, spines: list[dict], sec: dict | None = None) -> dict:
+    """{(cid, dir, daytype, hour): [dist_m, secs, n_trips]} from scheduled stop times on a typical day. With sec (a dict),
+    also shares every stop-to-stop pair out over each direction's sections (sec_pairs)."""
     trips = table(z, "trips.txt")
     days = pick_days(z, trips, TZ)
     stops = table(z, "stops.txt")
@@ -326,6 +489,11 @@ def timetable(z: zipfile.ZipFile, spines: list[dict]) -> dict:
             turn = np.sign(x.dc) != np.sign(x.dc.shift())
             x["brk"] = ~same | (same & same.shift(fill_value=False) & turn)
             x["run"] = x.brk.cumsum()
+            if sec is not None:     # stop-to-stop pairs, for the per-section shape of the scheduled speed
+                ok = same.to_numpy()
+                c1, c0 = x.c.to_numpy(float), x.c.shift().to_numpy(float)
+                t1, t0 = x.dep.to_numpy(float), x.dep.shift().to_numpy(float)
+                sec_pairs(sec, S, c0[ok], c1[ok], t1[ok] - t0[ok], x.k.to_numpy()[ok])
             g = x.groupby("run").agg(c0=("c", "first"), c1=("c", "last"), t0=("dep", "first"), t1=("dep", "last"))
             g = g[(g.t1 - g.t0 >= 60) & ((g.c1 - g.c0).abs() >= 300)]
             g = g[((g.c1 - g.c0).abs() / (g.t1 - g.t0) * 3.6).between(3, MAX_KMH)]
@@ -347,8 +515,10 @@ def main() -> int:
     z = zipfile.ZipFile(zp)
     print("corridors:", flush=True)
     spines = build_spines(z)
-    lg = logged(spines)
-    tt = timetable(z, spines)
+    seclog: dict = {}
+    lg = logged(spines, seclog)
+    sec: dict = {}
+    tt = timetable(z, spines, sec)
     out = []
     for S in spines:
         typ = {}
@@ -368,12 +538,16 @@ def main() -> int:
                 per[dtype] = hours
             typ[S["dirs"][dr]] = per
         nlog = sum(1 for d in typ.values() for hs in d.values() for x in hs if x and x[1] == "log")
-        out.append({"id": S["id"], "label": S["label"], "long": S["long"], "dirs": S["dirs"], "len_m": S["len_m"], "from_shape": S["shape"],
-                    "spines": [[[round(float(lo), 5), round(float(la), 5)] for la, lo in zip(sp.lat, sp.lon)] for sp in S["spines"]], "typical": typ, "log_hours": nlog})
+        if S["auto"] and not any(x for d in typ.values() for hs in d.values() for x in hs):
+            print(f"  {S['id']}: no scheduled or logged bus speed along it; left out", flush=True)
+            continue
+        out.append({"id": S["id"], "label": S["label"], "long": S["long"], **({"auto": True} if S["auto"] else {}), "dirs": S["dirs"], "len_m": S["len_m"], "from_shape": S["shape"],
+                    "spines": [[[round(float(lo), 5), round(float(la), 5)] for la, lo in zip(sp.lat, sp.lon)] for sp in S["spines"]], "typical": typ, "log_hours": nlog,
+                    "sections": {**(sec_factors(sec.get(S["id"])) or {}), "log": sec_logged(seclog.get(S["id"]))}})
         print(f"  {S['id']}: {nlog} direction-hours from logs, the rest from the timetable", flush=True)
     doc = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "about": "Key West Shore roads and the typical bus speed along them by direction, day type and hour (km/h, stops included). "
+        "about": "Greater Victoria's bus roads (the key West Shore roads, plus every named major road buses run along: auto) and the typical bus speed along them by direction, day type and hour (km/h, stops included). "
                  "src 'log' = measured from logged BC Transit real-time positions; 'tt' = the timetable's scheduled speed. "
                  "The page compares live bus speeds with these to estimate congestion; it is not a traffic feed.",
         "rules": {"near_m": NEAR_M, "min_dt_s": MIN_DT, "max_dt_s": MAX_DT, "still_max_s": STILL_MAX, "max_kmh": MAX_KMH, "log_min_vehicles": LOG_MIN_VEH, "log_min_s": LOG_MIN_S},

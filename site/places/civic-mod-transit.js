@@ -12,7 +12,7 @@
 import * as d3 from "d3";
 import * as TR from "../src/blink/transit.js";
 import { createTraffic } from "../src/blink/traffic.js";
-import { SPOTLIGHT_PLACES } from "../src/blink/regions.js";
+import { SPOTLIGHT_PLACES, BUS_SPEED_PLACES } from "../src/blink/regions.js";
 import { relayURL } from "../src/shared/relay.js";
 import { livePart, hubSetFor } from "../src/shared/livehub.js";
 
@@ -29,7 +29,10 @@ const S = {
   traffic: null, timers: [],
 };
 export const westShore = S;
-const isWestShore = (p) => !!p && SPOTLIGHT_PLACES.has(p.id);
+// the bus feed and the road-speed estimator run for every Greater Victoria place; the West Shore road alerts only reach
+// West Shore places and the Greater Victoria page (a Saanich viewer isn't told about Langford corridors)
+const isWestShore = (p) => !!p && BUS_SPEED_PLACES.has(p.id);
+const alertsFor = (p) => !!p && SPOTLIGHT_PLACES.has(p.id);
 const active = () => S.ctx && isWestShore(S.ctx.place) && Date.now() - S.seenAt < IDLE_MS && !document.hidden && !!relayURL();
 const repaint = () => { const c = S.ctx; if (!c) return; if (/lstops|route95/.test(location.hash)) c.refresh(); else (c.repaint || c.refresh)(); };
 
@@ -39,7 +42,7 @@ export function touch(ctx) {
   if (!isWestShore(ctx.place)) return S;
   if (!S.traffic) {
     S.traffic = createTraffic({ tz: TZ, place: ctx.place.id, href: "#getting-around/transit",
-      emit: (detail) => window.dispatchEvent(new CustomEvent("op-alert", { detail: { ...detail, place: S.ctx?.place?.id || detail.place } })) });
+      emit: (detail) => { if (alertsFor(S.ctx?.place)) window.dispatchEvent(new CustomEvent("op-alert", { detail: { ...detail, place: S.ctx?.place?.id || detail.place } })); } });
   }
   if (!S.net && !S.staticErr && !S.loading) {
     S.loading = Promise.all([TR.loadNetwork(AGENCY), TR.loadStops(AGENCY)]).then(([n, s]) => { S.net = n; S.stops = s; repaint(); }, (e) => { S.staticErr = e; repaint(); });

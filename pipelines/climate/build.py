@@ -8,6 +8,7 @@ Writes site/public/data/climate/:
   outlook.json  seasonal temperature outlook by region: ECCC CanSIPS (Canada, via MSC GeoMet) and NOAA CPC (US)
   ocean.json    NE Pacific sea-surface temperature anomaly (NOAA OISST v2.1) and king-tide windows (NOAA CO-OPS)
   tsunami.json  the latest NTWC / PTWC messages (tsunami.gov Atom), with a rolling 120-day history built up run by run
+  ao.json       NOAA CPC daily Arctic Oscillation index (last 120 days) and the GEFS ensemble's 15-day AO forecast
   nps.json      US national-park alerts (NPS API), only when NPS_API_KEY is set (the owner registers the key)
 
 None of these sources send CORS headers usable from a github.io page except GeoMet and NOAA's map services, so the
@@ -370,7 +371,40 @@ def nps() -> None:
                        "source": "National Park Service alerts API (public domain)"})
 
 
-PARTS = {"enso": enso, "outlook": outlook, "ocean": ocean, "tsunami": tsunami, "nps": nps}
+# ------------------------------------------------------------------ Arctic Oscillation (NOAA CPC, public domain)
+# Daily AO index (CDAS reanalysis, 1000 hPa) and the GEFS ensemble's 15-day forecast of it, for the Weather Patterns
+# leaf's polar-vortex / Arctic-outflow card. CPC's ftp server sends no CORS headers, so the browser reads this snapshot.
+AO_OBS = "https://ftp.cpc.ncep.noaa.gov/cwlinks/norm.daily.ao.cdas.z1000.19500101_current.csv"
+AO_GEFS = "https://ftp.cpc.ncep.noaa.gov/cwlinks/norm.daily.ao.gefs.z1000.120days.csv"
+
+
+def ao() -> None:
+    print("Arctic Oscillation (NOAA CPC)")
+    obs = []
+    for row in csv.reader(io.StringIO(get(AO_OBS, timeout=120).text)):
+        try:
+            obs.append([date(int(row[0]), int(row[1]), int(row[2])).isoformat(), round(float(row[3]), 3)])
+        except (ValueError, IndexError):
+            continue
+    obs = obs[-120:]
+    # forecast file: lead, member, init time, AO, valid time. Keep the newest initialisation, then mean / range per day
+    rows = list(csv.DictReader(io.StringIO(get(AO_GEFS, timeout=120).text)))
+    init = max((r["time"] for r in rows if r.get("time")), default=None)   # the "time" column is the run's start date
+    by: dict[str, list[float]] = {}
+    for r in rows:
+        if r.get("time") == init and r.get("ao_index") and r.get("valid_time"):
+            by.setdefault(r["valid_time"], []).append(float(r["ao_index"]))
+    fc = [[t, round(sum(v) / len(v), 3), round(min(v), 3), round(max(v), 3), len(v)] for t, v in sorted(by.items())]
+    write("ao.json", {
+        "generated": now_iso(), "init": init,
+        "obs": obs,                            # [date, AO] last 120 days
+        "fc": fc,                              # [valid date, ensemble mean, min, max, members] from the newest GEFS run
+        "source": "NOAA Climate Prediction Center: daily Arctic Oscillation index (CDAS) and GEFS forecast (public domain)",
+        "links": {"page": "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/daily_ao_index/ao.shtml"},
+    })
+
+
+PARTS = {"enso": enso, "outlook": outlook, "ocean": ocean, "tsunami": tsunami, "nps": nps, "ao": ao}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(PARTS)

@@ -22,10 +22,17 @@
 // Which shape a vehicle is on: the published network has one shape per route and direction (the direction's most used
 // GTFS shape; the static data has no trip_id → shape table), so a vehicle is snapped to its route's shape in its reported
 // direction. Without a direction, to the shape whose direction there agrees with its heading (reported, else its last
-// measured move); a loop's passes are told apart the same way. More than 150 m off the shape (a detour, or a variant the
-// shape doesn't cover), or no direction and no heading: no snap, and selecting it draws its whole route bold instead.
+// measured move); a loop's passes are told apart the same way. More than 150 m off the shape it is still placed (offPlace):
+// a bus about to start its trip (pulling out of a garage, laying over at a terminal, driving out to its route: its first
+// stops are next, or it is far from the line) has its whole trip ahead of it, with a dashed link to where the trip
+// starts; a bus on a detour picks up from the nearest point. Only a vehicle with no direction and no heading on a
+// two-way route stays unplaced, and selecting it draws its whole route bright instead.
+// The whole network is always drawn underneath as thin pastel lines; a selection draws in the route's own (vivid)
+// colour on top and fits the map to the vehicle and its route ahead (L.select; the Open Places stage keeps that fit when
+// its panels change, via map.opRefit).
 //
-// Also exported: pastel(hex, dark, strong), vKey, rKey, parseItem, modeOf, colorOf, headOf, spriteOf(v) → [mode, livery],
+// Also exported: pastel(hex, dark, strong), vivid(hex, dark) (the selected route's colour), linesFor(v),
+// vKey, rKey, parseItem, modeOf, colorOf, headOf, spriteOf(v) → [mode, livery],
 // headingOf(v) → { deg, how } | null, faceBearing(v) / bearingOf(v) → deg | null, speedOf(v) (reported only), placeOf(v)
 // (its snap), placeOn(lines, lon, lat, heading), tripPathLayers(map, id) (the ahead/behind layers; live.js uses them
 // too), reduced().
@@ -66,6 +73,16 @@ export function pastel(hex, dark, strong = false) {
   c.l = Math.min(c.l, dark ? 0.84 : 0.8);
   return c.formatHex();
 }
+/** the selected route's own colour, made to stand out on the theme's map: the route's hue, kept saturated (a greyish
+ *  route colour gets a little more, a true grey stays grey), lifted on dark and deepened on light */
+export function vivid(hex, dark) {
+  const c = d3.hsl(/^#[0-9a-f]{6}$/i.test(hex || "") ? hex : "#6b7280");
+  if (Number.isNaN(c.s)) c.s = 0;
+  if (Number.isNaN(c.h)) c.h = 0;
+  if (c.s >= 0.12) c.s = Math.max(c.s, 0.62);
+  c.l = dark ? Math.min(0.72, Math.max(c.l, 0.6)) : Math.max(0.34, Math.min(c.l, 0.46));
+  return c.formatHex();
+}
 
 // ---------------------------------------------------------------- where a vehicle is on its route shape, and its heading
 const brg = (a, b) => { const r = Math.PI / 180, y = Math.sin((b[0] - a[0]) * r) * Math.cos(b[1] * r), x = Math.cos(a[1] * r) * Math.sin(b[1] * r) - Math.sin(a[1] * r) * Math.cos(b[1] * r) * Math.cos((b[0] - a[0]) * r); return (Math.atan2(y, x) / r + 360) % 360; };
@@ -80,8 +97,9 @@ function movedBearing(v) {
 const SNAP_M = 150, FADE_M = 2500;
 /** the best place for a reported position on one of these route shapes ([{ dir, line }]): { g, c (m along), d (m off), dir,
  *  brg (the shape's direction there) } or null when it is more than 150 m from all of them. heading (deg) picks between
- *  directions and between a loop's passes; prev (the last place on the same trip) prefers not to go backwards. */
-export function placeOn(lines, lon, lat, heading = null, prev = null) {
+ *  directions and between a loop's passes; prev (the last place on the same trip) prefers not to go backwards; starting
+ *  (its first or second stop is next) prefers the start of the line. */
+export function placeOn(lines, lon, lat, heading = null, prev = null, starting = false) {
   let best = null;
   for (const { dir, line } of lines) {
     if (!line || line.length < 2) continue;
@@ -92,10 +110,28 @@ export function placeOn(lines, lon, lat, heading = null, prev = null) {
       let s = k.d;
       if (heading != null && angDiff(b, heading) > 100) s += 400;
       if (prev && prev.g === g && k.c < prev.c - 50) s += 150;
+      if (starting && k.c > 1500) s += 300;          // its first stops are next: at a loop's terminal, the start, not the end
       if (!best || s < best.s) best = { g, c: k.c, d: k.d, dir, brg: b, s };
     }
   }
   return best;
+}
+const START_M = 400, DETOUR_M = 1000;
+/** a vehicle that isn't on its direction's shape: still placed, so its trip is drawn ahead of it. At the start of its trip
+ *  (its first or second stop is next, or it is within 400 m of the shape's first stretch: pulling out of a garage, or
+ *  laying over at the terminal) or more than 1 km away (driving out to its route): the whole trip is ahead, c = 0.
+ *  Otherwise (a detour, or a variant the shape doesn't cover) from the nearest point on the shape. off says which. */
+function offPlace({ dir, line }, v) {
+  const g = lineGeo(line), k = snapAll(g, v.lon, v.lat, 0)[0]; if (!k) return null;
+  const start = (v.seq != null && +v.seq <= 2) || k.c < START_M || k.d > DETOUR_M;
+  const c = start ? 0 : k.c;
+  return { g, c, d: k.d, dir, brg: lineAt(g, c)[2], off: start ? "start" : "detour" };
+}
+/** the route shapes a vehicle can be on: its reported direction's; all of the route's when the timetable has no shape
+ *  for that direction (a one-way route whose live trips report the other direction id) or none is reported */
+export function linesFor(v) {
+  const all = (v.r?.d || []).filter((d) => d.line && d.line.length > 1), mine = all.filter((d) => v.dir == null || d.dir === v.dir);
+  return mine.length ? mine : all;
 }
 const places = new Map();      // vehicle key → { lon, lat, trip, dir, r, p }: recomputed only when its report changes
 /** where a vehicle's reported position sits on its trip's shape (see the header), or null */
@@ -103,10 +139,11 @@ export function placeOf(v) {
   const r = v.r; if (!r || v.lat == null || v.lon == null) return null;
   const k = vKey(v), o = places.get(k);
   if (o && o.lon === v.lon && o.lat === v.lat && o.trip === v.trip && o.dir === v.dir && o.r === r) return o.p;
-  const lines = r.d.filter((d) => d.line && d.line.length > 1 && (v.dir == null || d.dir === v.dir));
+  const lines = linesFor(v);
   const heading = reportedBearing(v) ?? movedBearing(v);
   const prev = o && o.trip === v.trip && o.r === r ? o.p : null;
-  const p = !lines.length || (lines.length > 1 && heading == null) ? null : placeOn(lines, v.lon, v.lat, heading, prev);
+  let p = !lines.length || (lines.length > 1 && heading == null) ? null : placeOn(lines, v.lon, v.lat, heading, prev, v.seq != null && +v.seq <= 2);
+  if (!p && lines.length === 1) p = offPlace(lines[0], v);
   if (places.size > 6000) places.clear();
   places.set(k, { lon: v.lon, lat: v.lat, trip: v.trip, dir: v.dir, r, p });
   return p;
@@ -114,7 +151,7 @@ export function placeOf(v) {
 /** which way a vehicle faces: its reported bearing; else its route shape's direction where it is; else its last measured move */
 export function headingOf(v) {
   const rb = reportedBearing(v); if (rb != null) return { deg: rb, how: "reported" };
-  const p = placeOf(v); if (p) return { deg: p.brg, how: "along its route" };
+  const p = placeOf(v); if (p && !p.off) return { deg: p.brg, how: "along its route" };
   const mb = movedBearing(v); return mb != null ? { deg: mb, how: "from its last move" } : null;
 }
 export const faceBearing = (v) => headingOf(v)?.deg ?? null;
@@ -146,14 +183,16 @@ const W_CASE_AHEAD = ["interpolate", ["linear"], ["zoom"], 9, 7.5, 15, 14];
  *  after every refresh, where colours = { bright, dull, dullA (the dull end's opacity), surface (the casing) } */
 export function tripPathLayers(map, id) {
   const src = id, fsrc = `${id}-fade`;
-  const ids = [`${id}-rest`, `${id}-fade-case`, `${id}-ahead-case`, `${id}-fade`, `${id}-ahead`];
+  const ids = [`${id}-rest`, `${id}-link`, `${id}-fade-case`, `${id}-ahead-case`, `${id}-fade`, `${id}-ahead`];
   let last = null, col = null, painted = "";
   const lineLayer = (lid, source, paint, filter) => ({ id: lid, type: "line", source, ...(filter ? { filter } : {}), layout: { "line-cap": "round", "line-join": "round" }, paint });
   function data(p) {
     if (!p) return { main: EMPTY, fade: EMPTY };
     const { g, c } = p, F = Math.min(FADE_M, c);
     const f = (part, coords) => (coords.length >= 2 ? [{ type: "Feature", properties: { part }, geometry: { type: "LineString", coordinates: coords } }] : []);
-    return { main: { type: "FeatureCollection", features: [...f("rest", sliceLine(g, 0, c - F)), ...f("ahead", sliceLine(g, c, g.L))] },
+    // off its shape (p.from = where it is): a dashed link from the vehicle to where its trip picks up
+    const link = p.off && p.from && p.d > 40 ? f("link", [p.from, lineAt(g, c).slice(0, 2)]) : [];
+    return { main: { type: "FeatureCollection", features: [...f("rest", sliceLine(g, 0, c - F)), ...link, ...f("ahead", sliceLine(g, c, g.L))] },
       fade: { type: "FeatureCollection", features: f("fade", sliceLine(g, c - F, c)) } };
   }
   function paintCols() {
@@ -166,6 +205,7 @@ export function tripPathLayers(map, id) {
     map.setPaintProperty(`${id}-ahead-case`, "line-color", col.surface);
     map.setPaintProperty(`${id}-rest`, "line-color", col.dull);
     map.setPaintProperty(`${id}-rest`, "line-opacity", col.dullA);
+    map.setPaintProperty(`${id}-link`, "line-color", col.bright);
   }
   return {
     ids, sources: [src, fsrc],
@@ -176,6 +216,8 @@ export function tripPathLayers(map, id) {
       map.addSource(fsrc, { type: "geojson", data: d.fade, lineMetrics: true });
       const add = (l) => map.addLayer(l, before && map.getLayer(before) ? before : undefined);
       add(lineLayer(`${id}-rest`, src, { "line-color": "#888888", "line-width": W_SEL, "line-opacity": 0.3 }, ["==", ["get", "part"], "rest"]));
+      add({ id: `${id}-link`, type: "line", source: src, filter: ["==", ["get", "part"], "link"], layout: { "line-cap": "butt", "line-join": "round" },
+        paint: { "line-color": "#888888", "line-width": 2, "line-opacity": 0.85, "line-dasharray": [2, 2] } });
       add(lineLayer(`${id}-fade-case`, fsrc, { "line-width": W_CASE, "line-gradient": fadeExpr("#ffffff", "#ffffff", 0.9, 0) }));
       add(lineLayer(`${id}-ahead-case`, src, { "line-color": "#ffffff", "line-width": W_CASE_AHEAD, "line-opacity": 0.9 }, ["==", ["get", "part"], "ahead"]));
       add(lineLayer(`${id}-fade`, fsrc, { "line-width": W_SEL, "line-gradient": fadeExpr("#888888", "#888888", 1, 0.3) }));
@@ -184,7 +226,7 @@ export function tripPathLayers(map, id) {
     },
     /** draw this place's path (null clears it) in these colours */
     set(p, colours) {
-      const same = (last === p) || (last && p && last.g === p.g && last.c === p.c);
+      const same = (last === p) || (last && p && last.g === p.g && last.c === p.c && String(last.from) === String(p.from));
       last = p; if (colours) col = colours;
       if (!map.getSource(src)) return;
       if (!same) { const d = data(p); map.getSource(src).setData(d.main); map.getSource(fsrc).setData(d.fade); }
@@ -203,10 +245,11 @@ const offOf = (mode) => { if (!OFF.has(mode)) OFF.set(mode, isoOffset(mode)); re
 // icon-offset by sprite mode (a GeoJSON source turns array properties into strings, so the offset can't ride on the feature)
 const SPRITE_MODES = ["bus", "dd", "artic", "trolleybus", "tram", "subway", "monorail", "rail", "ferry", "cable", "gondola", "funicular"];
 const offsetExpr = () => ["match", ["get", "sm"], ...SPRITE_MODES.flatMap((m) => [m, ["literal", offOf(m)]]), ["literal", offOf("bus")]];
+// the whole network, always drawn: thin soft pastel lines (frequent routes a little wider), under everything else
 const WIDTH = {
-  base: ["interpolate", ["linear"], ["zoom"], 9, ["+", 0.7, ["get", "w"]], 15, ["+", 2, ["*", 1.4, ["get", "w"]]]],
-  dim: ["interpolate", ["linear"], ["zoom"], 9, 0.5, 15, 1.2],
+  base: ["interpolate", ["linear"], ["zoom"], 9, ["+", 0.8, ["*", 0.5, ["get", "w"]]], 12, ["+", 1.2, ["*", 0.8, ["get", "w"]]], 15, ["+", 2, ["*", 1.2, ["get", "w"]]]],
 };
+const NET_A = (dark, quiet) => (dark ? (quiet ? 0.38 : 0.6) : quiet ? 0.5 : 0.8);
 const PATH = "tr-path";
 const LAYERS = ["tr-lines", "tr-lines-hit", "tr-line-case", "tr-line-sel", "tr-stops", "tr-cor-case", "tr-cor", "tr-veh", "tr-cams"];
 const SOURCES = ["tr-lines", "tr-stops", "tr-cor", "tr-veh", "tr-cams"];
@@ -221,7 +264,7 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
 
   // ---------------------------------------------------------------- data
   const lineFeatures = () => { const d = dark(); return routes().flatMap((r) => r.d.filter((x) => x.line).map((x) => ({ type: "Feature",
-    properties: { key: rKey(r), dir: x.dir, c: pastel(r.color, d), cs: pastel(r.color, d, true), w: r.peakPerHour >= 4 ? 1 : 0 }, geometry: { type: "LineString", coordinates: x.line } }))); };
+    properties: { key: rKey(r), dir: x.dir, c: pastel(r.color, d), cs: vivid(r.color, d), w: r.peakPerHour >= 4 ? 1 : 0 }, geometry: { type: "LineString", coordinates: x.line } }))); };
   const stopGeo = () => ({ type: "FeatureCollection", features: T.stops.flatMap((S) => S.list.map((s) => ({ type: "Feature", geometry: { type: "Point", coordinates: [s.lon, s.lat] }, properties: { key: `${s.agency}:${s.id}`, name: s.name } }))) });
   // every vehicle at its reported position, facing its reported bearing (else along its route shape there)
   function vehGeo() {
@@ -236,7 +279,9 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
   const selPlace = () => { const v = selVehicle(); return v ? placeOf(v) : null; };
   function paintPath() {
     const v = selVehicle(), p = v ? placeOf(v) : null, d = dark();
-    path.set(p, p ? { bright: pastel(v.r.color, d, true), dull: pastel(v.r.color, d), dullA: d ? 0.3 : 0.38, surface: css().surface } : null);
+    // bright = the route's own colour (vivid) ahead; behind it fades to the soft version, which stays legible above the
+    // pastel network (wider and more opaque), so the whole trip reads as one route
+    path.set(p && p.off ? { ...p, from: posOf(v) } : p, p ? { bright: vivid(v.r.color, d), dull: pastel(v.r.color, d, true), dullA: d ? 0.5 : 0.6, surface: css().surface } : null);
   }
 
   // ---------------------------------------------------------------- layers
@@ -244,7 +289,7 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
     if (dead || !map.getStyle() || map.getSource("tr-lines")) return;
     const { ink, surface } = css(), d = dark();
     map.addSource("tr-lines", { type: "geojson", data: { type: "FeatureCollection", features: lineFeatures() } });
-    map.addLayer({ id: "tr-lines", type: "line", source: "tr-lines", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "c"], "line-width": WIDTH.base, "line-opacity": d ? 0.62 : 0.8 } });
+    map.addLayer({ id: "tr-lines", type: "line", source: "tr-lines", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "c"], "line-width": WIDTH.base, "line-opacity": NET_A(d, false) } });
     map.addLayer({ id: "tr-lines-hit", type: "line", source: "tr-lines", paint: { "line-color": "#000", "line-width": 10, "line-opacity": 0 } });
     map.addLayer({ id: "tr-line-case", type: "line", source: "tr-lines", filter: ["==", ["get", "key"], ""], layout: { "line-cap": "round", "line-join": "round" },
       paint: { "line-color": surface, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 6, 15, 12], "line-opacity": 0.9 } });
@@ -283,9 +328,8 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
     const dirOk = v?.r && v.dir != null && v.r.d.some((x) => x.dir === v.dir && x.line);
     const filt = !f || placed ? ["==", ["get", "key"], ""] : dirOk ? ["all", ["==", ["get", "key"], f], ["==", ["get", "dir"], v.dir]] : ["==", ["get", "key"], f];
     map.setFilter("tr-line-sel", filt); map.setFilter("tr-line-case", filt);
-    const dim = f || v || corId;
-    map.setPaintProperty("tr-lines", "line-opacity", dim ? (d ? 0.2 : 0.3) : d ? 0.62 : 0.8);
-    map.setPaintProperty("tr-lines", "line-width", dim ? WIDTH.dim : WIDTH.base);
+    // the rest of the network stays drawn as the soft pastel lines, a little quieter while something is picked
+    map.setPaintProperty("tr-lines", "line-opacity", NET_A(d, !!(f || v || corId)));
     map.setPaintProperty("tr-veh", "icon-opacity", f ? ["case", ["==", ["get", "rk"], f], 1, 0.3] : v ? ["case", ["==", ["get", "key"], vKey(v)], 1, 0.3] : corId ? ["case", ["==", ["get", "oc"], 1], 1, 0.35] : 1);
   }
   /** after each refresh (and on select, rotate, restyle): sprites to their reported positions, the selected path re-split */
@@ -303,13 +347,36 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
     return cd;
   }
 
-  // keep a selected vehicle in view after a refresh: when its new report is near the edge of the map, pan to it
+  // keep a selected vehicle in view after a refresh: when its new report is near the edge of the free area (the map
+  // between the page's panels), pan to it
   function follow() {
     if (!doFollow) return;
     const v = selVehicle(); if (!v) return;
-    const p = map.project(posOf(v)), c = map.getCanvas(), w = c.clientWidth, h = c.clientHeight;
-    if (p.x < w * 0.12 || p.x > w * 0.88 || p.y < h * 0.12 || p.y > h * 0.88) map.easeTo({ center: posOf(v), duration: reduced() ? 0 : 800 });
+    const p = map.project(posOf(v)), c = map.getCanvas(), q = map.getPadding();
+    const x0 = q.left || 0, x1 = c.clientWidth - (q.right || 0), y0 = q.top || 0, y1 = c.clientHeight - (q.bottom || 0), mx = (x1 - x0) * 0.1, my = (y1 - y0) * 0.1;
+    if (p.x < x0 + mx || p.x > x1 - mx || p.y < y0 + my || p.y > y1 - my) map.easeTo({ center: posOf(v), duration: reduced() ? 0 : 800 });
   }
+  /** what a selection shows: a vehicle with its route ahead to the end of its line and the fading stretch behind it
+   *  (unplaced: with its whole route); a route whole. [[w, s], [e, n]] or null */
+  function selBounds() {
+    let pts = null;
+    if (sel.k === "v") {
+      const v = selVehicle(); if (!v) return null;
+      const p = placeOf(v);
+      pts = [posOf(v), ...(p ? sliceLine(p.g, Math.max(0, p.c - FADE_M), p.g.L) : linesFor(v).flatMap((x) => x.line))];
+    } else if (sel.k === "r") pts = routeOf(sel.agency, sel.id)?.d.flatMap((x) => x.line || []);
+    if (!pts?.length) return null;
+    return [[d3.min(pts, (p) => p[0]), d3.min(pts, (p) => p[1])], [d3.max(pts, (p) => p[0]), d3.max(pts, (p) => p[1])]];
+  }
+  function fitSel(animate) {
+    const b = selBounds(); if (!b) return false;
+    map.fitBounds(b, { padding: 60, maxZoom: 15, duration: animate && !reduced() ? 600 : 0 });
+    return true;
+  }
+  // the Open Places stage re-fits its page view when its panels change (the vehicle card opening on the right): while
+  // something is selected, it re-fits to the selection instead (civic-stage.js pad())
+  const refit = () => (!dead && !!sel.k && fitSel(false));
+  map.opRefit = refit;
 
   // ---------------------------------------------------------------- interaction
   const H = [];
@@ -368,9 +435,7 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
       const key = sel.k ? `${sel.k}:${sel.agency}:${sel.id}` : null;
       if (key && flown !== key) {
         flown = key;
-        if (sel.k === "v") { const v = selVehicle(); if (v) map.easeTo({ center: posOf(v), zoom: Math.max(map.getZoom(), 14), duration: reduced() ? 0 : 600 }); }
-        if (sel.k === "r") { const r = routeOf(sel.agency, sel.id); const pts = r?.d.flatMap((x) => x.line || []);
-          if (pts?.length) map.fitBounds([[d3.min(pts, (p) => p[0]), d3.min(pts, (p) => p[1])], [d3.max(pts, (p) => p[0]), d3.max(pts, (p) => p[1])]], { padding: 40, duration: reduced() ? 0 : 600, maxZoom: 14 }); }
+        fitSel(true);
       }
       if (!key) flown = null;
     },
@@ -391,6 +456,7 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
     stopsLoaded() { map.getSource("tr-stops")?.setData(stopGeo()); },
     destroy() {
       dead = true;
+      if (map.opRefit === refit) delete map.opRefit;
       window.removeEventListener("transit-live", onLive);
       for (const [type, layer, fn] of H) { if (fn) map.off(type, layer, fn); else map.off(type, layer); }
       if (map.getStyle()) { for (const id of LAYERS) if (map.getLayer(id)) map.removeLayer(id); path.remove(); for (const id of SOURCES) if (map.getSource(id)) map.removeSource(id); }

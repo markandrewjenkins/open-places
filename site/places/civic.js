@@ -18,15 +18,17 @@ import "../src/shared/basemap.js";   // dark basemap labels match the light styl
 import "maplibre-gl/dist/maplibre-gl.css";
 import { initTheme, initSkin, el, cssVar } from "../src/shared/ui.js";
 import { createConsole, rovingTabs } from "../src/shared/console.js";
-import { PLACES, LEVELS, LIT, byId, childrenOf, chainOf, anywhere, placeFromParam, TODAY, monthF, km, nearestLit } from "./civic-data.js";
-import { ALL, BASICS, SPECIALS, TOPICS, nodeFor, score, inSeason, collectAlerts } from "./civic-modules.js";
+import { PLACES, LEVELS, LIT, byId, childrenOf, chainOf, anywhere, placeFromParam, TODAY, monthF, km, nearestLit, boundaryOf, hasBoundary, inGeom } from "./civic-data.js";
+import { ALL, BASICS, SPECIALS, TOPICS, TOPIC_ALIAS, nodeFor, score, inSeason, collectAlerts } from "./civic-modules.js";
 import { createGlobe } from "./civic-globe.js";
-import { createAlerts, rel } from "./civic-alerts.js";
+import { createAlerts, rel, tagAlert } from "./civic-alerts.js";
 import { createSound } from "./civic-sound.js";
 import { icon } from "./civic-icons.js";
 import { brief, briefEl, railTip } from "./civic-brief.js";
-import { createStage } from "./civic-stage.js";
-import { stageOf, specs, overviewLayers, summaryLayers, zoomFor } from "./civic-layers.js";
+import { createStage, circleFeature } from "./civic-stage.js";
+import { stageOf, specs, overviewLayers, summaryLayers, zoomFor, STAGES } from "./civic-layers.js";
+import { drivebcEvents } from "./civic-mod-roads.js";   // alert geometry: a DriveBC event's road segment by its id
+import "./civic-focus.css";   // the alert detail panel and the place-switch prompt
 
 // the logo is a small globe that turns to whatever you are looking at (civic-globe.js)
 const globe = createGlobe(document.querySelector(".civ-brand svg"));
@@ -78,7 +80,7 @@ const fWhen = (s) => { const d = new Date(s); return `${d.toLocaleDateString([],
 // ------------------------------------------------------------------ About & Methodology (with "Coming later")
 const comingLater = () => {
   const rows = ALL.filter((m) => m.planned).map((m) => [m.title, (m.at === "*" ? "Everywhere" : m.at.map((id) => byId.get(id)?.short).filter(Boolean).join(", ")), String(m.why || m.src || "").split(/(?<=\.)\s/)[0]]);
-  rows.push(["Roads & cameras outside BC", "Washington, California, Ontario", "Mock until WSDOT, Caltrans and Ontario 511 feeds and camera terms are checked."]);
+  rows.push(["Vehicle traffic and cameras outside BC", "Washington, California, Ontario", "Planned until WSDOT, Caltrans and Ontario 511 feeds and camera terms are checked."]);
   rows.push(["Live transit with keys", "Vancouver, LA, San Diego, Las Vegas", "Their real-time feeds need an API key; timetables only until the owner registers one."]);
   rows.push(["Ferry capacity and sailing waits", "Greater Victoria, Greater Vancouver", "BC Ferries publishes no open feed; positions from AIS are live."]);
   return el("div", { class: "card prose civ-later" }, el("h3", {}, "Coming Later"),
@@ -104,9 +106,12 @@ const LEAF = new Map(ALL.map((m) => [m.id, m]));
 const TOPIC_OF = new Map(TOPICS.flatMap((t) => t.leaves.map((l) => [l.id, t])));
 const TOPIC = new Map(TOPICS.map((t) => [t.id, t]));
 const LV = { alerts: -1, basic: -1, muni: 0, region: 1, province: 2, country: 3, world: 4 };
-const leavesOf = (t) => t.leaves.slice().sort((a, b) => (b.applies(ctx) - a.applies(ctx)) || (LV[a.scale] - LV[b.scale]) || (score(b, ctx) - score(a, ctx)));
+const leavesOf = (t) => t.leaves.slice().sort((a, b) => (b.applies(ctx) - a.applies(ctx)) || (t.fixed ? t.leaves.indexOf(a) - t.leaves.indexOf(b) : (LV[a.scale] - LV[b.scale]) || (score(b, ctx) - score(a, ctx))));
+// insets: leaves opened from a button on a parent leaf's page (no tab of their own until opened)
+const PARENT = new Map(TOPICS.flatMap((t) => Object.entries(t.insets || {})));
+const insetsOf = (l) => [...PARENT].filter(([, p]) => p === l.id).map(([id]) => LEAF.get(id)).filter((x) => x && x.applies(ctx) && !x.planned);
 const shownLeaves = (t) => leavesOf(t).filter((l) => l.applies(ctx) && !l.planned);
-const leafHref = (l) => `#${TOPIC_OF.get(l.id).id}/${l.id}`;
+const leafHref = (l) => (TOPIC_OF.has(l.id) ? `#${TOPIC_OF.get(l.id).id}/${l.id}` : `#${l.id}`);   // a leaf folded into another page: fixHash maps it
 const SUM = "summary";
 const sumHref = (t) => `#${t.id}/${SUM}`;
 const SMALL = new Set(["and", "or", "of", "the", "in", "on", "a", "to"]);
@@ -114,16 +119,32 @@ const titleCase = (s) => s.split(" ").map((w, i) => (i && SMALL.has(w) ? w : w.c
 const put = (node, ...kids) => node.replaceChildren(...kids.flat().filter((k) => k != null && k !== false));
 const fpanel = (id, title, ic, body, extra = {}) => el("section", { class: "civ-fp civ-fpanel", "data-p": id, ...extra }, el("h3", { class: "civ-fp-h" }, icon(ic, { size: 14 }), el("span", {}, title)), body);
 function scaleTag(l) {
+  if (l.tag) return typeof l.tag === "function" ? l.tag(ctx) : l.tag;   // a leaf that names its own area ("Salish Sea")
   if (LV[l.scale] < 0) return "";
   const n = nodeFor(l, ctx);
   return !n ? "" : n.anywhere ? "nearby" : n.level === "world" ? "World" : n.short;
 }
 // old flat links (#quakes, #alerts, …) and bare topics (#hazard) → #topic/leaf, before the console parses the hash
-function fixHash() {
-  const [a, ...rest] = location.hash.replace(/^#\/?/, "").split("/");
+function canonHash(h) {
+  const [a, ...rest] = String(h || "").replace(/^#\/?/, "").split("/");
   let to = null;
-  if (!TOPIC.has(a) && TOPIC_OF.has(a)) to = `#${TOPIC_OF.get(a).id}/${a}${rest.length ? `/${rest.join("/")}` : ""}`;
+  const MERGED = { bigquakes: "#hazard/quakes/world", lstops: "#getting-around/transit" };   // leaves folded into another page
+  if (MERGED[a] || MERGED[rest[0]]) to = MERGED[a] || MERGED[rest[0]];
+  else if (!TOPIC.has(a) && TOPIC_OF.has(a)) to = `#${TOPIC_OF.get(a).id}/${a}${rest.length ? `/${rest.join("/")}` : ""}`;
+  else if (!TOPIC.has(a) && rest[0] && TOPIC_OF.has(rest[0])) to = `#${TOPIC_OF.get(rest[0]).id}/${rest.join("/")}`;   // a moved leaf
+  else if (!TOPIC.has(a) && TOPIC_ALIAS[a]) to = `#${TOPIC_ALIAS[a]}/${SUM}`;                                          // a renamed topic
   else if (TOPIC.has(a) && !rest[0]) to = `#${a}/${SUM}`;
+  else if (TOPIC.has(a)) {
+    // another place's twin of a page (waterways-next: Sea Traffic for US ports) → this place's own page of that name
+    const l = LEAF.get(rest[0]);
+    let here = false; try { here = !!l && !l.planned && l.applies(ctx); } catch { /* ctx not ready */ }
+    const twin = l && !here && leavesOf(TOPIC.get(a)).find((x) => x !== l && (x.tileTitle || x.title) === (l.tileTitle || l.title) && !x.planned && (() => { try { return x.applies(ctx); } catch { return false; } })());
+    if (twin) to = `#${a}/${twin.id}${rest.length > 1 ? `/${rest.slice(1).join("/")}` : ""}`;
+  }
+  return to;
+}
+function fixHash() {
+  const to = canonHash(location.hash);
   if (to) history.replaceState(null, "", location.pathname + location.search + to);
 }
 fixHash();
@@ -223,9 +244,14 @@ function padStage() {
   for (const k of Object.keys(p)) p[k] = Math.max(0, Math.round(p[k] + 14));
   // zoom buttons and the map credits sit in the free corner, never under a panel
   stage.el.style.setProperty("--pr", `${Math.max(0, p.right - 14)}px`); stage.el.style.setProperty("--pb", `${Math.max(0, p.bottom - 14)}px`);
+  stage.el.style.setProperty("--pl", `${p.left}px`); stage.el.style.setProperty("--pt", `${p.top}px`);
   stage.pad(p);
 }
-function afterRender() { requestAnimationFrame(() => { placeStage(); requestAnimationFrame(padStage); }); }
+function afterRender() {
+  placeAlertCard();   // at once, so a page's re-render never paints without the alert panel
+  requestAnimationFrame(() => { placeStage(); requestAnimationFrame(padStage); });
+  if (stage.key !== swFor) { swFor = stage.key; hideSwitch(); }   // a new page: its own view, no prompt
+}
 matchMedia(DESK).addEventListener("change", () => { applyPlace(); cx.refresh(); afterRender(); });
 addEventListener("resize", () => { clearTimeout(afterRender.t); afterRender.t = setTimeout(afterRender, 120); });
 
@@ -335,8 +361,17 @@ function paintTabs() {
     for (const l of leavesOf(t)) {
       const a = tabOf.get(`${t.id}/${l.id}`), on = r.topic === t.id && r.sub === l.id;
       m.subtabs.append(a);
-      a.hidden = !on && (!l.applies(ctx) || l.planned);
+      a.hidden = !l.applies(ctx) || l.planned || (PARENT.has(l.id) && !on);   // not here: no tab, even while open; an inset: only while open
+      a.classList.toggle("civ-leaf-inset", PARENT.has(l.id));
+      if (PARENT.has(l.id)) a.classList.toggle("civ-leaf-parent-on", false);
       a.querySelector(".civ-lv").textContent = scaleTag(l);
+    }
+    // on an inset, its parent's tab stays lit and the inset's tab sits right after it
+    for (const [id, p] of PARENT) {
+      const pa = tabOf.get(`${t.id}/${p}`), ia = tabOf.get(`${t.id}/${id}`); if (!pa || !ia) continue;
+      const onInset = r.topic === t.id && r.sub === id;
+      pa.classList.toggle("civ-leaf-parent-on", onInset);
+      if (onInset) pa.after(ia);
     }
     rovingTabs(m.subtabs);
     if (t.id === r.topic) requestAnimationFrame(() => { m.subtabs.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" }); m.subtabs.fade?.(); });
@@ -360,17 +395,25 @@ function paintTopic(r) {
   }
 }
 /** the topic's KPI strip and the layer chips ride in the page's strip slot (one compact row over the map) */
-function stripInto(wrap, topicId) {
+function stripInto(wrap, topicId, l) {
   const s = wrap.querySelector(".civ-sg-strip"), k = byTopic.get(topicId)?.kpiEl;
   if (k && k.parentNode !== s) s.prepend(k);
   if (stage.chips.parentNode !== s) s.append(stage.chips);
+  // inset buttons on a parent page ("Route 95 Spotlight" in Transit), a way back on an inset
+  s.querySelector(":scope > .civ-insets")?.remove();
+  if (!l) return;
+  const ins = insetsOf(l), par = PARENT.has(l.id) ? LEAF.get(PARENT.get(l.id)) : null;
+  if (!ins.length && !par) return;
+  s.append(el("nav", { class: "civ-insets", "aria-label": par ? `Back to ${par.title}` : `Inside ${l.title}` },
+    ...(par ? [el("a", { class: "civ-inset civ-inset-back", href: `#${topicId}/${par.id}` }, icon("arrowL", { size: 13 }), el("span", {}, `All ${par.tileTitle || par.title}`))]
+      : ins.map((x) => el("a", { class: "civ-inset", href: `#${topicId}/${x.id}`, style: `--lc:${x.color}` }, icon(x.id, { size: 13 }), el("span", {}, x.tileTitle || x.title))))));
 }
 
 // ------------------------------------------------------------------ a leaf: its pane over the map, its layers on the map
 function renderLeaf(l, host, c, r) {
   if (!ready) return;   // the first render, during createConsole; cx.refresh() at the end paints it
   const st = stageOf(l), wrap = host.querySelector(".civ-sg");
-  stripInto(wrap, TOPIC_OF.get(l.id).id);
+  stripInto(wrap, TOPIC_OF.get(l.id).id, l);
   if (st.pane !== "none") try { l.view?.(host, c, r); } catch (e) { console.warn(`[leaf] ${l.id}:`, e?.message || e); }   // pane "none": the stage panels are the page
   const left = wrap.querySelector(".civ-sg-left");
   const ps = st.panels ? st.panels(c) || [] : [];
@@ -383,7 +426,8 @@ function renderLeaf(l, host, c, r) {
   stageHasLayers = st.layers.length > 0 || !!st.custom;
   const sp = [...(st.custom ? [{ id: `own-${l.id}-${c.place.id}`, custom: st.custom }] : []), ...specs(st.layers)];
   const v = safeView(st, c);
-  stage.show({ key: `leaf:${l.id}:${c.place.id}`, specs: sp, center: v?.center || c.place.ll, zoom: v?.zoom ?? zoomFor(c, st.dz), bounds: v?.bounds || null });
+  stage.show({ key: `leaf:${l.id}:${c.place.id}`, specs: sp, center: v?.center || c.place.ll, zoom: v?.zoom ?? zoomFor(c, st.dz), bounds: v?.bounds || null,
+    coverage: () => leafCoverage(l, c), tint: l.color, home: homeOf(c) });
   afterRender();
 }
 
@@ -412,7 +456,7 @@ function paintSummary(t, host, c) {
     : [el("p", { class: "note" }, "Everything here is live.")]));
   host.querySelector('[data-p="data"]').hidden = !data.length;
   stageHasLayers = true;
-  stage.show({ key: `sum:${t.id}:${c.place.id}`, specs: summaryLayers(live), center: c.place.ll, zoom: zoomFor(c) });
+  stage.show({ key: `sum:${t.id}:${c.place.id}`, specs: summaryLayers(live), center: c.place.ll, zoom: zoomFor(c), coverage: () => nodeCoverage(c.place, c), tint: t.color, home: homeOf(c) });
   afterRender();
 }
 function summaryKpis(t, c) {
@@ -445,13 +489,13 @@ function applyPlace() {
   if (location.hash !== "#world") globe.place(ctx.place);
   const p = ctx.place;
   // hero: conditions, air, the next departures, roads (live only: published data is never a tile's headline)
-  const has = (id) => { const l = LEAF.get(id); return l && l.applies(ctx) && isLive(l) ? l : null; };
-  heroSet = [has("weather"), has("air"), has("lstops") || has("transit"), has("roads")].filter(Boolean);
+  const has = (id) => { const l = TOPIC_OF.has(id) && LEAF.get(id); return l && l.applies(ctx) && isLive(l) ? l : null; };
+  heroSet = [has("weather"), has("air"), has("transit"), has("roads")].filter(Boolean);
   ovs.hero.replaceChildren(...heroSet.map((l) => tileFor(l, "hero").el));
   ovs.hero.style.setProperty("--n", heroSet.length);
   // the place's other live topics (level focus: around here; one level up only when urgent)
   const heroIds = new Set(heroSet.map((l) => l.id));
-  const pool = [...BASICS, ...SPECIALS].filter((l) => l.applies(ctx) && !l.planned && isLive(l) && !heroIds.has(l.id) && !(heroIds.has("lstops") && l.id === "transit"));
+  const pool = [...BASICS, ...SPECIALS].filter((l) => TOPIC_OF.has(l.id) && l.applies(ctx) && !l.planned && isLive(l) && !heroIds.has(l.id));
   const here = pool.filter((l) => distOf(l) === 0).sort((a, b) => (isUrgent(b) - isUrgent(a)) || (score(b, ctx) - score(a, ctx)));
   const up = pool.filter((l) => distOf(l) === 1 && isUrgent(l));
   midSet = [...here.slice(0, 6), ...up.slice(0, 2)];
@@ -475,7 +519,7 @@ function applyPlace() {
 function showOverviewMap() {
   stageHasLayers = true;
   if (stage.chips.parentNode !== ovs.chips) ovs.chips.append(stage.chips);
-  stage.show({ key: `ov:${ctx.place.id}`, specs: overviewLayers(ctx), center: ctx.place.ll, zoom: zoomFor(ctx) });
+  stage.show({ key: `ov:${ctx.place.id}`, specs: overviewLayers(ctx), center: ctx.place.ll, zoom: zoomFor(ctx), coverage: () => nodeCoverage(ctx.place, ctx), tint: "var(--accent)", home: homeOf(ctx) });
   afterRender();
 }
 /** every topic at a glance: icon, name and its live headline (or that it holds published data) */
@@ -491,8 +535,8 @@ function paintOverviewLive() {
   if (cx.route.topic !== "overview") return;
   paintGlance(); paintAlertsPanel();
   // a live tile can turn live or drop out as data lands (e.g. the relay answering): re-pick when the set changes
-  const has = (id) => { const l = LEAF.get(id); return l && l.applies(ctx) && isLive(l); };
-  const want = [has("weather"), has("air"), has("lstops") || has("transit"), has("roads")].filter(Boolean).length;
+  const has = (id) => { const l = TOPIC_OF.has(id) && LEAF.get(id); return l && l.applies(ctx) && isLive(l); };
+  const want = [has("weather"), has("air"), has("transit"), has("roads")].filter(Boolean).length;
   if (want !== heroSet.length) applyPlace();
   showOverviewMap();
 }
@@ -501,7 +545,10 @@ function paintOverviewLive() {
 function paintAlertsPanel() {
   const a = collectAlerts(ctx), items = focusAlerts(a.items);
   const b = brief(ctx, { a, items, mods: LEAF, feed, hrefOf: (m) => (TOPIC_OF.has(m.id) ? leafHref(m) : `#${m.id}`) });
-  put(alertsBox, briefEl(b),
+  const be = briefEl(b);
+  // each row carries its item, so a click fits the map to it (the rows are b.items in order; matched by their text)
+  for (const r of be.querySelectorAll(".civ-brf")) { const x = b.items.find((i) => i.text === r.querySelector("p")?.textContent); if (x) tagAlert(r, x); }
+  put(alertsBox, be,
     el("div", { class: "civ-fp-foot" }, el("span", {}, "Summarised by fixed rules from this page's live feeds"), el("a", { class: "civ-open", href: "#now/alerts" }, "All alerts →")));
   const n = b.items.filter((x) => x.tier === 1).length;
   ovs.right.querySelector(".civ-fp-h span").textContent = n ? `What You Need to Know · ${n} now` : "What You Need to Know";
@@ -552,14 +599,16 @@ addEventListener("resize", closeMenu);
 /** a leaf's own view (stage.view(ctx) → { center, zoom, bounds? }), e.g. Transit opens on the whole metro area */
 function safeView(st, c) { try { return st.view?.(c) || null; } catch { return null; } }
 
-function setPlace(p) {
+function setPlace(p, { stay = false } = {}) {
   ctx.place = p; ctx.chain = chainOf(p);
   quietUntil = performance.now() + QUIET;
   feed?.setPlace();
   history.replaceState(null, "", `${location.pathname}?p=${p.id}${location.hash}`);
   try { localStorage.setItem(LAST, p.id); } catch { /* private window */ }
   applyPlace();
-  if (location.hash === "#overview") cx.refresh(); else location.hash = "#overview";
+  // stay: keep the page when it has something for the new place (the place-switch prompt); else the Overview
+  const r = cx.route, l = LEAF.get(r.sub), keep = stay && (r.topic === "overview" || r.sub === SUM || (l && l.applies(ctx) && !l.planned));
+  if (location.hash === "#overview" || keep) cx.refresh(); else location.hash = "#overview";
   paintAlerts();
 }
 
@@ -625,19 +674,19 @@ function paintAlerts() {
   const a = collectAlerts(ctx), items = focusAlerts(a.items), top = items[0];
   const state = !items.length ? "clear" : top.sev >= 3 ? "warning" : "active";
   strip.dataset.state = state;
-  const chip = (x) => el("a", { class: "civ-al-i", href: x.href, "data-sev": x.sev, title: [x.title, x.where, x.src].filter(Boolean).join(" · ") },
-    el("i", { class: "civ-sev", "data-sev": x.sev }), el("b", {}, x.title), x.where ? el("span", {}, x.where) : null);
+  const chip = (x) => tagAlert(el("a", { class: "civ-al-i", href: x.href, "data-sev": x.sev, title: [x.title, x.where, x.src].filter(Boolean).join(" · ") },
+    el("i", { class: "civ-sev", "data-sev": x.sev }), el("b", {}, x.title), x.where ? el("span", {}, x.where) : null), x);
   const head = el("a", { class: "civ-al-k", href: "#now/alerts", title: "All alerts" }, items.length ? `Alerts · ${items.length}` : "Alerts");
   let body;
   if (state === "clear") body = [el("span", { class: "civ-al-clear" }, a.loading ? "Checking alerts…" : `All clear for ${ctx.place.anywhere ? "this spot" : ctx.place.short}`)];
   else if (state === "warning") {
-    body = [el("a", { class: "civ-al-top", href: top.href }, el("i", { class: "civ-sev", "data-sev": 3 }), el("b", {}, top.title),
-      el("span", {}, [top.where, top.until ? `until ${fWhen(top.until)}` : null, top.src].filter(Boolean).join(" · "))),
+    body = [tagAlert(el("a", { class: "civ-al-top", href: top.href }, el("i", { class: "civ-sev", "data-sev": 3 }), el("b", {}, top.title),
+      el("span", {}, [top.where, top.until ? `until ${fWhen(top.until)}` : null, top.src].filter(Boolean).join(" · "))), top),
     el("div", { class: "civ-al-list" }, ...items.slice(1).map(chip))];
   } else body = [el("div", { class: "civ-al-list" }, ...items.map(chip))];
   const nw = feed?.latest(10 * 60e3);
-  const fresh = nw && (nw.dist ?? 0) <= 1 ? el("a", { class: "civ-al-new", href: nw.href || "#overview", "data-level": nw.level, title: [nw.title, nw.body].filter(Boolean).join(" · ") },
-    el("em", {}, "New"), el("b", {}, nw.title), el("time", { class: "civ-fd-w", datetime: new Date(nw.t).toISOString() }, rel(nw.t))) : null;
+  const fresh = nw && (nw.dist ?? 0) <= 1 ? tagAlert(el("a", { class: "civ-al-new", href: nw.href || "#overview", "data-level": nw.level, title: [nw.title, nw.body].filter(Boolean).join(" · ") },
+    el("em", {}, "New"), el("b", {}, nw.title), el("time", { class: "civ-fd-w", datetime: new Date(nw.t).toISOString() }, rel(nw.t))), nw) : null;
   strip.replaceChildren(head, ...(fresh ? [fresh] : []), ...body, el("span", { class: "civ-al-sp" }), upd);
   paintUpdated();
   seedState(a);
@@ -764,6 +813,169 @@ function seedState(a) {
     title: n ? `${n} alert${n === 1 ? "" : "s"} active${w ? ` · ${w} warning${w === 1 ? "" : "s"}` : ""}` : "No active alerts",
     body: n ? items.slice(0, 4).map((x) => x.title).join(" · ") : `Checked ${a.checked.filter(([, k]) => k !== "not wired here").map(([s]) => s).join(", ")}.` } }));
 }
+
+// ------------------------------------------------------------------ coverage: the area each page's data covers (see civic-stage.js)
+/** a node's outline: its boundary, a circle where it has none (other regions, a clicked spot); null while loading */
+function nodeCoverage(n, c = ctx) {
+  if (!n || n.level === "world") return null;
+  if (n.anywhere) return { feature: circleFeature(n.ll, 25), label: "Around this spot · 25 km" };
+  const f = boundaryOf(n, c);
+  if (f) return { feature: f, label: n.level === "province" || n.level === "country" ? n.short : n.name };
+  return hasBoundary(n) ? null : { feature: circleFeature(n.ll, 40), label: `${n.short} area · 40 km` };
+}
+/** the place being viewed, for the stage: its dashed outline on every page and the name on the back-to-start button */
+function homeOf(c) {
+  const p = c.place;
+  if (!p || p.level === "world") return null;
+  return { label: p.anywhere ? "this spot" : p.level === "province" || p.level === "country" ? p.short || p.name : p.name, outline: () => nodeCoverage(p, c)?.feature || null };
+}
+/** a leaf's coverage: its own coverage(ctx) (on the module or its stage entry) wins; else the node the leaf covers */
+function leafCoverage(l, c) {
+  const own = l.coverage || (l.stage || STAGES[l.id])?.coverage;
+  if (typeof own === "function") {
+    let r; try { r = own(c); } catch (e) { console.warn(`[coverage] ${l.id}:`, e?.message || e); }
+    if (r === false) return null;
+    if (r?.feature?.geometry) return r;
+  }
+  if (!l.applies(c)) return null;
+  return nodeCoverage(nodeFor(l, c), c);
+}
+
+// ------------------------------------------------------------------ alerts on the map: fit, highlight, detail on the left
+// Every alert link (the strip, the alert lists, What You Need to Know, a Summary's feed) carries its alert (tagAlert,
+// civic-alerts.js). A click opens the alert's page with the map fitted to its geometry (a DriveBC road segment or point,
+// a warning's polygon, a quake's epicentre, a fire, an evacuation area), the shape highlighted, and its detail in a
+// panel on the left in the ship card's look. The same alert again, or the panel's ×, clears it; so does another page.
+// Ships, aircraft and park advisories keep their own selection (#topic/leaf/<id>; their pages fit and show the card).
+var alertSel = null;   // { key, x: the normalised alert, page: the stage key it belongs to, at, seen }
+const SEV_C = (s) => (s >= 3 ? "var(--bad)" : s >= 2 ? "var(--warn)" : "var(--accent)");
+const LEVEL_SEV = { warn: 2, notice: 1, info: 0 };
+const needOf = (id) => { const m = LEAF.get(id); try { return m && m.applies(ctx) ? m.need(ctx) : null; } catch { return null; } };
+/** an alert's geometry: its own geo, else found again in the feed that raised it (by the alert's id) */
+function geoOf(x) {
+  if (x.geo?.type) return { geo: x.geo, zoom: x.zoom };
+  const id = String(x.id || x.key || "");
+  let m = /^(?:roads:|malahat:)?drivebc:(?:malahat:[^:]+:)?(.+?)(?::(?:closed|incident|cleared))?$/.exec(id);
+  if (m) { const e = (drivebcEvents(ctx).data || []).find((v) => String(v.id) === m[1]); return e?.geography ? { geo: e.geography, zoom: 14 } : null; }
+  m = /^hazards:(fire|evac):(.+)$/.exec(id);
+  if (m) {
+    const d = needOf("hazards");
+    if (m[1] === "fire") { const f = d?.all?.find((v) => String(v.id) === m[2]); return f?.ll ? { geo: { type: "Point", coordinates: f.ll }, zoom: 10 } : null; }
+    const f = d?.evac?.find((v) => v.properties?.ORDER_ALERT_NAME === m[2]); return f?.geometry ? { geo: f.geometry, zoom: 12 } : null;
+  }
+  m = /^quakes:(\d+):([\d.]+)$/.exec(id);
+  if (m) { const q = needOf("quakes")?.qs?.find((v) => +v.t === +m[1]); return q ? { geo: { type: "Point", coordinates: q.ll }, zoom: 8.5 } : null; }
+  return null;
+}
+/** any producer's alert (collectAlerts item, feed item, briefing item) → one shape for the card */
+function normAlert(x) {
+  const title = x.title || x.text || "Alert", body = x.title ? x.text || x.body || "" : "";
+  const sev = Math.max(0, Math.min(3, x.sev ?? LEVEL_SEV[x.level] ?? 1));
+  const leaf = LEAF.get(x.topic);
+  return { key: String(x.id || x.key || title), title, body: String(body).split("\n").filter(Boolean).slice(0, 3).join(" ").slice(0, 420), sev,
+    src: x.src || (leaf ? leaf.tileTitle || leaf.title : ""), where: x.where || "", since: x.since || null, until: x.until || null, t: x.t || x.at || null, ...(geoOf(x) || {}) };
+}
+/** the stage key of the page an alert's link opens */
+function pageKeyOf(h) {
+  const [a, b] = String(h || "").replace(/^#\/?/, "").split("/"), pid = ctx.place.id;
+  if (!a || a === "overview") return `ov:${pid}`;
+  if (b === SUM) return `sum:${a}:${pid}`;
+  return LEAF.has(b) ? `leaf:${b}:${pid}` : null;
+}
+function clearAlert() { const had = alertSel; alertSel = null; if (stage.focused) stage.focus(null); if (had) placeAlertCard(); }
+addEventListener("op-focus", (e) => {
+  const { alert, href } = e.detail || {}; if (!alert) return;
+  const x = normAlert(alert);
+  if (alertSel && alertSel.key === x.key) { clearAlert(); return; }   // the same alert again: deselect
+  const to = canonHash(href) || href || location.hash, page = pageKeyOf(to);
+  stage.focus(x.geo ? { key: x.key, geo: x.geo, zoom: x.zoom, color: SEV_C(x.sev), page } : null);
+  alertSel = { key: x.key, x, page, at: Date.now(), seen: false };
+  if (decodeURI(to) !== decodeURI(location.hash)) location.hash = to; else afterRender();
+});
+stage.onFocusEnd((f) => { if (alertSel && alertSel.key === f.key) { alertSel = null; placeAlertCard(); } });
+let alertPanel = null;
+function alertCard(x) {
+  const row = (k, v) => (v ? [el("dt", {}, k), el("dd", {}, v)] : []);
+  const ago = x.t ? rel(x.t) : "";
+  return el("div", { class: "civ-alc", style: `--sc: ${SEV_C(x.sev)}` },
+    el("div", { class: "civ-alc-h" }, el("i", { class: "civ-sev", "data-sev": x.sev }), el("b", {}, x.title),
+      el("button", { type: "button", class: "civ-alc-x", title: "Clear the selection", "aria-label": "Clear the selection", onclick: clearAlert }, "×")),
+    x.body ? el("p", { class: "civ-alc-b" }, x.body) : null,
+    el("dl", {}, ...row("Where", x.where), ...row("Since", x.since ? fWhen(x.since) : ""), ...row("Until", x.until ? fWhen(x.until) : ""),
+      ...row("Source", x.src), ...row("Noticed", ago ? (ago === "now" ? "just now" : `${ago} ago`) : "")),
+    el("p", { class: "civ-alc-n" }, x.geo ? "Highlighted on the map. Click the alert again to clear it." : "This alert has no exact place on the map; the outline shows the area the page covers."));
+}
+/** the left column of the page on show (the Overview's, or the leaf's or Summary's stage column) */
+function leftCol() {
+  if (cx.route.topic === "overview") return ovs.left;
+  return byTopic.get(cx.route.topic)?.panes?.get(cx.route.sub)?.querySelector(".civ-sg-left") || null;
+}
+function fixLeft(col) {
+  if (!col) return;
+  if (col === ovs.left) { const on = !!midSet.length || col.contains(alertPanel); col.hidden = !on; board.classList.toggle("no-left", !on); }
+  else col.closest(".civ-sg")?.classList.toggle("has-left", col.childElementCount > 0);
+}
+/** keep the alert's panel first in the page's left column (the page re-renders its column; this puts it back) */
+function placeAlertCard() {
+  const s = alertSel;
+  if (s && s.page && stage.key && s.page !== stage.key && (s.seen || Date.now() - s.at > 8000)) { clearAlert(); return; }   // another page
+  const col = s && (!s.page || s.page === stage.key) ? leftCol() : null;
+  if (!col) { if (alertPanel?.isConnected) { const c = alertPanel.parentNode; alertPanel.remove(); fixLeft(c); } return; }
+  s.seen = true;
+  if (alertPanel?.dataset.key !== s.key) {
+    const old = alertPanel;
+    alertPanel = fpanel("alert", ["Alert", s.x.src].filter(Boolean).join(" · "), "bell", el("div", { class: "civ-fp-body" }, alertCard(s.x)), { class: "civ-fp civ-fpanel civ-alpanel" });
+    alertPanel.dataset.key = s.key;
+    old?.remove();
+  }
+  if (col.firstElementChild !== alertPanel) col.prepend(alertPanel);
+  fixLeft(col);
+}
+
+// ------------------------------------------------------------------ place-switch prompt: the view has moved to another place
+// When the user pans or zooms the map so its centre is well outside the place's own outline (the dashed line; the page's
+// coverage only while that loads), a small prompt offers the place
+// there ("You're looking at Greater Vancouver · Switch to Greater Vancouver"). It never switches by itself; × hides it
+// until the view moves to another place. The place: a CRD municipality whose outline holds the centre, else the nearest
+// place with its own topics within 75 km (more when zoomed out), else the province/state, else the country (at a province or country: those).
+const swp = el("div", { class: "civ-swp", role: "status", hidden: "" });
+stage.el.append(swp);
+var swFor = null, swDismissed = null;
+function hideSwitch() { swp.hidden = true; }
+function placeAt(ll, w = 0) {
+  const wide = ctx.place.level === "province" || ctx.place.level === "country";
+  const holds = (p) => { const f = boundaryOf(p, ctx); return !!f && inGeom(f.geometry, ll); };
+  if (!wide) {
+    const m = PLACES.find((p) => p.level === "muni" && holds(p)); if (m) return m;
+    // a lit place near the centre (75 km: a metro region reaches that far from its centre point); zoomed out, more
+    const n = nearestLit(ll[0], ll[1]); if (n && n.km <= Math.min(150, Math.max(75, w * 0.3))) return n.r;
+  }
+  return PLACES.find((p) => p.level === "province" && holds(p)) || PLACES.find((p) => p.level === "country" && holds(p)) || null;
+}
+/** km from a point to the nearest vertex of a geometry (outlines are simplified: close enough for "well outside") */
+const nearKm = (g, ll) => { let best = Infinity; const walk = (c) => { if (typeof c[0] === "number") { const d = km(c, ll); if (d < best) best = d; } else for (const x of c) walk(x); }; walk(g.coordinates); return best; };
+function checkSwitch() {
+  const m = stage.map;
+  if (!m || !stage.moved || mobile() || location.hash === "#world") return hideSwitch();   // only after the user's own moves
+  const g = (nodeCoverage(ctx.place, ctx) || stage.coverage)?.feature.geometry;
+  if (!g) return hideSwitch();
+  const ctr = m.getCenter(), ll = [ctr.lng, ctr.lat];
+  let cand = null;
+  if (!inGeom(g, ll)) {
+    // "well outside": a few km past the line, never more than 15 km however far out the view is zoomed
+    const b = m.getBounds(), w = km([b.getWest(), ctr.lat], [b.getEast(), ctr.lat]);
+    if (nearKm(g, ll) >= Math.min(15, Math.max(2, w * 0.1))) cand = placeAt(ll, w);
+  }
+  if (cand && ctx.chain.some((n) => n.id === cand.id)) cand = null;   // the place itself, or a level above it
+  if (!cand) { swDismissed = null; return hideSwitch(); }
+  if (cand.id === swDismissed) return hideSwitch();
+  swDismissed = null;
+  swp.replaceChildren(icon("pin", { size: 13 }), el("span", {}, `You're looking at ${cand.name}`),
+    el("button", { type: "button", class: "civ-swp-go", title: `Open ${cand.name}: every feed reloads for it`, onclick: () => { hideSwitch(); setPlace(cand, { stay: true }); } }, `Switch to ${cand.name}`),
+    el("button", { type: "button", class: "civ-swp-x", title: "Not now", "aria-label": "Dismiss", onclick: () => { swDismissed = cand.id; hideSwitch(); } }, "×"));
+  swp.hidden = false;
+}
+stage.onMove(checkSwitch);
 
 // ------------------------------------------------------------------ go
 ready = true;

@@ -52,6 +52,11 @@ export const UNCOVERED = {
 
 // Route 95's set piece belongs to Langford and the West Shore (and the CRD as a whole), not to the rest of the region
 export const SPOTLIGHT_PLACES = new Set(["crd", "langford", "colwood", "view-royal", "highlands", "metchosin", "sooke"]);
+// bus speeds on the roads (Vehicle Traffic's colouring and Bus Speeds panel, the Victoria bus feed that drives them):
+// every Greater Victoria place (workers/bct-relay/src/sets.js CRD list), plus the "victoria" alias. The West Shore road
+// alerts and starting view stay with SPOTLIGHT_PLACES.
+export const BUS_SPEED_PLACES = new Set(["crd", "victoria", "victoria-city", "saanich", "oak-bay", "esquimalt", "view-royal", "colwood", "langford",
+  "metchosin", "sooke", "highlands", "central-saanich", "north-saanich", "sidney"]);
 
 /** the region for an Open Places place id (or null) */
 export const regionForPlace = (placeId) => REGIONS.find((r) => r.places.includes(placeId)) || null;

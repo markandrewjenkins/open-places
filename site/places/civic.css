@@ -49,14 +49,10 @@ body.civic { font-size: var(--fs); font-variant-numeric: tabular-nums; backgroun
 .civ-brand { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); flex: none; }
 .civ-brand svg .lit { fill: var(--lit); filter: drop-shadow(0 0 3px var(--lit)); }
 /* the logo (civic-globe.js): ring, dawn amber, sea bricks, land, night side; light values first, dark below */
-:root { --logo-ring: #1b2433; --logo-lit: #d9891c; --logo-tile: #3f7fbf; --logo-land: #2f5f8f; --logo-night: #1b2433; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --logo-ring: #e6ebf3; --logo-lit: #f6b440; --logo-tile: #4f8fd0; --logo-land: #b9d3ee; --logo-night: #050a14; } }
-:root[data-theme="dark"] { --logo-ring: #e6ebf3; --logo-lit: #f6b440; --logo-tile: #4f8fd0; --logo-land: #b9d3ee; --logo-night: #050a14; }
-.civ-globe .lg-t { fill: var(--logo-tile); }
-.civ-globe .lg-l { fill: var(--logo-land); }
-.civ-globe .lg-a { fill: var(--logo-lit); }
-.civ-globe .lg-grat { fill: none; stroke: var(--logo-ring); stroke-width: .5; opacity: .22; }
-.civ-globe .lg-night { fill: var(--logo-night); opacity: .45; }
+/* the logo globe keeps its night colours in both themes (the light always shows); only its outline follows the theme */
+:root { --logo-ring: #1b2433; --logo-lit: #f6b440; --logo-sea: #081329; --logo-sea2: #12284d; --logo-land: #4a72a3; --logo-landlit: #f4dfae; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --logo-ring: #e6ebf3; } }
+:root[data-theme="dark"] { --logo-ring: #e6ebf3; }
 .civ-brand span { font-family: var(--display); font-weight: 700; font-size: 19px; letter-spacing: -0.01em; }
 .civ-crumbs { display: flex; align-items: center; gap: 1px; min-width: 0; font-size: 13px; padding-left: 12px; border-left: 1px solid var(--border); }
 .civ-crumb { border: 0; background: none; padding: 4px 6px; border-radius: var(--radius); color: var(--ink-2); text-decoration: none; cursor: pointer; white-space: nowrap; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }

@@ -71,8 +71,8 @@ L.roads = { id: "roads", title: "Road events", icon: "car", color: "var(--m-road
   data: (ctx) => {
     if (!isBC(ctx)) return null;
     const c = R.drivebcEvents(ctx, () => isBC(ctx)); if (!c.data) return null;
-    const r = reach(ctx, 30, 60, 900);
-    return fc(c.data.map((e) => ({ e, ll: R.evLL(e) })).filter((x) => x.ll && km(x.ll, ctx.place.ll) <= r).map(({ e, ll }) => {
+    const r = reach(ctx, 30, 60, 900), wide = TRF.crdWide(ctx);   // Greater Victoria places: the whole region
+    return fc(c.data.map((e) => ({ e, ll: R.evLL(e) })).filter((x) => x.ll && (wide ? TRF.inCRDBox(x.ll) : km(x.ll, ctx.place.ll) <= r)).map(({ e, ll }) => {
       const closed = R.evClosed(e);
       return pt(ll, { id: e.id, title: `${R.hwy(R.evRoad(e))} · ${closed ? "Closed" : evType(e)}`, body: firstLine(e.description), sev: closed ? 3 : e.severity === "MAJOR" ? 2 : 0, icon: RS.signId(e),
         meta: `DriveBC · ${String(e.severity || "").toLowerCase()}${e.updated ? ` · updated ${rel(Date.parse(e.updated))}` : ""}`, href: "#getting-around/roads" });
@@ -85,8 +85,8 @@ L.cams = { id: "cams", title: "Cameras", icon: "camera", color: "var(--ink)", ki
   data: (ctx) => {
     if (!isBC(ctx)) return null;
     const list = R.camList(ctx); if (!list?.cams) return null;
-    const near = R.nearCams(list, ctx.place.ll, reach(ctx, 25, 45, 120));
-    return fc(near.sites.slice(0, 80).map((s) => { camSites.set(String(s.id), s); return pt(s.main.ll, { id: String(s.id), title: s.name, body: s.main.caption || "", meta: `${s.cams.length} view${s.cams.length > 1 ? "s" : ""} · ${s.km.toFixed(1)} km` }); }));
+    const wide = TRF.crdWide(ctx), near = wide ? TRF.crdCams(R.nearCams(list, ctx.place.ll, 200)) : R.nearCams(list, ctx.place.ll, reach(ctx, 25, 45, 120));
+    return fc(near.sites.slice(0, wide ? 250 : 80).map((s) => { camSites.set(String(s.id), s); return pt(s.main.ll, { id: String(s.id), title: s.name, body: s.main.caption || "", meta: `${s.cams.length} view${s.cams.length > 1 ? "s" : ""} · ${s.km.toFixed(1)} km` }); }));
   },
   select: (f) => { const s = camSites.get(String(f.properties.id)); return s ? TRF.camPopup(s) : null; } };
 L.bustraffic = TRF.BUS_TRAFFIC;
@@ -197,7 +197,8 @@ L.trails = { id: "trails", title: "Park advisories", icon: "footprints", color: 
 export const STAGES = {
   alerts: { layout: "map", layers: ["warnings", "roads", "quakes"] },
   natalerts: { layout: "panel", layers: ["warnings"] },
-  transit: { layout: "map", custom: transitLayer("transit"), view: metroView(), panels: transitPanels("transit") },
+  // the whole region's network and fleet; a town's page opens on the town (pan for the rest), a region on its core
+  transit: { layout: "map", custom: transitLayer("transit"), view: (ctx) => (ctx.place.level === "muni" ? null : metroView()(ctx)), panels: transitPanels("transit") },
   // Traffic: bus speeds on the West Shore's bus corridors, DriveBC events and camera buttons (civic-mod-traffic.js)
   roads: { layout: "map", layers: ["warnings", "bustraffic", TRF.BUS_VIEW, "roads", "cams"], wide: true, view: TRF.trafficView, panels: (ctx) => [TRF.busPanel(ctx)].filter(Boolean), coverage: TRF.trafficCoverage },
   // the Malahat Corridor inset: the map on Hwy 1 to Mill Bay, only the corridor's events and cameras, compact panels
@@ -245,7 +246,7 @@ export function summaryLayers(leaves) {
 }
 
 // ================================================================== panels for leaves that used to be inlaid pages
-const foot = (href, text) => el("div", { class: "civ-fp-foot" }, el("span", {}, text), href ? el("a", { class: "civ-open", href, target: "_blank", rel: "noopener" }, "Full dashboard ↗") : null);
+const foot = (text) => el("div", { class: "civ-fp-foot" }, el("span", {}, text));   // no links out: the old standalone dashboards are going away
 const rowsEl = (rows, empty) => rows.length ? el("div", { class: "civ-fp-rows" }, ...rows) : el("p", { class: "note civ-empty" }, empty);
 
 function shipsPanel(ctx) {
@@ -255,5 +256,5 @@ function shipsPanel(ctx) {
   const counts = el("div", { class: "civ-fp-counts" }, ...[...by].sort((a, b) => b[1] - a[1]).map(([k, n]) => el("span", {}, el("b", {}, `${n}`), ` ${k}`)));
   const rows = near.slice(0, 14).map(({ s, k, km: d }) => el("div", { class: "civ-row" }, el("span", { class: "civ-row-l" }, el("i", { class: "civ-kd", style: `background:${k[1]}` }), el("b", {}, title(s.name) || s.mmsi), ` ${k[0]}`),
     el("span", { class: "civ-row-v" }, `${(s.sog ?? 0).toFixed(1)} kn · ${d.toFixed(0)} km`)));
-  return el("div", { class: "civ-fp-body" }, counts, rowsEl(rows, "No ships heard nearby."), foot("../ships/", `aisstream.io via the relay · not for navigation · ${hhmm(ais.at)}`));
+  return el("div", { class: "civ-fp-body" }, counts, rowsEl(rows, "No ships heard nearby."), foot(`aisstream.io via the relay · not for navigation · ${hhmm(ais.at)}`));
 }

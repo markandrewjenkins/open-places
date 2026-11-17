@@ -4,7 +4,7 @@
 //   { layout, layers: [ids into L | spec objects] | (map, ctx) => cleanup, panels: (ctx) => [...], dz, wide, view, pane }
 // Every page here is map first: the map shows the place's geography with the data on it (click a feature for its popup;
 // click it again to close), the KPI strip sits on top, and one compact floating panel holds a summary chart or list with
-// its credits and a "Full dashboard ↗" link. pane: "none" hides the module's old full-width chart pane.
+// its credits. pane: "none" hides the module's old full-width chart pane.
 // Data comes from the modules' own need() (civic-modules.js) and the same published JSON / public feeds; charts are the
 // modules' own main() drawings, re-used at panel size. No mock values anywhere: a feed that isn't there says so.
 //
@@ -54,8 +54,8 @@ function bboxOf(geoms) {
 }
 
 // ------------------------------------------------------------------ panel pieces (civ-fp-* classes from civic.css)
-const foot = (text, href) => el("div", { class: "civ-fp-foot" }, el("span", { title: text }, text),
-  href ? el("a", { class: "civ-open", href, target: "_blank", rel: "noopener" }, "Full dashboard ↗") : null);
+// no link out: everything the old standalone dashboards showed now lives on these pages
+const foot = (text) => el("div", { class: "civ-fp-foot" }, el("span", { title: text }, text));
 /** a compact panel body: lede line, legend, one chart (fixed height) or list (scrolls), footer with credit + link */
 function body({ lede = null, legend = null, draw = null, h = 200, list = false, credit = "", href = null, note = null }) {
   const host = el("div", { class: list ? "civ-fpl" : "civ-fpc", style: list ? null : `height:${h}px` });
@@ -103,7 +103,31 @@ const W_LAYERS = [
 
 // California Duck Curve: no geography of its own, so California with the grid operator's control centre (Folsom) as the
 // anchor; tomorrow's curve floats beside it
-const G_CREDIT = "CAISO OASIS data (no open licence found) · forecast model in grid.json";
+const G_CREDIT = "CAISO OASIS data (no open licence found) · the forecast is our own model";
+// rows in the shared .civ-rows look: [label, value, bar 0–1 | null, hl]
+const rowsEl = (rows) => el("div", { class: "civ-rows bars gr-list" }, ...rows.map(([l, v, f, hl]) => el("div", { class: `civ-row${hl ? " hl" : ""}` },
+  el("span", { class: "civ-row-l" }, l), f == null ? null : el("span", { class: "civ-row-bar" }, el("i", { style: { width: `${Math.max(2, Math.min(1, f) * 100)}%` } })), el("b", { class: "civ-row-v" }, v))));
+const listBody = (lede, rows, credit) => el("div", { class: "civ-fp-body" }, el("p", { class: "civ-fp-lede" }, lede), el("div", { class: "civ-fpl" }, rows), foot(credit, null));
+/** Water Supply: Lake Mead shortage odds by tier and California's reservoirs (the detail the old Water dashboard held) */
+function waterOddsPanel(ctx) {
+  const d = need(water, ctx);
+  if (!d) return { id: "w-odds", title: "Shortage Odds", place: "right", el: body({ note: failed(water, ctx) ? "Couldn't load the data." : "Loading…", credit: W_CREDIT }) };
+  const res = d.w.california.reservoirs.slice().sort((a, b) => b.capacity - a.capacity);
+  return { id: "w-odds", title: "Shortage Odds", place: "right", el: listBody(
+    `Odds Lake Mead sits below each shortage tier on January 1 (our model), then California's largest reservoirs, share of capacity.`,
+    [rowsEl(d.w.risk.mead.map((r) => [`${r.label} · ${f0(r.elev)} ft`, pct(r.p_below_jan1), r.p_below_jan1, r.elev === 1075])),
+      el("p", { class: "civ-leg-t" }, "California reservoirs"), rowsEl(res.slice(0, 8).map((r) => [r.name, pct(r.pct_capacity), r.pct_capacity]))], W_CREDIT) };
+}
+/** Electricity Grid: renewables' share by year and how deep the duck's belly gets (the old Grid dashboard's detail) */
+function gridYearsPanel(ctx) {
+  const d = need(grid, ctx);
+  if (!d) return { id: "g-years", title: "Renewables by Year", place: "right", el: body({ note: failed(grid, ctx) ? "Couldn't load the data." : "Loading…", credit: G_CREDIT }) };
+  const sh = Object.entries(d.g.ren_share), mins = Object.entries(d.g.duck).map(([y, v]) => [y, d3.min(v)]), [lo, hi] = d3.extent(mins, (x) => x[1]);
+  return { id: "g-years", title: "Renewables by Year", place: "right", el: listBody(
+    `Share of California's demand met by renewables each year${d.g.ren_partial ? ` (${d.g.ren_partial} to date)` : ""}, then the lowest typical hour of net load (the duck's belly). Record low: ${f0(d.g.record_low.mw)} MW on ${d3.timeFormat("%b %-d, %Y")(new Date(d.g.record_low.date))}.`,
+    [rowsEl(sh.map(([y, v]) => [`${y}${y === d.g.ren_partial ? " (to date)" : ""}`, pct(v), v, y === d.g.ren_partial])),
+      el("p", { class: "civ-leg-t" }, "Belly depth, lowest typical hour"), rowsEl(mins.map(([y, v]) => [y, `${(v / 1000).toFixed(1)} GW`, 0.08 + (0.92 * (v - lo)) / (hi - lo || 1)]))], G_CREDIT) };
+}
 const GRID_PIN = { id: "g-caiso", title: "Grid operator", icon: "zap", color: "var(--m-grid, var(--accent))", kind: "circle",
   data: (ctx) => { const d = need(grid, ctx); if (!d) return null;
     return fc([pt([-121.137, 38.656], { id: "caiso", title: "California ISO, Folsom", r: 8,
@@ -301,10 +325,10 @@ export const CIVIC_STAGES = {
 
   water: { layout: "map", pane: "none", layers: W_LAYERS, view: view([-114.5, 37.5], 6, [[-124.6, 31.4], [-104.6, 43.6]]),
     panels: (ctx) => [modPanel(water, ctx, { id: "w", title: "Lake Mead", h: 200, credit: W_CREDIT, lede: "Elevation, last 15 years. The line is the Tier 1 shortage trigger (1,075 ft). Map: reservoirs by storage against the average for the date." ,
-      legend: swatches(null, [["var(--live, var(--good))", "80%+ of average"], ["var(--warn)", "50–80%"], ["var(--bad)", "under 50%"]]) })] },
+      legend: swatches(null, [["var(--live, var(--good))", "80%+ of average"], ["var(--warn)", "50–80%"], ["var(--bad)", "under 50%"]]) }), waterOddsPanel(ctx)] },
   grid: { layout: "map", pane: "none", layers: [GRID_PIN, GRID_LABEL], view: view([-119.4, 37.2], 6.4, [[-124.5, 32.5], [-114.1, 42.05]]),
     panels: (ctx) => [modPanel(grid, ctx, { id: "g", title: "Net Load Forecast", h: 230, credit: G_CREDIT,
-      lede: (d) => `${gridAge(d) >= 2 ? `Old snapshot: published ${gridAge(d)} days ago, so this is not tomorrow's forecast. ` : ""}Forecast net load (demand minus solar and wind, with its 80% range) and total demand (dashed), CAISO, ${d3.timeFormat("%a %b %-d")(new Date(d.g.tomorrow))}. Published data of ${d3.timeFormat("%b %-d")(new Date(d.g.generated))}.` })] },
+      lede: (d) => `${gridAge(d) >= 2 ? `Old snapshot: published ${gridAge(d)} days ago, so this is not tomorrow's forecast. ` : ""}Forecast net load (demand minus solar and wind, with its 80% range) and total demand (dashed), CAISO, ${d3.timeFormat("%a %b %-d")(new Date(d.g.tomorrow))}. Published data of ${d3.timeFormat("%b %-d")(new Date(d.g.generated))}.` }), gridYearsPanel(ctx)] },
 
   enso: { layout: "map", pane: "none", layers: [N34, N34_LABEL], view: () => ({ center: [-150, 4], zoom: 2.1 }),
     panels: (ctx) => [ensoNowPanel(ctx), modPanel(enso, ctx, { id: "en", title: "Niño 3.4 Index", h: 220, credit: "NOAA Climate Prediction Center (public domain), daily snapshot",

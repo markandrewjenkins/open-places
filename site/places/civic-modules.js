@@ -22,11 +22,12 @@ import * as TR from "../src/blink/transit.js";
 import { fetchPoint, nearestAirports, typeInfo, airborne, callsign, fAlt, distKm as airKm, glyphPath, kindOf, kindColor, sizeOf, rareOf, closestApproach, compass as airCompass } from "../src/air/feed.js";
 import { airFeed, feedText as airFeedText, addAirLayers, feedStrip as airStrip, overheadList as airList, aircraftCard as airCard, idOf as airId } from "../src/air/layer.js";   // Air traffic: shared feed + map layer
 import * as R from "./civic-mod-roads.js";   // Traffic (events, cameras) + Malahat (DriveBC)
-import { busSummary } from "./civic-mod-traffic.js";   // Traffic: West Shore bus speeds (the map colouring)
+import { busSummary, crdWide, inCRDBox, crdCams, NEAR_KM } from "./civic-mod-traffic.js";   // Traffic: bus speeds, Greater Victoria-wide events and cameras
 import * as RS from "./civic-mod-roadsigns.js";   // road-event signs (Vehicle Traffic: map, strip, list)
-import { rainCard } from "./civic-mod-weather.js";   // Rain Map card in Weather & Daylight
+import { rainCard } from "./civic-mod-weather.js";   // Rain Map card in Forecast
 import { trailsDef } from "./civic-mod-trails.js";   // Parks & Trails (BC Parks advisories, parks map)
 import { bikeDef } from "./civic-mod-bike.js";   // Biking (OSM bike network, riding conditions, parking and repair)
+import { gooseDef } from "./civic-mod-goose.js";   // Galloping Goose (Biking inset: the trail end to end, km markers, profile)
 import { hotDef } from "./civic-mod-hot.js";   // What's Hot Now (seasonal pick, live surf)
 import { surfDef } from "./civic-mod-surf.js";   // Surf (Nature: the breaks and their live wave forecast)
 import { eventsDef } from "./civic-mod-events.js";   // Events (Lifestyle: holidays, markets, culture venues)
@@ -36,8 +37,9 @@ import * as FER from "./civic-mod-ferries.js";   // BC Ferries / Washington Stat
 import { seaStage } from "./civic-mod-sea.js";   // Sea Traffic: every ship by class on the map, legend, card
 import { addAirfields } from "../src/air/airfields.js";   // Air Traffic: airport outlines (OSM) with codes
 import { circleFeature as airCircle } from "./civic-stage.js";   // Air Traffic: the aircraft search circle (coverage)
+import { airportFacts, airportCard } from "./civic-poi.js";   // Air Traffic: the airport card (what it is, arrivals / departures)
 import * as L from "./civic-mod-local.js";   // Municipal Notices, Police News, NRCan earthquakes
-import * as GR from "./civic-mod-growth.js";   // Growth & Building: every CRD municipality, choropleth, ranking, Boom Tracker inset
+import * as GR from "./civic-mod-growth.js";   // Growth & Building: every CRD municipality, choropleth, ranking, Langford forecast
 import * as WS from "./civic-mod-transit.js";   // Local Stops + West Shore road speeds from bus movements (transit)
 
 const tip = tooltip();
@@ -222,8 +224,7 @@ function tileBody(t, m, ctx) {
   const st = m.status(ctx), chip = t.el.querySelector(".cx-tile-live");
   t.status(st.text); chip.dataset.kind = st.kind; chip.title = st.long || "";
   t.el.dataset.kind = st.kind;
-  foot.replaceChildren(el("span", { class: "civ-src" }, m.source ? m.source(ctx) : st.long || ""),
-    ...(m.href ? [el("a", { class: "civ-open", href: m.href, title: `Open the full ${m.title} dashboard` }, "Full dashboard ↗")] : []));
+  foot.replaceChildren(el("span", { class: "civ-src" }, m.source ? m.source(ctx) : st.long || ""));   // no link out: the detail lives here
   t.el.classList.toggle("civ-hot", inSeason(m, ctx));
   return {
     plot,
@@ -265,16 +266,16 @@ function fillAtlasCard(m, ctx) {
   if (m.scale === "basic") {
     sc.classList.remove("chart"); sc.classList.add("civ-srcs");
     rowsList(sc, [["Source by place", ""], ...(BASIC_SRC[m.id] || [])]);
-    $(`${m.id}-link`).replaceChildren(el("span", { class: "note" }, "A basic has no full dashboard: each country plugs its own source into the same tile."));
+    $(`${m.id}-link`).replaceChildren(el("span", { class: "note" }, "Each country plugs its own source into the same tile."));
     return;
   }
   seasonChart(sc, m, ctx);
-  $(`${m.id}-link`).replaceChildren(m.href ? el("a", { class: "cx-dlink", href: m.href }, "Open full dashboard ↗") : el("span", { class: "note" }, m.planned ? "Planned: no dashboard yet." : "No standalone dashboard."));
+  $(`${m.id}-link`).replaceChildren(m.planned ? el("span", { class: "note" }, "Planned.") : "");
 }
 
 // ------------------------------------------------------------------ standalone dashboards, rendered natively
 // Open Places no longer inlays standalone pages as iframes: every leaf draws in the shell (its pane over the map stage,
-// civic-stage.js / civic-layers.js). A module with a standalone page keeps only a "Full dashboard ↗" link (its href).
+// civic-stage.js / civic-layers.js). Nothing links out to the old standalone dashboards.
 // A module without a pane of its own (no main(), e.g. Transit, Air Traffic, Sea Traffic) gets an empty native slot; the
 // shell fills it with the stage panels from civic-layers.js STAGES, or from the module's own `stage` (see there).
 const nativeHtml = (id) => `<div class="civ-native" id="${id}-native"></div>`;
@@ -376,7 +377,7 @@ const aqMeter = (a, ctx, big) => {
 };
 
 export const wx = mod({
-  id: "weather", xBig: true, title: "Forecast & Daylight", tileTitle: "Forecast & Daylight", scale: "basic", eyebrow: "The basics", heading: "Weather & Daylight", need: wxNeed,
+  id: "weather", xBig: true, title: "Forecast", tileTitle: "Forecast", scale: "basic", eyebrow: "The basics", heading: "Forecast", need: wxNeed,
   status: () => ({ kind: LIVE, text: "Live", long: "Open-Meteo forecast API (CC BY 4.0), called from the browser" }),
   source: () => "Open-Meteo",
   badge: (w) => `${Math.round(w.current.temperature_2m)}°`,
@@ -474,10 +475,10 @@ export const aq = mod({
   },
 });
 
-// transit: Public Transit (../blink/). Any place an agency's open GTFS covers: the next departures at the nearest stops
-// (live predictions where the feed is open, else what the timetable promises), live vehicles within ~5 km and the
-// agency's service alerts, through the relay. Places whose live feed needs a key, or that have no open feed, say so.
-// Drilling in inlays the Public Transit page on the place's region and spot (&region=…&place=…&at=lat,lon).
+// transit: any place an agency's open GTFS covers: the next departures at the nearest stops (live predictions where the
+// feed is open, else what the timetable promises), every live vehicle in the region (and how many are near the place)
+// and the agency's service alerts, through the relay. Places whose live feed needs a key, or that have no open feed,
+// say so. The map (civic-transit-stage.js) draws the region's whole network and fleet, opening on the place.
 const TR_WIDE = { world: () => true, ca: (r) => r.group === "BC Transit" || r.group === "Canada", us: (r) => r.group === "United States",
   bc: (r) => r.group === "BC Transit" || r.id === "vancouver", on: (r) => r.id === "toronto", wa: (r) => r.id === "seattle", cal: (r) => r.id === "sfbay" || r.id === "sacramento" };
 const trWide = (p) => ["world", "country", "province"].includes(p.level);
@@ -502,9 +503,10 @@ const trNeed = (ctx) => {
   if (st.some((c) => !c.data)) return null;
   const near = st.flatMap((c) => TR.nearestStops(c.data, lon, lat, 4, p.level === "region" ? 600 : 1500)).sort((a, b) => a.m - b.m).slice(0, 4);
   const relay = TR.hasRelay(), now = TR.localNow(r.tz);
-  // live: one-shot per place (the inlaid page keeps polling); the tile shows what has arrived and never waits on it
-  const bb = [lon - 0.06, lat - 0.04, lon + 0.06, lat + 0.04];
-  const veh = r.live === "rt" && relay ? r.agencies.map((a) => cached(`tr:veh:${a}:${k}`, () => TR.vehicles(a, bb), ctx)) : [];
+  // live: the region's whole fleet, one-shot per visit (the map keeps polling); the tile shows what has arrived and
+  // never waits on it. "Near" = within 5 km of the place.
+  const veh = r.live === "rt" && relay ? r.agencies.map((a) => cached(`tr:veh:${a}`, () => TR.vehicles(a), ctx)) : [];
+  const vs = veh.length && veh.every((c) => c.data) ? veh.flatMap((c) => c.data.vehicles || []) : null;
   const al = r.live !== "static" && relay ? r.agencies.map((a) => cached(`tr:al:${a}`, () => TR.alerts(a), ctx)) : [];
   const pr = r.live !== "static" && relay && near.length ? r.agencies.map((a) => cached(`tr:pr:${a}:${k}`, () => TR.predictions(a, near.filter((x) => x.stop.agency === a).map((x) => x.stop.id)), ctx)) : [];
   const preds = pr.flatMap((c) => c.data?.departures || []), t0 = Date.now() / 1000;
@@ -518,22 +520,19 @@ const trNeed = (ctx) => {
   const seen = new Set();
   const D = rows.sort((a, b) => a.sort - b.sort).filter((x) => { const id = `${x.route.agency}:${x.route.id}:${x.head}`; if (seen.has(id)) return false; seen.add(id); return true; });
   return { p, r, near, D, relay,
-    veh: veh.length && veh.every((c) => c.data) ? veh.reduce((s, c) => s + (c.data.vehicles?.length || 0), 0) : null, vehErr: veh.find((c) => c.err)?.err,
+    veh: vs ? vs.length : null, vehNear: vs ? vs.filter((v) => v.lat != null && km([v.lon, v.lat], p.ll) <= 5).length : null, vehErr: veh.find((c) => c.err)?.err,
     alerts: al.length && al.every((c) => c.data) ? al.reduce((s, c) => s + (c.data.alerts?.length || 0), 0) : null,
     agencies: r.agencies.map((a) => ix.data.agencies?.[a]?.operator || ix.data.agencies?.[a]?.name || a) };
 };
 const trWhen = (x) => (x.live != null ? (x.live <= 0 ? "now" : `${x.live} min`) : x.sch.text);
 const trRow = (x) => [`${x.route.name}${x.head ? ` → ${x.head}` : ""}`, trWhen(x), 0, { title: `${x.stop.name} · ${Math.round(x.m)} m${x.live != null ? " · live prediction" : " · timetable"}`, tag: x.live != null ? LIVE : null }];
+const trNoun = (d) => (d.r.group === "BC Transit" ? "buses" : "vehicles");
+/** "buses in Greater Victoria · 9 near Langford" (the near count only for a place inside the region) */
+const trFleet = (d) => `${trNoun(d)} in ${d.r.name}${d.vehNear != null && d.p.level !== "region" ? ` · ${d.vehNear} near ${d.p.short || d.p.name}` : ""}, live`;
 const trLiveNote = (d) => d.r.live === "static" ? (d.r.missing || "The live feed needs a key (owner's choice): timetables only.") : !d.relay ? "Live data needs the relay." : d.r.live === "trips" ? "Predictions and alerts are live; no vehicle positions are published." : "";
 export const transit = mod({
-  id: "transit", title: "Transit", scale: "basic", href: "../blink/", eyebrow: "The basics", heading: "Next Departures",
+  id: "transit", title: "Transit", scale: "basic", eyebrow: "The basics", heading: "Transit",
   need: trNeed,
-  inlayQuery: (ctx) => {
-    const p = ctx.place, d = trNeed(ctx), [lon, lat] = p.ll;
-    if (trWide(p)) return "";
-    const reg = d?.r ? `&region=${d.r.id}` : "";
-    return `${reg}&place=${encodeURIComponent(p.id)}${p.level === "region" && d?.r?.places.includes(p.id) ? "" : `&at=${lat.toFixed(4)},${lon.toFixed(4)}&name=${encodeURIComponent(p.name)}`}`;
-  },
   status: (ctx) => { const d = trNeed(ctx);
     if (!d || d.err) return { kind: LIVE, text: "Live", long: "Agencies' open GTFS timetables and GTFS-Realtime through the relay" };
     if (d.wide) return { kind: DATA, text: "Data", long: "Transit regions with open feeds (Public Transit's network pipeline)" };
@@ -547,11 +546,11 @@ export const transit = mod({
     if (d.none) return [["—", d.keyed ? "live feed needs a key" : "no open live feed here"], ["—", "no timetable wired"]];
     const x = d.D[0];
     return [[x ? trWhen(x) : "—", x ? `${x.route.name} at ${x.stop.name}` : d.near.length ? "no service now" : "no stop within walking distance"],
-      d.r.live === "rt" && d.relay ? [d.veh == null ? (d.vehErr ? "—" : "…") : `${d.veh}`, d.vehErr ? "live feed not answering" : "vehicles within ~5 km, live"] : [d.r.live === "trips" ? "predictions" : "timetable", d.r.live === "static" ? "live feed needs a key" : d.relay ? "no vehicle positions published" : "live data needs the relay"]];
+      d.r.live === "rt" && d.relay ? [d.veh == null ? (d.vehErr ? "—" : "…") : `${d.veh}`, d.vehErr ? "live feed not answering" : trFleet(d)] : [d.r.live === "trips" ? "predictions" : "timetable", d.r.live === "static" ? "live feed needs a key" : d.relay ? "no vehicle positions published" : "live data needs the relay"]];
   },
   kpis: (d) => d.wide ? [["Regions", `${d.regs.length}`, "with open transit data"], ["Live vehicles", `${d.regs.filter((r) => r.live === "rt").length}`, "regions"], ["Not wired", `${d.unc.length}`, "need a key or have no open feed"]]
     : d.none ? [["Feed", d.keyed ? "Needs a key" : "None", d.none]]
-    : [["Next departure", d.D[0] ? trWhen(d.D[0]) : "—", d.D[0] ? `${d.D[0].route.name} · ${d.D[0].stop.name}` : ""], ["Vehicles nearby", d.veh == null ? "–" : `${d.veh}`, d.r.live === "rt" ? "within ~5 km" : d.r.live === "static" ? "live feed needs a key" : "not published"],
+    : [["Next departure", d.D[0] ? trWhen(d.D[0]) : "—", d.D[0] ? `${d.D[0].route.name} · ${d.D[0].stop.name}` : ""], [d.r.live === "rt" ? `Live ${trNoun(d)}` : "Vehicles", d.veh == null ? "–" : `${d.veh}`, d.r.live === "rt" ? trFleet(d) : d.r.live === "static" ? "live feed needs a key" : "not published"],
       ["Service alerts", d.alerts == null ? "–" : `${d.alerts}`, d.r.live === "static" ? "live feed needs a key" : d.agencies.join(", ")], ["Agency", d.agencies.join(", ")]],
   mini: (host, d) => {
     if (d.wide) return rowsList(host, d.regs.slice(0, 12).map((r) => [r.name, r.live === "rt" ? "live" : r.live === "trips" ? "predictions" : "timetable"]), { fit: true });
@@ -571,15 +570,22 @@ export function roadEvents(ctx, radius = 40) {
 }
 const roadNeed = (ctx) => {
   if (!isBC(ctx)) return { p: ctx.place, ev: null };
-  const ev = roadEvents(ctx), list = R.camList(ctx);
-  if (!ev && !list?.cams) return null;
-  const near = list?.cams ? R.nearCams(list, ll(ctx)) : null;
-  if (ev && !ev.err) R.roadAlerts(ctx.place, ev, R.drivebcEvents(ctx).at);
-  return { p: ctx.place, bc: true, ev: ev && !ev.err ? ev : null, evErr: !!ev?.err, cams: near, camErr: !!list?.err, bus: busSummary(ctx) };
+  // Greater Victoria places: every event and camera in the region (nearest first); elsewhere within 40 km
+  const wide = crdWide(ctx), ev0 = roadEvents(ctx, wide ? 250 : 40), list = R.camList(ctx);
+  if (!ev0 && !list?.cams) return null;
+  const ev = ev0 && !ev0.err && wide ? ev0.filter((x) => inCRDBox(x.ll)) : ev0;
+  const near = list?.cams ? (wide ? crdCams(R.nearCams(list, ll(ctx), 250)) : R.nearCams(list, ll(ctx))) : null;
+  if (ev && !ev.err) R.roadAlerts(ctx.place, ev.filter((x) => x.km <= 40), R.drivebcEvents(ctx).at);   // alerts: still only nearby events
+  return { p: ctx.place, bc: true, wide, ev: ev && !ev.err ? ev : null, evErr: !!ev?.err, cams: near, camErr: !!list?.err, bus: busSummary(ctx) };
 };
 const roadSign = (x) => ({ x: x.km, kind: RS.evKind(x.e), tone: RS.evTone(x.e), title: `${R.hwy(evRoad(x.e))} · ${Math.round(x.km)} km`, note: evClosed(x.e) ? "closed" : `${RS.KIND_LABEL[RS.evKind(x.e)].toLowerCase()} · ${String(x.e.severity || "unknown").toLowerCase()} severity` });
 const roadsrc = (p) => inherit(p, "roadsrc");
 const evN = (d) => (d.ev ? `${d.ev.length}` : d.evErr ? "—" : "…");
+const evArea = (d) => (d.wide ? "in Greater Victoria" : "within 40 km");
+const nearTxt = (d, xs) => (d.wide && d.p.level === "muni" ? ` · ${xs.length} near ${d.p.short || d.p.name}` : "");
+const nearEv = (d) => (d.ev || []).filter((x) => x.km <= NEAR_KM), nearSites = (d) => (d.cams?.sites || []).filter((s) => s.km <= NEAR_KM);
+/** the distance axis for the event strips: 0–40 km, or out to the region's farthest event */
+const evDom = (d) => [0, d.wide && d.ev?.length ? Math.max(40, Math.ceil(d3.max(d.ev, (x) => x.km) / 20) * 20) : 40];
 export const roads = mod({
   id: "roads", title: "Vehicle Traffic", tileTitle: "Vehicle Traffic", scale: "basic", eyebrow: "The basics", heading: "Vehicle Traffic", need: roadNeed,
   status: (ctx) => isBC(ctx) ? { kind: LIVE, text: "Live", long: "DriveBC Open511 events and highway camera images (Open Government Licence – BC), live; camera list from the BC Data Catalogue" }
@@ -587,23 +593,23 @@ export const roads = mod({
       : `Planned, not wired: road events and cameras here would come from ${roadsrc(ctx.place)}, whose feeds and terms still need checking (WSDOT, Caltrans, Ontario 511 and city camera feeds). Nothing is shown until then.` },
   source: (ctx) => (isBC(ctx) ? "DriveBC Open511 + cameras · OGL-BC" : roadsrc(ctx.place) ? `${roadsrc(ctx.place)} · planned` : "No open feed here"),
   badge: (d) => (d.bc ? evN(d) : "—"),
-  tileKpis: (d) => d.bc ? [[evN(d), d.ev ? `events within 40 km${d.ev.some((x) => evClosed(x.e)) ? " · closures" : ""}` : d.evErr ? "events unavailable" : "events"], [d.cams ? `${d.cams.count}` : "—", "cameras within 40 km"]]
+  tileKpis: (d) => d.bc ? [[evN(d), d.ev ? `events ${evArea(d)}${nearTxt(d, nearEv(d))}${d.ev.some((x) => evClosed(x.e)) ? " · closures" : ""}` : d.evErr ? "events unavailable" : "events"], [d.cams ? `${d.cams.count}` : "—", `cameras ${evArea(d)}${d.cams ? nearTxt(d, nearSites(d)) : ""}`]]
     : [["—", roadsrc(d.p) && !d.p.anywhere ? "road events planned" : "no road feed"], ["—", roadsrc(d.p) && !d.p.anywhere ? `cameras planned · ${roadsrc(d.p)}` : "no cameras"]],
   kpis: (d) => d.bc ? [...(d.bus ? [["Bus speeds", d.bus.measured ? `${d.bus.slow + d.bus.congested} slow` : "—", d.bus.measured ? `of ${d.bus.measured} stretches measured · ${d.bus.congested} congested` : "too few recent buses"]] : []),
-      ["Events nearby", evN(d), "DriveBC, live"], ["Closures", d.ev ? `${d.ev.filter((x) => evClosed(x.e)).length}` : "—"], ["Cameras", d.cams ? `${d.cams.count}` : "—", d.cams ? `${d.cams.sites.length} sites within 40 km` : "list unavailable"]]
+      [d.wide ? "Events" : "Events nearby", evN(d), d.wide ? `Greater Victoria${nearTxt(d, nearEv(d))} · DriveBC, live` : "DriveBC, live"], ["Closures", d.ev ? `${d.ev.filter((x) => evClosed(x.e)).length}` : "—"], ["Cameras", d.cams ? `${d.cams.count}` : "—", d.cams ? `${d.cams.sites.length} sites ${evArea(d)}${nearTxt(d, nearSites(d))}` : "list unavailable"]]
     : [["Road feed", d.p.anywhere || !roadsrc(d.p) ? "None known" : "Planned", d.p.anywhere || !roadsrc(d.p) ? "" : `${roadsrc(d.p)}, not wired yet`]],
   // tile: the nearest camera pictures (live); without cameras, DriveBC events as dots by distance (0–40 km)
   mini: (host, d) => d.cams?.sites.length ? R.camStrip(host, d.cams.sites)
-    : d.ev?.length ? RS.signStrip(host, d.ev.map(roadSign), { domain: [0, 40], fmt: (v) => `${v} km` })
-    : rowsList(host, d.bc ? [[d.ev ? "No DriveBC events within 40 km" : "DriveBC unavailable", d.ev ? "clear" : "—"]]
+    : d.ev?.length ? RS.signStrip(host, d.ev.map(roadSign), { domain: evDom(d), fmt: (v) => `${v} km` })
+    : rowsList(host, d.bc ? [[d.ev ? `No DriveBC events ${evArea(d)}` : "DriveBC unavailable", d.ev ? "clear" : "—"]]
       : [[d.p.anywhere || !roadsrc(d.p) ? "No open road feed here" : `Planned: ${roadsrc(d.p)}`, "—"]], { fit: true }),
   main: (d) => d.bc ? {
     title: "Traffic Cameras",
-    sub: d.cams ? `${d.cams.count} DriveBC cameras at ${d.cams.sites.length} sites within 40 km; the nearest ${Math.min(8, d.cams.sites.length)}. Click one for its other directions. Each picture reloads only when DriveBC posts a new one (about every ${Math.round(d3.median(d.cams.sites, (s) => s.main.period) / 60 || 15)} min).` : "The DriveBC camera list didn't load.",
-    draw: (host) => d.cams?.sites.length ? R.camGrid(host, d.cams.sites.slice(0, 8)) : host.replaceChildren(el("p", { class: "note civ-empty" }, d.cams ? "No DriveBC camera within 40 km." : "Couldn't load the camera list.")),
+    sub: d.cams ? `${d.cams.count} DriveBC cameras at ${d.cams.sites.length} sites ${evArea(d)}; the nearest ${Math.min(8, d.cams.sites.length)}. Click one for its other directions. Each picture reloads only when DriveBC posts a new one (about every ${Math.round(d3.median(d.cams.sites, (s) => s.main.period) / 60 || 15)} min).` : "The DriveBC camera list didn't load.",
+    draw: (host) => d.cams?.sites.length ? R.camGrid(host, d.cams.sites.slice(0, 8)) : host.replaceChildren(el("p", { class: "note civ-empty" }, d.cams ? `No DriveBC camera ${evArea(d)}.` : "Couldn't load the camera list.")),
     listTitle: "Road Events",
     list: (host) => d.ev?.length ? RS.signRows(host, d.ev.map((x) => ({ kind: RS.evKind(x.e), tone: RS.evTone(x.e), label: `${R.hwy(evRoad(x.e))} · ${Math.round(x.km)} km`,
-      value: evClosed(x.e) ? "closed" : RS.KIND_LABEL[RS.evKind(x.e)].toLowerCase(), title: x.e.description }))) : host.replaceChildren(el("p", { class: "note civ-empty" }, d.ev ? "No DriveBC events within 40 km." : "Couldn't load DriveBC's events.")),
+      value: evClosed(x.e) ? "closed" : RS.KIND_LABEL[RS.evKind(x.e)].toLowerCase(), title: x.e.description }))) : host.replaceChildren(el("p", { class: "note civ-empty" }, d.ev ? `No DriveBC events ${evArea(d)}.` : "Couldn't load DriveBC's events.")),
   } : {
     title: "Road Feed", sub: d.p.anywhere || !roadsrc(d.p) ? "No open road feed is known for this spot." : `Planned, not wired: ${roadsrc(d.p)}'s events and cameras, once their feeds and terms are checked.`,
     draw: (host) => host.replaceChildren(el("p", { class: "note civ-empty" }, d.p.anywhere || !roadsrc(d.p) ? "No open road feed known for this spot, so nothing is shown." : `No road events or cameras are shown for ${d.p.name} yet: the ${roadsrc(d.p)} feed isn't wired. Nothing here is invented.`)),
@@ -614,7 +620,8 @@ export const roads = mod({
     const kinds = RS.SIGN_KINDS.map((k) => k.k).filter((k) => d.ev.some((x) => RS.evKind(x.e) === k)), types = kinds.map((k) => RS.KIND_LABEL[k]);
     return [{ title: "Events by Distance", sub: "Each sign is one DriveBC event, by distance from the place (live), coloured by severity.",
       draw: (h) => { const box = el("div", { class: "civ-sstrip-box" }); h.replaceChildren(RS.signLegend(kinds), box);
-        RS.signStrip(box, d.ev.map((x) => ({ ...roadSign(x), row: kinds.indexOf(RS.evKind(x.e)) })), { domain: [0, 40], rows: types, ticks: [0, 10, 20, 30, 40], fmt: (v) => `${v} km` }); } }]; },
+        const dom = evDom(d), step = dom[1] / 4;
+        RS.signStrip(box, d.ev.map((x) => ({ ...roadSign(x), row: kinds.indexOf(RS.evKind(x.e)) })), { domain: dom, rows: types, ticks: [0, 1, 2, 3, 4].map((i) => i * step), fmt: (v) => `${v} km` }); } }]; },
 });
 
 export const BASICS = [wx, aq, transit, roads];
@@ -698,7 +705,7 @@ export function collectAlerts(ctx) {
   if (["bc", "wa", "cal"].includes(prov?.id) || (p.anywhere && p.ll[0] < -115)) {
     const ar = arEstimate(ctx); checked.push(["Atmospheric rivers (estimate)", ar && !ar.err ? LIVE : "…"]);
     const e = ar && !ar.err ? ar.top : null;
-    if (e && e.cat >= 2) out.push({ sev: e.cat >= 4 ? 3 : 2, title: `AR${e.cat} atmospheric river${e.pineapple ? " · Pineapple Express" : ""}`, where: `peaks ${fWhen(e.peak)} (estimate)`, since: e.start, text: "Moisture aloft and 850 hPa wind over this spot (Open-Meteo); an estimate, not an official forecast.", src: "Open-Meteo estimate", kind: LIVE, level: p.level === "muni" ? "muni" : p.level, here: true, scaleName: prov?.short || "Coast", href: "#hazard/ar" });
+    if (e && e.cat >= 2) out.push({ sev: e.cat >= 4 ? 3 : 2, title: `AR${e.cat} atmospheric river${e.pineapple ? " · Pineapple Express" : ""}`, where: `peaks ${fWhen(e.peak)} (estimate)`, since: e.start, text: "Moisture aloft and 850 hPa wind over this spot (Open-Meteo); an estimate, not an official forecast.", src: "Open-Meteo estimate", kind: LIVE, level: p.level === "muni" ? "muni" : p.level, here: true, scaleName: prov?.short || "Coast", href: "#weather/ar" });
   }
   // tsunami: NWS tsunami alerts on this coast (live) + NTWC / PTWC messages (relay or daily snapshot): civic-mod-climate.js
   if (prov && ["bc", "wa", "cal"].includes(prov.id)) { const t = CL.tsunamiData(ctx, prov.id); checked.push(["Tsunami (NWS / NTWC)", t?.nwsOk ? LIVE : t ? DATA : "…"]);
@@ -709,7 +716,7 @@ export function collectAlerts(ctx) {
 }
 
 export const alerts = mod({
-  id: "alerts", title: "All alerts", scale: "alerts", eyebrow: "Alerts · every scale", heading: "Active Alerts",
+  id: "alerts", title: "Alerts", tileTitle: "Alerts", scale: "alerts", eyebrow: "Alerts · every scale", heading: "Alerts",
   need: (ctx) => collectAlerts(ctx),
   status: () => ({ kind: LIVE, text: "Live", long: "ECCC / NWS weather alerts, USGS, DriveBC, NWS tsunami alerts and an atmospheric-river estimate live; tsunami.gov messages via the relay or daily snapshot" }),
   badge: (d) => (d.items.length ? `${d.items.length}` : "clear"),
@@ -745,7 +752,7 @@ export const alerts = mod({
 
 // ================================================================== REGION: Growth & Building (Greater Victoria)
 // Every CRD municipality on a choropleth with a metric switch, the place outlined, a ranked list, housing starts and,
-// for Langford, the Boom Tracker forecast inset: data, layers and panels in civic-mod-growth.js (id kept as "langford")
+// for Langford, the 12-month forecast panel: data, layers and panels in civic-mod-growth.js (id kept as "langford")
 export const langford = mod({
   id: "langford", title: "Growth & Building", tileTitle: "Growth & Building", scale: "region", at: ["crd"], reach: 2, tag: "Greater Victoria",
   eyebrow: "Greater Victoria", heading: "Growth & Building",
@@ -854,9 +861,9 @@ const blossomState = (d, ctx) => {
   const head = rows.find((r) => r.label.startsWith("Yoshino")) || rows[0], open = rows.filter((r) => now >= r.p10 && now <= r.p90), n = dayDiff(now, head.mid);
   return { rows, head, now, open, text: open.length ? `${open.length} in bloom` : n > 0 ? `peak in ${n} d` : "done for the year" };
 };
-const trees = (d) => (d.k === "victoria" ? d.meta.counts.trees_by_city.victoria + d.meta.counts.trees_by_city.esquimalt : d.meta.counts.trees_by_city[d.k]);
+const trees = (d) => { const by = d.meta.counts.trees_by_city, cs = Object.keys(d.meta.cities || {}).filter((c) => d.meta.cities[c].region === d.k); return cs.length ? cs.reduce((n, c) => n + (by[c] || 0), 0) : by[d.k]; };
 export const blossom = mod({
-  id: "blossom", title: "Cherry Blossom Watch", tileTitle: "Cherry Blossom Watch", scale: "region", at: ["crd", "metrovan"], reach: 2, href: "../blossom/", eyebrow: "Region", heading: "Cherry Blossom Forecast", need: blossomNeed,
+  id: "blossom", title: "Cherry Blossom Watch", tileTitle: "Cherry Blossom Watch", scale: "region", at: ["crd", "metrovan"], reach: 2, eyebrow: "Region", heading: "Cherry Blossom Watch", need: blossomNeed,
   season: (m) => bump(m, 3.75, 0.62),
   status: (ctx) => { const c = file("blossom/forecast.json", ctx).data; return { kind: DATA, text: c ? asOf(c.issued) : "Data", long: `Published forecast (blossom/forecast.json), issued ${c?.issued || "…"}` }; },
   source: () => "Street-tree inventories + forecast",
@@ -881,13 +888,13 @@ const foliageState = (d, ctx) => {
   return { y, g, now, doyNow, p50, text: doyNow >= g.p10 && doyNow <= g.p90 ? "turning now" : n > 0 ? `peak in ${n} d` : `peaked ${-n} d ago` };
 };
 export const foliage = mod({
-  id: "foliage", title: "Fall Foliage Watch", tileTitle: "Fall Foliage Watch", scale: "region", at: ["crd", "metrovan", "toronto"], reach: 2, href: "../foliage/", eyebrow: "Region", heading: "Fall Colour Forecast", need: foliageNeed,
+  id: "foliage", title: "Fall Foliage Watch", tileTitle: "Fall Foliage Watch", scale: "region", at: ["crd", "metrovan", "toronto"], reach: 2, eyebrow: "Region", heading: "Fall Foliage Watch", need: foliageNeed,
   season: (m) => bump(m, 10.35, 0.7),
   status: (ctx) => { const c = file("foliage/foliage.json", ctx).data; return { kind: DATA, text: c ? asOf(c.generated) : "Data", long: `Published forecast (foliage/foliage.json), ${c?.season || ""} season` }; },
-  source: () => "Street trees + degree-day model",
+  source: () => "Mapped trees + degree-day model",
   badge: (d, ctx) => fDate(foliageState(d, ctx).p50),
-  tileKpis: (d, ctx) => { const s = foliageState(d, ctx); return [[fDate(s.p50), `peak colour ${s.y}`], [s.text, `on ${fDate(ctx.date)}`], [f0(d.c.n_trees), "street trees"]]; },
-  kpis: (d, ctx) => { const s = foliageState(d, ctx); return [["Peak colour", fDate(s.p50), `${s.y} median`], ["80% range", `${fDate(doyToDate(s.g.p10, s.y))}–${fDate(doyToDate(s.g.p90, s.y))}`], ["Right now", s.text], ["Street trees", f0(d.c.n_trees)]]; },
+  tileKpis: (d, ctx) => { const s = foliageState(d, ctx); return [[fDate(s.p50), `peak colour ${s.y}`], [s.text, `on ${fDate(ctx.date)}`], [f0(d.c.n_trees), "mapped trees"]]; },
+  kpis: (d, ctx) => { const s = foliageState(d, ctx); return [["Peak colour", fDate(s.p50), `${s.y} median`], ["80% range", `${fDate(doyToDate(s.g.p10, s.y))}–${fDate(doyToDate(s.g.p90, s.y))}`], ["Right now", s.text], ["Mapped trees", f0(d.c.n_trees)]]; },
   mini: (host, d, ctx) => { const s = foliageState(d, ctx);
     if (C.size(host).H < 40) return C.seasonBar(host, { lo: doyToDate(250, s.y), hi: doyToDate(312, s.y), p10: doyToDate(s.g.p10, s.y), p90: doyToDate(s.g.p90, s.y), mid: s.p50, now: s.now, title: "Peak colour" });
     histChart(host, s.g.sims, { mini: true, year: s.y, color: "var(--s1)", domain: [250, 312], mark: s.doyNow }); },
@@ -901,7 +908,7 @@ export const foliage = mod({
 
 const sundayNeed = (ctx) => { const c = file("sunday/sunday.json", ctx); if (c.err) return { err: c.err }; if (!c.data) return null; const r = c.data.regions[dataKey(ctx.place, "sunday")]; return { r, routes: r.routes.slice().sort((a, b) => b.score - a.score) }; };
 export const sunday = mod({
-  id: "sunday", title: "Sunday Wander", scale: "region", at: ["crd", "metrovan"], reach: 1, href: "../sunday/", eyebrow: "Region", heading: "Scenic Routes", need: sundayNeed,
+  id: "sunday", title: "Sunday Wanders", tileTitle: "Sunday Wanders", scale: "region", at: ["crd", "metrovan"], reach: 1, eyebrow: "Region", heading: "Sunday Wanders", need: sundayNeed,
   season: (m) => 0.25 + 0.7 * bump(m, 7, 2.4),
   status: (ctx) => { const c = file("sunday/sunday.json", ctx).data; return { kind: DATA, text: c ? asOf(c.generated) : "Data", long: "Published routes (sunday/sunday.json)" }; },
   source: () => "OpenStreetMap routes",
@@ -923,7 +930,7 @@ export const sunday = mod({
 const ORCA_MONTHS = [79, 104, 285, 394, 512, 738, 882, 920, 782, 338, 167, 101];
 const salishNeed = (ctx) => { const c = file("salish/salish.json", ctx); if (c.err) return { err: c.err }; if (!c.data) return null; return { s: c.data, node: chainOf(ctx.place).some((n) => n.id === "seattle") ? "rpi_sunset_bay" : "rpi_orcasound_lab" }; };
 export const salish = mod({
-  id: "salish", title: "Whale Watching", tileTitle: "Whale Watching", tag: "Salish Sea", scale: "region", at: ["crd", "metrovan", "seattle"], reach: 1, href: "../salish/", eyebrow: "Salish Sea", heading: "Whale Watching", need: salishNeed,
+  id: "salish", title: "Whale Watching", tileTitle: "Whale Watching", tag: "Salish Sea", scale: "region", at: ["crd", "metrovan", "seattle"], reach: 1, eyebrow: "Salish Sea", heading: "Whale Watching", need: salishNeed,
   season: monthly(ORCA_MONTHS),
   status: (ctx) => { const c = file("salish/salish.json", ctx).data; return { kind: DATA, text: c ? asOf(c.generated) : "Data", long: "Published data (salish/salish.json): hydrophone reports, sightings, outlook" }; },
   source: () => "Orcasound + iNaturalist",
@@ -945,7 +952,7 @@ const golfNeed = (ctx) => { const c = file("golf/playability.json", ctx); if (c.
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: c.data.tz || "America/Vancouver" }).format(ctx.date), di = r ? Math.max(0, r.days.findIndex((x) => x.date === today)) : 0;
   return r ? { days: r.days.slice(di), k, gen: c.data.generated } : { err: new Error("no region") }; };
 export const golf = mod({
-  id: "golf", title: "Fairway Forecast", scale: "region", at: ["crd", "metrovan"], reach: 1, href: "../golf/", eyebrow: "Region", heading: "Playable Golf Hours", need: golfNeed,
+  id: "golf", title: "Golfing", tileTitle: "Golfing", scale: "region", at: ["crd", "metrovan"], reach: 1, eyebrow: "Region", heading: "Golfing", need: golfNeed,
   season: (m) => 0.3 + 0.6 * bump(m, 7, 2.3),
   status: (ctx) => { const c = file("golf/playability.json", ctx).data; return { kind: DATA, text: c ? asOf(c.generated) : "Data", long: "Published forecast (golf/playability.json): playable hours per course from the weather forecast" }; },
   source: () => "Course list + weather forecast",
@@ -969,9 +976,8 @@ const r95Need = (ctx) => { WS.touch(ctx); const c = file("blink/blink.json", ctx
 const pct = (v) => `${Math.round(v * 100)}%`;
 export const route95 = mod({
   // a set piece of Public Transit for Langford and the West Shore (and the CRD as a whole), not for the rest of the region
-  id: "route95", title: "Route 95 Spotlight", scale: "region", at: ["crd"], reach: 2, href: "../blink/#live", eyebrow: "Region", heading: "Route 95 On-Time Performance", need: r95Need,
+  id: "route95", title: "Route 95 Spotlight", scale: "region", at: ["crd"], reach: 2, eyebrow: "Region", heading: "Route 95 Spotlight", need: r95Need,
   only: (ctx) => SPOTLIGHT_PLACES.has(ctx.place.id),
-  inlayQuery: (ctx) => `&region=victoria&place=${encodeURIComponent(ctx.place.id)}`,
   status: (ctx) => { const c = file("blink/blink.json", ctx).data; return { kind: DATA, text: c ? asOf(c.generated) : "Data", long: `Published data (blink/blink.json): BC Transit GTFS-Realtime vs schedule${c ? `, ${c.headline.days} day(s) tracked so far` : ""}` }; },
   source: (ctx) => { const c = file("blink/blink.json", ctx).data; return c ? `BC Transit realtime · ${c.headline.days} day tracked` : "BC Transit realtime"; },
   badge: (d) => pct(d.b.headline.punctuality.on_time),
@@ -985,11 +991,11 @@ export const route95 = mod({
     listTitle: "Definitions", list: (host) => rowsList(host, Object.entries(d.b.definitions || {}).slice(0, 6).map(([k, v]) => [k.replaceAll("_", " "), String(v).slice(0, 60), 0, { title: String(v) }])) }),
 });
 
-// ------------------------------------------------------------------ air traffic (Air Traffic, ../air/)
+// ------------------------------------------------------------------ air traffic (Air Traffic)
 // Any place: aircraft within 40 km of it from adsb.lol through the relay (ODbL), coloured by kind of flight and sized by
 // weight class as on the Air Traffic radar, the next close pass and any rare aircraft, plus the nearest airports
 // (OurAirports). Greater Victoria adds the logged busy hours and YYJ / harbour movements, and falls back to the last
-// logged poll until the relay answers. Drilling in inlays the Air Traffic page centred on the place (&at=lat,lon).
+// logged poll until the relay answers. The page is the map stage below: aircraft, airports (click one for its card) and the panel.
 // The feed is the page's (src/air/layer.js airFeed): the same 22 nm circle, so tile and page share the relay's cached
 // snapshot and agree on the count (40 km, the page's widest ring); polled every 30 s with retries and backoff; aircraft
 // held (fading) for a minute when they drop out of a report and moved on along their track between reports; and the
@@ -1045,19 +1051,38 @@ const airSrc = (d) => (d?.fs?.source === "adsb_fi" ? "adsb.fi" : "adsb.lol");
 // Selection lives in the URL (#getting-around/airtraffic/<hex>): an alert about one aircraft links there, and the page
 // eases to it, rings it and shows its card; clicking it again (map, list or alert) clears it.
 const AIR_LEAF = "#getting-around/airtraffic";
-const airStage = { layer: null, apt: null, map: null, sel: "", route: undefined, fly: false };
+// an airport (outline click) is selected the same way, as apt-<ICAO or IATA> (#getting-around/airtraffic/apt-CYYJ)
+const airStage = { layer: null, apt: null, map: null, sel: "", poi: "", route: undefined, fly: false };
+function airHash() {
+  const item = airStage.sel || (airStage.poi ? `apt-${airStage.poi}` : "");
+  airStage.route = item || null;
+  try { history.replaceState(null, "", item ? `${AIR_LEAF}/${encodeURIComponent(item)}` : AIR_LEAF); } catch { /* ignore */ }
+  airStage.apt?.select(airStage.poi);
+}
 function airPick(id, ctx, { fly = false } = {}) {
   airStage.sel = id && id !== airStage.sel ? id : "";
-  airStage.route = airStage.sel || null;
-  try { history.replaceState(null, "", airStage.sel ? `${AIR_LEAF}/${encodeURIComponent(airStage.sel)}` : AIR_LEAF); } catch { /* ignore */ }
+  if (airStage.sel) airStage.poi = "";
+  airHash();
   airStage.layer?.select(airStage.sel); airStage.fly = fly && !!airStage.sel; airFly();
+  ctx.refresh?.();
+}
+/** pick an airport by its code (or clear it: the same airport again) */
+function airPickApt(code, ctx) {
+  airStage.poi = code && code !== airStage.poi ? code : "";
+  if (airStage.poi) airStage.sel = "";
+  airHash(); airStage.layer?.select("");
   ctx.refresh?.();
 }
 /** the URL's aircraft wins when it changes (an alert link, a deep link, back / forward); read from location.hash, as
  *  airPick() rewrites it with replaceState, which the console doesn't re-parse */
 function airSyncRoute() {
   const m = /^#getting-around\/airtraffic\/([^/]+)/.exec(location.hash), item = m ? decodeURIComponent(m[1]) : null;
-  if (item !== airStage.route) { airStage.route = item; airStage.sel = item || ""; airStage.fly = !!item; airStage.layer?.select(airStage.sel); airFly(); }
+  if (item !== airStage.route) {
+    airStage.route = item;
+    const apt = item && /^apt-/.test(item) ? item.slice(4) : "";
+    airStage.poi = apt; airStage.sel = apt ? "" : item || ""; airStage.fly = !!airStage.sel;
+    airStage.layer?.select(airStage.sel); airStage.apt?.select(airStage.poi); airFly();
+  }
 }
 function airFly() {
   const m = airStage.map; if (!airStage.fly || !airStage.sel || !airStage.layer || !m) return;
@@ -1069,7 +1094,8 @@ function airStageLayer(map, ctx) {
   airStage.layer?.destroy(); airStage.apt?.destroy();
   airStage.map = map; airSyncRoute(ctx);
   airStage.apt = addAirfields(map, { prefix: "apt", center: [lon, lat], km: R + 20, beforeId: ["air-vte", "air-vt", "air-hear", "air-parked", "st-place-p"],
-    color: () => cssVar("--m-airtraffic") || "#8b7cf6", ink: () => cssVar("--ink-2") || "#9aa6b8", halo: () => cssVar("--surface") || "rgba(0,0,0,0.6)", above: ["air-ac", "air-parked"], popupClass: "civ-pop" });
+    color: () => cssVar("--m-airtraffic") || "#8b7cf6", ink: () => cssVar("--ink-2") || "#9aa6b8", halo: () => cssVar("--surface") || "rgba(0,0,0,0.6)", above: ["air-ac", "air-parked"], popupClass: "civ-pop", onPick: (p) => airPickApt(p.icao || p.iata || p.code, ctx) });
+  airStage.apt.select(airStage.poi);
   airStage.layer = addAirLayers(map, { feed, rangeKm: AIR_KM, filter: (a) => a.km == null || a.km <= R, beforeId: map.getLayer("st-place-p") ? "st-place-p" : undefined,
     onSelect: (a) => airPick(airId(a), ctx) });
   airStage.layer.select(airStage.sel);
@@ -1085,12 +1111,16 @@ function airStagePanel(ctx) {
   const R = airMapKm(ctx.place);
   const wide = d.kind === LIVE ? airWatch(d.lat, d.lon, d.crd, ctx).list().filter((a) => !/^C/.test(a.cat || "") && a.km <= R) : d.list;
   const sel = airStage.sel && wide.find((a) => airId(a) === airStage.sel);
+  const local = file("air/airports.json", ctx).data, world = file("air/world.json", ctx).data;
+  const apt = airStage.poi && (local || world) ? airportFacts({ icao: /^[A-Z]{4}$/.test(airStage.poi) ? airStage.poi : "", iata: /^[A-Z0-9]{3}$/.test(airStage.poi) ? airStage.poi : "", name: airStage.poi }, local, world) : null;
   return el("div", { class: "civ-fp-body" },
     d.fs ? airStrip(d.fs) : el("p", { class: "note" }, d.kind === DATA ? `Last logged poll, ${hhmm(d.asOf)}: the live feed is connecting or retrying.` : "Live aircraft need the relay; retrying."),
     sel ? el("div", { class: "air-selcard" }, airCard(sel, { place: ctx.place.short }), el("button", { type: "button", class: "air-selx", title: "Clear the selection", "aria-label": "Clear the selection", onclick: () => airPick(null, ctx) }, "×"))
       : airStage.sel ? el("p", { class: "note" }, `Aircraft ${airStage.sel} isn't in the live feed right now.`) : null,
-    airList(wide.filter(airborne), { limit: sel ? 5 : 8, selected: airStage.sel, onPick: (a) => airPick(airId(a), ctx, { fly: true }), range: R }),
-    el("p", { class: "note" }, `${d.kind === LIVE ? `${airSrc(d)} through the relay` : "adsb.lol, logged"} · within ${Math.round(R)} km · airports © OpenStreetMap (ODbL) · `, el("a", { href: "../air/", target: "_blank", rel: "noopener" }, "Full dashboard ↗")));
+    apt ? el("div", { class: "air-selcard" }, airportCard(apt, wide, { onClose: () => airPickApt(null, ctx), onPick: (a) => airPick(airId(a), ctx, { fly: true }), idOf: airId, sel: airStage.sel, color: (a) => kindColor(a.kind || "other") }))
+      : airStage.poi && (local || world) ? el("p", { class: "note" }, `Airport ${airStage.poi} isn't in the airport list.`) : null,
+    apt ? null : airList(wide.filter(airborne), { limit: sel ? 5 : 8, selected: airStage.sel, onPick: (a) => airPick(airId(a), ctx, { fly: true }), range: R }),
+    el("p", { class: "note" }, `${d.kind === LIVE ? `${airSrc(d)} through the relay` : "adsb.lol, logged"} · within ${Math.round(R)} km · select an airport for its traffic · airports © OpenStreetMap (ODbL), OurAirports (public domain)`));
 }
 const airWord = (d) => (d?.fs?.level === "down" ? "feed down" : d?.fs?.level === "delayed" ? "delayed" : "live");
 const airLow = (d) => d.up.filter((a) => a.alt != null).sort((a, b) => a.alt - b.alt)[0];
@@ -1142,7 +1172,7 @@ function airViewBox(ctx) {
   return [[Math.min(...xs) - mx, Math.min(...ys) - m], [Math.max(...xs) + mx, Math.max(...ys) + m]];
 }
 export const airtraffic = mod({
-  id: "airtraffic", title: "Air Traffic", tileTitle: "Air Traffic", scale: "region", at: "*", reach: 2, href: "../air/", eyebrow: "Region", heading: "Air Traffic",
+  id: "airtraffic", title: "Air Traffic", tileTitle: "Air Traffic", scale: "region", at: "*", reach: 2, eyebrow: "Region", heading: "Air Traffic",
   need: airNeed,
   // the view: the place's airports (airViewBox), fitted inside the floating panels; until their list loads, the feed's whole circle
   stage: { layout: "map", dz: -0.8, layers: airStageLayer, panels: (ctx) => [{ id: "air", title: "Aircraft Nearby", place: "left", el: airStagePanel(ctx) }],
@@ -1152,7 +1182,6 @@ export const airtraffic = mod({
       if (box) return { center: [(box[0][0] + box[1][0]) / 2, (box[0][1] + box[1][1]) / 2], zoom: 11, bounds: box };
       const [lon, lat] = ctx.place.ll, R = airMapKm(ctx.place), dy = (0.62 * R) / 110.57, dx = (0.95 * R) / (111.32 * Math.cos((lat * Math.PI) / 180));
       return { center: [lon, lat], zoom: 9, bounds: [[lon - dx, lat - dy], [lon + dx, lat + dy]] }; } },
-  inlayQuery: (ctx) => { const [lon, lat] = ctx.place.ll; return airIsCRD(ctx.place) && ctx.place.level !== "muni" ? "" : `&at=${lat.toFixed(3)},${lon.toFixed(3)}&name=${encodeURIComponent(ctx.place.name)}&r=${AIR_NM}`; },
   status: (ctx) => { const d = airNeed(ctx); const k = d?.kind || LIVE, lv = d?.fs?.level;
     return { kind: k, text: k === LIVE ? (lv === "down" ? "Feed down" : lv === "delayed" ? "Delayed" : "Live") : k === DATA ? "Logged" : "No feed",
       long: k === LIVE ? `${airFeedText(d?.fs)} ${airSrc(d)} aircraft positions (${airSrc(d) === "adsb.fi" ? "adsb.fi open data, non-commercial" : "ODbL"}) through the relay every 30 s, moved on along their track between reports; airports from OurAirports (public domain)`
@@ -1196,10 +1225,10 @@ export const airtraffic = mod({
   },
 });
 
-// ------------------------------------------------------------------ Sea Traffic (module id "waterways": ships, ferries, tugs, rivers; ../ships/)
+// ------------------------------------------------------------------ Sea Traffic (module id "waterways": ships, ferries, tugs, rivers)
 // Greater Victoria, Greater Vancouver and Seattle: one real week of US Coast Guard AIS (NOAA Marine Cadastre, public
 // domain) counted by named stretch of water (ships/typical.json). The tile shows this hour of that week on the busiest
-// local stretch; drilling in inlays the Waterways page for the place's region (map, replay, tides, river, notices).
+// local stretch; the page is the live AIS map stage (civic-mod-sea.js: ships, harbours and terminals, cards).
 // Other coastal places get a planned tile (the same NOAA AIS covers US coasts and the Great Lakes); inland places
 // (Las Vegas, Phoenix, Tucson) don't show it at all.
 const WW_REGION = { crd: "victoria", metrovan: "vancouver", seattle: "seattle" };
@@ -1218,15 +1247,14 @@ const wwNeed = (ctx) => {
 };
 const wwDays = (t) => `${d3.timeFormat("%b %-d")(parseDay(t.days[0]))} – ${d3.timeFormat("%b %-d, %Y")(parseDay(t.days.at(-1)))}`;
 export const waterways = mod({
-  id: "waterways", title: "Sea Traffic", tileTitle: "Sea Traffic", scale: "region", at: Object.keys(WW_REGION), reach: 2, href: "../ships/",
+  id: "waterways", title: "Sea Traffic", tileTitle: "Sea Traffic", scale: "region", at: Object.keys(WW_REGION), reach: 2,
   color: "var(--m-waterways, var(--m-ferries, var(--accent)))", eyebrow: "Region", heading: "Sea Traffic",
   stage: seaStage,   // live AIS: every ship by class, BC Ferries focus, legend and card (civic-mod-sea.js)
   tag: "Salish Sea",   // the tab names the water the map shows (civic.js scaleTag), not the place's region
   need: wwNeed, season: (m) => 0.35 + 0.55 * bump(m, 7.3, 1.9), seasonal: false,
-  inlayQuery: (ctx) => `&region=${wwRegion(ctx) || "victoria"}`,
   status: (ctx) => { const c = file("ships/typical.json", ctx).data, ais = FER.aisState();
     if (ais.n && Date.now() - ais.asOf < 15 * 60e3) return { kind: LIVE, text: "Live", long: `${ais.n} ships live from aisstream.io through the relay (not for navigation); the typical week is US Coast Guard AIS (NOAA / BOEM Marine Cadastre, public domain).` };
-    return { kind: DATA, text: "Typical week", long: `Published data (ships/typical.json): one week of US Coast Guard AIS${c ? `, ${wwDays(c)}` : ""} (NOAA / BOEM Marine Cadastre, public domain). Live ships (aisstream.io, through the relay) and tides (CHS) are live in the full dashboard.` }; },
+    return { kind: DATA, text: "Typical week", long: `Published data (ships/typical.json): one week of US Coast Guard AIS${c ? `, ${wwDays(c)}` : ""} (NOAA / BOEM Marine Cadastre, public domain). Live ships (aisstream.io, through the relay) appear on the map when the relay answers.` }; },
   source: (ctx) => { const c = file("ships/typical.json", ctx).data; return c ? `NOAA AIS · week of ${d3.timeFormat("%b %-d")(parseDay(c.days[0]))}` : "NOAA AIS"; },
   badge: (d) => f0(d.now),
   tileKpis: (d) => [[f0(d.now), `vessels · ${d.a.name.split(" & ")[0]}, this hour`], [`${d.a.busiest.dow} ${wwH(d.a.busiest.hour)}`, "busiest hour"]],
@@ -1248,7 +1276,7 @@ export const waterwaysNext = planned({
 // civic-mod-ferries.js. Independent (no operator marks, no endorsement). BC Ferries has no open sailing/capacity API
 // (and we don't scrape it), so capacity stays unavailable.
 export const ferries = mod({
-  id: "ferries", title: "BC Ferries", tileTitle: "BC Ferries", scale: "region", at: ["crd", "metrovan"], reach: 3, eyebrow: "Region", heading: "BC Ferries Live",
+  id: "ferries", title: "BC Ferries", tileTitle: "BC Ferries", scale: "region", at: ["crd", "metrovan"], reach: 3, eyebrow: "Region", heading: "BC Ferries",
   color: "var(--m-ferries, var(--accent))", ...FER.parts("bc"),
 });
 export const wsferries = mod({
@@ -1295,12 +1323,14 @@ export const malahat = mod({
 // Biking (Greater Victoria): the OSM bike network, riding conditions from the page's forecast, parking and repair stations.
 // It replaces the planned "Galloping Goose & bike counters" leaf; the counters stay planned inside it (no open licence).
 export const biking = mod(bikeDef({ LIVE, DATA, PLANNED, rowsList }));
+// Galloping Goose (an inset of Biking): the regional trail from the Johnson Street Bridge to Leechtown.
+export const galloping = mod(gooseDef({ LIVE, DATA, PLANNED, rowsList }));
 
 const torNeed = (ctx) => { const c = file("toronto/toronto.json", ctx); if (c.err) return { err: c.err }; return c.data ? { t: c.data } : null; };
 const torStatus = (ctx) => { const c = file("toronto/toronto.json", ctx).data; return { kind: DATA, text: c ? asOf(c.generated) : "Data", long: "Published data (toronto/toronto.json)" }; };
 const fDay = (s) => d3.timeFormat("%a %b %-d")(parseDay(s));
 export const ferry = mod({
-  id: "ferry", title: "Island ferry", scale: "region", at: ["toronto"], reach: 2, href: "../toronto/#ferry", eyebrow: "Region", heading: "Ferry Crowd Forecast",
+  id: "ferry", title: "Island Ferry", scale: "region", at: ["toronto"], reach: 2, eyebrow: "Region", heading: "Island Ferry",
   need: torNeed, season: (m) => 0.15 + 0.85 * bump(m, 7.4, 1.3), status: torStatus, source: () => "City of Toronto ticket counts",
   badge: (d) => f0(d.t.ferry.forecast[0].pred),
   tileKpis: (d) => [[f0(d.t.ferry.forecast[0].pred), `riders · ${fDay(d.t.ferry.forecast[0].date)}`], [`${(d.t.ferry.yearly[2026] / 1e6).toFixed(2)} M`, "riders in 2026"]],
@@ -1311,7 +1341,7 @@ export const ferry = mod({
     listTitle: "Busiest days on record", list: (host) => rowsList(host, d.t.ferry.records.slice(0, 8).map(([day, n]) => [fDay(day), f0(n)])) }),
 });
 export const bike = mod({
-  id: "bike", title: "Bike Share", scale: "region", at: ["toronto"], reach: 2, href: "../toronto/#bike", eyebrow: "Region", heading: "Bike Share Usage",
+  id: "bike", title: "Bike Share", scale: "region", at: ["toronto"], reach: 2, eyebrow: "Region", heading: "Bike Share",
   need: torNeed, season: (m) => 0.15 + 0.8 * bump(m, 7.2, 1.8), status: torStatus, source: () => "Bike Share Toronto ridership",
   badge: (d) => f0(d.t.bike.forecast[0].pred),
   tileKpis: (d) => [[f0(d.t.bike.forecast[0].pred), `trips · ${fDay(d.t.bike.forecast[0].date)}`], [`${(d.t.bike.total_trips / 1e6).toFixed(1)} M`, "trips since 2023"]],
@@ -1322,7 +1352,7 @@ export const bike = mod({
     listTitle: "Busiest stations", list: (host) => rowsList(host, d.t.bike.stations.slice(0, 8).map(([n, v]) => [n, f0(v)])) }),
 });
 export const ttc = mod({
-  id: "ttc", title: "TTC subway delays", scale: "region", at: ["toronto"], reach: 3, href: "../toronto/#ttc", eyebrow: "Region", heading: "Subway Delays",
+  id: "ttc", title: "TTC Subway Delays", scale: "region", at: ["toronto"], reach: 3, eyebrow: "Region", heading: "TTC Subway Delays",
   need: torNeed, status: torStatus, source: () => "TTC delay log",
   badge: (d) => f0(d.t.ttc.n),
   tileKpis: (d) => [[f0(d.t.ttc.n), "delays since 2022"], [d.t.ttc.causes[0][1], "top cause"]],
@@ -1338,7 +1368,7 @@ const waterNeed = (ctx) => { const c = file("water/water.json", ctx); if (c.err)
   return { w, ca: dataKey(ctx.place, "water") === "ca", caPct, mead: w.projections.mead.elev_now, t1: w.risk.mead.find((r) => r.elev === 1075) };
 };
 export const water = mod({
-  id: "water", title: "Snowpack to Tap", tileTitle: "Snowpack to Tap", scale: "region", at: ["la", "sandiego", "lasvegas", "phoenix", "tucson"], reach: 2, href: "../water/", eyebrow: "Region", heading: "Water Supply",
+  id: "water", title: "Water Supply", tileTitle: "Water Supply", scale: "region", at: ["la", "sandiego", "lasvegas", "phoenix", "tucson"], reach: 2, eyebrow: "Region", heading: "Water Supply",
   need: waterNeed, season: (m) => Math.max(0.3, bump(m, 3.0, 1.4)),
   status: (ctx) => { const c = file("water/water.json", ctx).data; return { kind: DATA, text: c ? asOf(c.generated) : "Data", long: "Published data (water/water.json): snowpack, reservoirs, Lake Mead projections" }; },
   source: () => "CDEC + USBR",
@@ -1408,7 +1438,7 @@ export const hazards = mod(HZ.wildfiresDef({ LIVE, DATA, rowsList, colChart }));
 
 const AR_NAMES = ["below AR scale", "weak", "moderate", "strong", "extreme", "exceptional"];
 export const ar = mod({
-  id: "ar", title: "Atmospheric Rivers", tileTitle: "Atmospheric Rivers", scale: "province", at: ["bc", "wa", "cal"], reach: 2, eyebrow: "Province / state", heading: "Atmospheric River Outlook",
+  id: "ar", title: "Atmospheric Rivers", tileTitle: "Atmospheric Rivers", scale: "province", at: ["bc", "wa", "cal"], reach: 2, eyebrow: "Province / state", heading: "Atmospheric Rivers",
   need: (ctx) => arEstimate(ctx),
   season: (m) => Math.max(0.1, bump(m, 12, 1.6)),
   urgent: (ctx) => (arEstimate(ctx)?.top?.cat || 0) >= 2,
@@ -1510,7 +1540,7 @@ const darkNeed = (ctx) => { const c = file("darksky/sites.json", ctx); if (c.err
 };
 const lpChange = (d) => (d.town ? `${d.town.change_pct >= 0 ? "+" : "−"}${Math.abs(d.town.change_pct).toFixed(0)}%` : "—");
 export const darksky = mod({
-  id: "darksky", title: "Light Pollution", tileTitle: "Light Pollution", scale: "province", at: ["bc", "az"], reach: 1, href: "../darksky/", eyebrow: "Province / state", heading: "Light Pollution", need: darkNeed,
+  id: "darksky", title: "Light Pollution", tileTitle: "Light Pollution", scale: "province", at: ["bc", "az"], reach: 1, eyebrow: "Province / state", heading: "Light Pollution", need: darkNeed,
   season: (m) => Math.max(0.3, bump(m, 8.2, 1.0), 0.75 * bump(m, 12.5, 0.8)),
   status: () => ({ kind: DATA, text: "Data", long: "Published light-pollution model (darksky/model.json, sqm and change images) from NASA Black Marble night lights, and the dark-sky site list (darksky/sites.json)" }),
   source: () => "NASA Black Marble + Globe at Night",
@@ -1531,7 +1561,7 @@ const gridNeed = (ctx) => { const c = file("grid/grid.json", ctx); if (c.err) re
   return { g, net, dem, belly, ramp: peak - belly };
 };
 export const grid = mod({
-  id: "grid", title: "California Duck Curve", scale: "province", at: ["cal"], reach: 2, href: "../grid/", eyebrow: "State", heading: "Grid Forecast", need: gridNeed,
+  id: "grid", title: "Electricity Grid", tileTitle: "Electricity Grid", scale: "province", at: ["cal"], reach: 2, eyebrow: "State", heading: "Electricity Grid", need: gridNeed,
   season: (m) => Math.max(0.3, bump(m, 4.2, 1.1), 0.85 * bump(m, 8.8, 0.9)),
   status: (ctx) => { const c = file("grid/grid.json", ctx).data; return { kind: DATA, text: c ? asOf(c.generated) : "Data", long: "Published forecast (grid/grid.json), CAISO" }; },
   source: () => "CAISO OASIS",
@@ -1558,7 +1588,7 @@ const natNeed = (ctx) => {
   return { us: false, total: list.length, warn: list.filter((a) => a.alert_type === "warning").length, rows, list };
 };
 export const natalerts = mod({
-  id: "natalerts", title: "National weather alerts", scale: "country", at: ["ca", "us"], reach: 3, eyebrow: "Country", heading: "National Weather Alerts", need: natNeed,
+  id: "natalerts", title: "Weather Warnings", tileTitle: "Weather Warnings", scale: "country", at: ["ca", "us"], reach: 3, eyebrow: "Country", heading: "Weather Warnings", need: natNeed,
   status: (ctx) => ({ kind: LIVE, text: "Live", long: isUS(ctx) ? "NWS active-alert counts (public domain), live" : "ECCC weather alerts via MSC GeoMet (Open Government Licence – Canada), live" }),
   source: (ctx) => (isUS(ctx) ? "NWS" : "ECCC · GeoMet"),
   badge: (d) => `${d.total}`,
@@ -1594,7 +1624,7 @@ export const natalerts = mod({
 const tiltOf = (r) => (r.above - r.below) / 100;
 const outNeed = (ctx) => CL.outlookData(ctx, isUS(ctx));
 export const outlook = mod({
-  id: "outlook", title: "Seasonal Outlook", tileTitle: "Seasonal Outlook", scale: "country", at: ["ca", "us"], reach: 1, eyebrow: "Country", heading: CL.outlookHeading(),
+  id: "outlook", title: "Seasonal Outlook", tileTitle: "Seasonal Outlook", scale: "country", at: ["ca", "us"], reach: 1, eyebrow: "Country", heading: "Seasonal Outlook",
   need: outNeed, season: (m) => Math.max(0.15, bump(m, 11.5, 1.8)),
   status: (ctx) => { const d = outNeed(ctx); return { kind: DATA, text: d && !d.err ? asOf(d.gen) : "Data", long: d?.o?.source || (isUS(ctx) ? "NOAA CPC seasonal outlook (public domain)" : "ECCC CanSIPS seasonal forecast (Open Government Licence – Canada)") }; },
   source: (ctx) => (isUS(ctx) ? "NOAA CPC" : "ECCC CanSIPS · GeoMet"),
@@ -1618,7 +1648,7 @@ const bigNeed = (ctx) => { const c = quakesMonth(ctx); if (c.err) return { err: 
   return { qs };
 };
 export const bigquakes = mod({
-  id: "bigquakes", title: "Big earthquakes", scale: "world", at: ["world"], reach: 2, eyebrow: "Planet", heading: "Major Earthquakes", need: bigNeed,
+  id: "bigquakes", title: "Major Earthquakes", scale: "world", at: ["world"], reach: 2, eyebrow: "Planet", heading: "Major Earthquakes", need: bigNeed,
   urgent: (ctx) => !!bigNeed(ctx)?.qs?.some((q) => q.mag >= 7 && Date.now() - q.t < 72 * 36e5),
   status: () => ({ kind: LIVE, text: "Live", long: "USGS M4.5+ feed (public domain), past 30 days, filtered to M6+" }),
   source: () => "USGS",
@@ -1667,7 +1697,7 @@ export const enso = mod({
 // pages above open from it as insets.
 export const patterns = mod(HZ.patternsDef({ LIVE, DATA, rowsList, lineChart, colChart, arEstimate: (ctx) => arEstimate(ctx) }));
 
-export const SPECIALS = [langford, lnotices, crime, quakes, blossom, foliage, sunday, salish, golf, trails, hot, surf, events, route95, airtraffic, waterways, waterwaysNext, ferries, wsferries, malahat, biking, ferry, bike, ttc, water,
+export const SPECIALS = [langford, lnotices, crime, quakes, blossom, foliage, sunday, salish, golf, trails, hot, surf, events, route95, airtraffic, waterways, waterwaysNext, ferries, wsferries, malahat, biking, galloping, ferry, bike, ttc, water,
   tsunami, hazards, ar, unusual, darksky, grid, natalerts, outlook, enso, patterns];   // bigquakes: merged into quakes (its alerts too)
 export const ALL = [alerts, ...BASICS, ...SPECIALS];
 
@@ -1677,17 +1707,18 @@ export const ALL = [alerts, ...BASICS, ...SPECIALS];
 // The rail order is most-useful-to-most-people first; `h` starts a rail section.
 export const TOPICS = [
   { id: "now", title: "Right now", color: "var(--m-alerts)", h: "Every day", badgeFrom: "alerts", leaves: [alerts, natalerts] },
-  { id: "weather", title: "Weather", color: "var(--m-weather)", badgeFrom: "weather", leaves: [wx, aq, unusual, outlook] },
+  { id: "weather", title: "Weather", color: "var(--m-weather)", badgeFrom: "weather", fixed: true, leaves: [wx, aq, unusual, outlook, patterns, ar, enso], insets: { ar: "patterns", enso: "patterns" } },
   // fixed: tabs keep this order (not re-sorted by scale). insets: a leaf with no tab of its own, opened from a button on
   // its parent page (Route 95 inside Transit, the Malahat inside Traffic); its tab shows only while it is open.
   { id: "getting-around", title: "Getting around", color: "var(--m-transit)", badgeFrom: "transit", fixed: true,
-    leaves: [transit, roads, biking, ferries, waterways, waterwaysNext, airtraffic, wsferries, ferry, bike, ttc, route95, malahat],
-    insets: { route95: "transit", malahat: "roads" } },
-  { id: "hazard", title: "Hazards", color: "var(--m-hazards)", fixed: true, leaves: [hazards, quakes, tsunami, patterns, ar, enso], insets: { ar: "patterns", enso: "patterns" } },
+    leaves: [transit, roads, biking, ferries, waterways, waterwaysNext, airtraffic, wsferries, ferry, bike, ttc, route95, malahat, galloping],
+    insets: { route95: "transit", malahat: "roads", galloping: "biking" } },
+  { id: "hazard", title: "Hazards", color: "var(--m-hazards)", fixed: true, leaves: [hazards, quakes, tsunami] },
   { id: "civic", title: "Civic", color: "var(--m-lnotices)", h: "This place", leaves: [lnotices, crime, langford, water, grid] },
-  // Nature: the natural world and its seasons. Lifestyle: outings, culture and special events.
-  { id: "nature", title: "Nature", color: "var(--m-sunday)", leaves: [trails, salish, surf, blossom, foliage, darksky] },
-  { id: "lifestyle", title: "Lifestyle", color: "var(--m-blossom)", leaves: [events, hot, sunday, golf] },
+  // Nature: the natural world and its seasons. Things to Do (id "lifestyle", so old links hold): events and outings.
+  // What's Hot Now (civic-mod-hot.js) has no tab any more; Surf still uses its surf table.
+  { id: "nature", title: "Nature", color: "var(--m-sunday)", leaves: [salish, blossom, foliage, darksky] },
+  { id: "lifestyle", title: "Things to Do", color: "var(--m-blossom)", fixed: true, sumAll: true, leaves: [events, trails, surf, golf, sunday] },
 ];
 // earlier topic ids → their replacement (old links to a summary land on the new topic; links to a leaf follow the leaf)
 export const TOPIC_ALIAS = { "weather-air": "weather", climate: "weather", local: "civic", safety: "civic", growth: "civic", "water-power": "civic", seasons: "nature", outdoors: "nature" };

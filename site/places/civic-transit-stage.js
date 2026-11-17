@@ -1,4 +1,4 @@
-// Open Places: the Transit, Local Stops and Route 95 pages on the map stage, drawn by the Public Transit dashboard's own
+// Open Places: the Transit, Local Stops and Route 95 pages on the map stage, drawn with src/blink's own
 // mountable layers (src/blink/tlayers.js: the whole network as soft pastel lines, 2.5D fleet sprites at their reported
 // positions, a selected bus's route ahead bright to the end of its line and behind fading, click again to deselect, the
 // Road Speed corridor) and its cards (tcards.js vehicle card, speed.js road-speed card, tnext.js departures).
@@ -11,13 +11,13 @@
 import "../src/blink/transit.css";
 import "./civic-transit-stage.css";
 import { el } from "../src/shared/ui.js";
-import { T, loadCore, loadAllStops, startVehicles, setPoint, routes, allVehicles } from "../src/blink/tcommon.js";
+import { T, loadCore, loadAllStops, startVehicles, setPoint, routes, allVehicles, agencies, meta, loadAlerts, alertActive, badge, clockOf } from "../src/blink/tcommon.js";
 import { addTransitLayers, rKey, vKey, placeOf, headOf, speedOf, vivid } from "../src/blink/tlayers.js";
 import { vehicleCard, vehicleTitle } from "../src/blink/tcards.js";
 import { speedCard } from "../src/blink/speed.js";
 import { departuresList } from "../src/blink/tnext.js";
 
-const S = { core: null, L: null, mode: "", drawer: null, deps: null, r95: null, pk: "", title: "", open: false, item: null, speed: null };
+const S = { core: null, L: null, mode: "", drawer: null, deps: null, r95: null, ag: null, pk: "", title: "", open: false, item: null, speed: null };
 const isDark = () => (document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches);
 
 /** first use: point the shared transit state at this place, load the network, start the vehicle poll */
@@ -25,7 +25,7 @@ function prime(ctx) {
   const [lon, lat] = ctx.place.ll;
   if (!S.core) {
     T.at = { lat, lon }; T.atName = ctx.place.short || ctx.place.name; T.place = ctx.place.id;
-    S.core = loadCore().then(() => { startVehicles(); return loadAllStops().then(() => S.L?.stopsLoaded()); }).catch((e) => console.warn("[transit stage]", e?.message || e));
+    S.core = loadCore().then(() => { startVehicles(); loadAlerts().then(paintAg); return loadAllStops().then(() => { S.L?.stopsLoaded(); paintAg(); }); }).catch((e) => console.warn("[transit stage]", e?.message || e));
   }
   setPoint({ lon, lat, how: "place", name: ctx.place.short || ctx.place.name });
 }
@@ -103,7 +103,7 @@ function onTimePanel(d) {
       el("span", { class: "civ-r95-t" }, el("i", { style: `width:${Math.round((r.p?.on_time || 0) * 100)}%` })),
       el("b", {}, pctTxt(r.p?.on_time))))),
     el("p", { class: "note civ-r95-note" }, `On time: 1 min early to 5 min late at timing points. ${days} day${days === 1 ? "" : "s"} tracked so far.`),
-    el("div", { class: "civ-fp-foot" }, el("span", {}, "BC Transit GTFS-Realtime vs timetable"), el("a", { class: "civ-open", href: "../blink/#live", target: "_blank", rel: "noopener" }, "Full dashboard ↗")));
+    el("div", { class: "civ-fp-foot" }, el("span", {}, "BC Transit GTFS-Realtime vs timetable")));
 }
 /** Route 95's buses now: one row per bus (headsign, reported delay and speed); a row picks the bus on the map */
 function liveList() {
@@ -127,6 +127,86 @@ function liveList() {
 function paintR95() { S.r95?.paint?.(); }
 addEventListener("transit-live", paintR95);
 
+// ------------------------------------------------------------------ Transit: the region's network, fleet and alerts
+// an alert's line: its header, else the description's first sentence, else its effect (some headers are just "1")
+const EFFECT = { NO_SERVICE: "No service", REDUCED_SERVICE: "Reduced service", SIGNIFICANT_DELAYS: "Significant delays", DETOUR: "Detour", ADDITIONAL_SERVICE: "Additional service",
+  MODIFIED_SERVICE: "Modified service", STOP_MOVED: "Stop moved", NO_EFFECT: "Notice", ACCESSIBILITY_ISSUE: "Accessibility issue", OTHER_EFFECT: "Service change" };
+const realText = (t) => !!t && !/^\s*\d*\s*$/.test(t);
+const alTitle = (a) => (realText(a.header) ? a.header : realText(a.description) ? a.description.split(/[.\n]/)[0] : EFFECT[a.effect] || "Service change");
+const kmTo = ([lon, lat], v) => Math.hypot((v.lon - lon) * 111.32 * Math.cos((lat * Math.PI) / 180), (v.lat - lat) * 110.57);
+/** the agency at a glance: every live bus in the region (and how many near the place), routes and stops, the service
+ *  alerts in effect, the agency's credit and terms. Repaints with each vehicle poll. */
+function agencyPanel(ctx) {
+  const host = el("div", { class: "civ-fp-body civ-trag" });
+  let sig = "";
+  host.paint = () => {
+    if (!T.index) { if (sig !== "wait") { sig = "wait"; host.replaceChildren(el("p", { class: "note civ-empty" }, "Loading the network…")); } return; }
+    const ags = agencies().map((a) => meta(a)), vs = allVehicles().filter((v) => v.lat != null), here = ctx.place.short || ctx.place.name;
+    const near = ctx.place.level === "muni" ? vs.filter((v) => kmTo(ctx.place.ll, v) <= 5).length : null;
+    const al = (T.alerts || []).filter(alertActive).sort((a, b) => (realText(b.header) || realText(b.description)) - (realText(a.header) || realText(a.description))), soon = (T.alerts || []).length - al.length;
+    const now = `${vs.length}|${near}|${al.length}|${soon}|${T.vehLoaded}|${T.alertsLoaded}|${!!T.stops?.length}|${+T.vehAsOf || 0}`;
+    if (now === sig) return; sig = now;
+    const told = al.filter((a) => realText(a.header) || realText(a.description));   // alerts with words in them (some are only "1")
+    const nR = routes().length, nS = T.stops?.length ? T.stops.reduce((n, s) => n + (s.list?.length || 0), 0) : ags.reduce((n, m) => n + (m.stops || 0), 0);
+    const noun = T.region.group === "BC Transit" ? "buses" : "vehicles";
+    host.replaceChildren(
+      el("div", { class: "civ-trag-k" },
+        el("span", {}, el("b", {}, T.vehLoaded ? `${vs.length}` : "…"), `${noun} live in ${T.region.name}`),
+        near != null ? el("span", {}, el("b", {}, T.vehLoaded ? `${near}` : "…"), `within 5 km of ${here}`) : null,
+        el("span", {}, el("b", {}, `${nR}`), "routes"), el("span", {}, el("b", {}, nS.toLocaleString("en-CA")), "stops")),
+      el("p", { class: "note civ-trag-asof" }, T.vehAsOf ? `Positions as of ${clockOf(T.vehAsOf)}, every 20 s. The map holds the whole network: pan for the rest of ${T.region.name}.` : T.vehErr ? "The live feed isn't answering right now." : "Connecting to the live feed…"),
+      el("div", { class: "civ-trag-h" }, el("b", {}, "Service alerts"), el("span", {}, T.alertsLoaded ? `${al.length} in effect${soon > 0 ? ` · ${soon} coming up` : ""}` : "checking…")),
+      al.length ? el("ul", { class: "civ-trag-al" }, ...told.slice(0, 5).map((a) => el("li", { title: a.description || a.header || "" },
+        el("span", { class: "rs" }, ...(a.rs || []).slice(0, 3).map((r) => badge(r, true)), a.agency_wide || !(a.rs || []).length ? el("span", { class: "tr-badge sm civ-trag-all" }, "All") : null),
+        el("span", { class: "t" }, alTitle(a)))),
+        al.length > Math.min(5, told.length) ? el("li", { class: "note" }, `+ ${al.length - Math.min(5, told.length)} more${told.length <= 5 ? " the agency posted without details" : ""}`) : null)
+        : el("p", { class: "note civ-empty" }, T.alertsLoaded ? "No service alerts in effect." : ""),
+      el("div", { class: "civ-fp-foot" }, el("span", { title: ags.map((m) => m.credit).join(" ") }, `${ags.map((m) => m.operator || m.name).join(", ")} open data (GTFS, GTFS-Realtime) · not endorsed`),
+        ...ags.filter((m) => m.terms).slice(0, 1).map((m) => el("a", { class: "civ-open", href: m.terms, target: "_blank", rel: "noopener" }, "Terms ↗"))));
+  };
+  return host;
+}
+function paintAg() { S.ag?.paint?.(); }
+addEventListener("transit-live", paintAg);
+
+// ------------------------------------------------------------------ Route 95: reliability (published data, blink/blink.json)
+const DIRS = ["To Downtown", "To Langford"];   // GTFS direction 0 / 1 on Route 95
+const minTxt = (v) => (v == null ? "–" : `${v.toFixed(1)} min`);
+/** on time, early and late; how evenly the buses come (bunching, gaps); real waits against the timetable; trip time; by
+ *  direction; the day-by-day record. From the same published file as the on-time panel. */
+function reliabilityPanel(d) {
+  if (!d) return el("div", { class: "civ-fp-body" }, el("p", { class: "note civ-empty" }, "Loading the reliability record…"));
+  if (d.err || !d.b) return el("div", { class: "civ-fp-body" }, el("p", { class: "note civ-empty" }, "The reliability record isn't available right now."));
+  const b = d.b, h = b.headline, p = h.punctuality, hw = h.headways, w = h.wait, e = h.end_to_end || {}, cov = b.coverage || {};
+  const seg = (k, v) => el("i", { class: k, style: `flex:${Math.max(0, v || 0)}`, title: `${k === "ot" ? "On time" : k === "early" ? "Early" : "Late"}: ${pctTxt(v)}` });
+  const row = (l, v, t) => el("div", { class: "civ-r95-kv", title: t || "" }, el("span", {}, l), el("b", {}, v));
+  const daily = (b.daily || []).filter((x) => x.on_time != null);
+  let spark;
+  if (daily.length < 2) spark = el("p", { class: "note civ-r95-note" }, `Day by day: ${daily.length} day so far; a trend shows from the second day.`);
+  else {
+    const W = 260, H = 36, x = (i) => (i / (daily.length - 1)) * W, y = (v) => H - v * H;
+    const box = el("div", { class: "civ-r95-spark", title: daily.map((r) => `${r.date}: ${pctTxt(r.on_time)} on time`).join("\n") });
+    box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="M${daily.map((r, i) => `${x(i).toFixed(1)},${y(r.on_time).toFixed(1)}`).join(" L")}"/></svg>`;
+    spark = el("div", {}, el("div", { class: "civ-r95-sh" }, "On Time, Day by Day"), box);
+  }
+  return el("div", { class: "civ-fp-body civ-r95 civ-r95-rel" },
+    el("div", { class: "civ-r95-sh" }, "Punctuality"),
+    el("div", { class: "civ-r95-stack", role: "img", "aria-label": `On time ${pctTxt(p.on_time)}, early ${pctTxt(p.early)}, late ${pctTxt(p.late)}` }, seg("early", p.early), seg("ot", p.on_time), seg("late", p.late)),
+    el("div", { class: "civ-r95-keys" }, el("span", {}, el("i", { class: "early" }), `Early ${pctTxt(p.early)}`), el("span", {}, el("i", { class: "ot" }), `On time ${pctTxt(p.on_time)}`), el("span", {}, el("i", { class: "late" }), `Late ${pctTxt(p.late)}`)),
+    row("Typical delay", minTxt(p.median_delay_min), "median at timing points"), row("Worst 1 in 10", minTxt(p.p90_delay_min), "90th percentile delay"),
+    el("div", { class: "civ-r95-sh" }, "Spacing"),
+    row("Bunched", pctTxt(hw.bunched), "a bus under a quarter of the scheduled gap (or within 2 min) behind the one before"), row("Long gaps", pctTxt(hw.gap), "a gap over 1.5 times the scheduled one"),
+    row("Within ±50% of the scheduled gap", pctTxt(hw.within_50pct)),
+    el("div", { class: "civ-r95-sh" }, "Waiting"),
+    row("Average wait", minTxt(w.awt_min), "at stops with frequent service"), row("Timetable promises", minTxt(w.swt_min)), row("Extra wait", minTxt(w.ewt_min), "the average wait minus what the timetable promises"),
+    e.n ? row("End to end", `${minTxt(e.median_min)} vs ${minTxt(e.sched_median_min)}`, "median trip time against the timetable") : null,
+    el("div", { class: "civ-r95-sh" }, "By Direction"),
+    ...(h.by_dir || []).map((x) => row(DIRS[x.dir] || `Direction ${x.dir}`, `${pctTxt(x.punctuality?.on_time)} on time · ${minTxt(x.punctuality?.median_delay_min)}`, `${x.punctuality?.trips ?? "?"} trips`)),
+    spark,
+    el("p", { class: "note civ-r95-note" }, b.note || `${cov.watched_hours?.toFixed(1) ?? "?"} watched hours.`),
+    el("div", { class: "civ-fp-foot" }, el("span", { title: b.attribution || "" }, "BC Transit GTFS-Realtime, logged · not endorsed")));
+}
+
 /** the panels: next departures on the left (transit) or Route 95's live buses and on-time record (route95), the drawer
  *  on the right (hidden until something is picked). r95Data(ctx) → the route95 leaf's data ({ b } | { err } | null). */
 export function transitPanels(mode, { r95Data = null } = {}) {
@@ -134,21 +214,24 @@ export function transitPanels(mode, { r95Data = null } = {}) {
     prime(ctx);
     const k = `${mode}:${ctx.place.id}`;
     if (S.pk !== k) {
-      S.pk = k; S.deps = null; S.r95 = null; S.item = null;
+      S.pk = k; S.deps = null; S.r95 = null; S.ag = null; S.item = null;
       S.drawer = el("div", { class: "civ-fp-body civ-drawer-b" });
       if (S.open) setDrawer(null, null);
     }
     const out = [];
     if (mode === "transit") {
       if (!S.deps) S.deps = el("div", { class: "civ-fp-body civ-trdeps" }, departuresList({ stops: 4, rows: 5, links: false }),
-        el("div", { class: "civ-fp-foot" }, el("span", {}, "BC Transit open data · GTFS-Realtime via the relay"), el("a", { class: "civ-open", href: "../blink/", target: "_blank", rel: "noopener" }, "Full dashboard ↗")));
-      out.push({ id: "tr", title: "Next Departures", place: "left", el: S.deps });
+        el("div", { class: "civ-fp-foot" }, el("span", {}, "BC Transit open data · GTFS-Realtime via the relay")));
+      if (!S.ag) S.ag = agencyPanel(ctx);
+      S.ag.paint();
+      out.push({ id: "tr", title: "Next Departures", place: "left", el: S.deps }, { id: "tragency", title: "Network & Alerts", place: "left", el: S.ag });
     }
     if (mode === "route95") {
       if (!S.r95) S.r95 = liveList();
       S.r95.paint();
       let d = null; try { d = r95Data?.(ctx) ?? null; } catch (e) { d = { err: e }; }
-      out.push({ id: "r95live", title: "Route 95 Live", place: "left", el: S.r95 }, { id: "r95ot", title: "On Time by Route", place: "left", el: onTimePanel(d) });
+      out.push({ id: "r95live", title: "Route 95 Live", place: "left", el: S.r95 }, { id: "r95ot", title: "On Time by Route", place: "left", el: onTimePanel(d) },
+        { id: "r95rel", title: "Reliability", place: "right", el: reliabilityPanel(d) });
     }
     out.push({ id: "trsel", title: S.title || "Selected", place: "right", el: S.drawer });
     queueMicrotask(frame);

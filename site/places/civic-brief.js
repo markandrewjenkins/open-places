@@ -150,12 +150,12 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 export const TOPIC_BLURB = {
   overview: "Everything for this place on one map: what you need to know, live conditions and alerts.",
   now: "Official alerts and warnings for this place and the province around it.",
-  weather: "The forecast, daylight, air quality, how today compares with normal and the seasonal outlook.",
+  weather: "The forecast, daylight, air quality, how today compares with normal, the seasonal outlook and the big weather patterns (atmospheric rivers, El Niño and La Niña, Arctic air).",
   "getting-around": "Buses, vehicle traffic and cameras, biking, BC Ferries, ships and aircraft right now.",
-  hazard: "Wildfires, earthquakes, tsunami status and the big weather patterns (atmospheric rivers, El Niño and La Niña).",
+  hazard: "Wildfires, earthquakes and tsunami status.",
   civic: "City notices and council meetings, public safety news, growth and building, water and power.",
-  nature: "Parks and trails, whale watching, cherry blossoms, fall colour and light pollution.",
-  lifestyle: "What's on: seasonal highlights, events and outings like scenic drives and golf.",
+  nature: "Whale watching, cherry blossoms, fall colour and light pollution.",
+  lifestyle: "Things to do: events, parks and trails, surf, golf and Sunday drives.",
   about: "How Open Places works, its sources and what is coming later.",
 };
 /** one page's live hint: its tile's first number and label, else its badge, else its status */

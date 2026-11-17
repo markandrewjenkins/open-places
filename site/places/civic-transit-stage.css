@@ -17,3 +17,36 @@
 .civ-r95-bar.is-95 { color: var(--ink); font-weight: 700; }
 .civ-r95-bar.is-95 .civ-r95-t > i { background: var(--r95, var(--accent)); opacity: 1; }
 .civ-r95-note { margin: 0; font-size: 11px; color: var(--muted); }
+
+/* Transit: Network & Alerts (the region's fleet, routes, stops, service alerts) */
+.civ-trag { gap: 7px; font-size: 12.5px; color: var(--ink-2, var(--ink)); }
+.civ-trag-k { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
+.civ-trag-k span { display: flex; flex-direction: column; font-size: 11px; color: var(--muted); line-height: 1.25; }
+.civ-trag-k b { font: 650 17px/1.15 var(--fig, var(--font)); color: var(--ink); font-variant-numeric: tabular-nums; }
+.civ-trag-asof { margin: 0; font-size: 11px; line-height: 1.35; color: var(--muted); }
+.civ-trag-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-top: 6px; border-top: 1px solid var(--grid, rgba(127, 127, 127, 0.18)); }
+.civ-trag-h b { color: var(--ink); font-size: 12.5px; font-weight: 650; }
+.civ-trag-h span { font: 500 11px/1.2 var(--fig, var(--font)); color: var(--muted); }
+.civ-trag-al { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.civ-trag-al li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 7px; align-items: start; font-size: 12px; line-height: 1.3; }
+.civ-trag-al .rs { display: flex; gap: 2px; }
+.civ-trag-al .t { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--ink); }
+.civ-trag-all { background: var(--muted); color: var(--surface); }
+
+/* Route 95: Reliability */
+.civ-r95-rel { gap: 4px; font-size: 12px; }
+.civ-r95-sh { margin-top: 4px; font: 650 10px/1.2 var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.civ-r95-sh:first-child { margin-top: 0; }
+.civ-r95-stack { display: flex; height: 9px; border-radius: 4px; overflow: hidden; background: var(--grid, rgba(127, 127, 127, 0.18)); }
+.civ-r95-stack i, .civ-r95-keys i { display: block; }
+.civ-r95-rel .ot { background: var(--live); }
+.civ-r95-rel .early { background: var(--m-weather, #2f6db5); }
+.civ-r95-rel .late { background: var(--warn); }
+.civ-r95-keys { display: flex; gap: 10px; font-size: 10.5px; color: var(--muted); }
+.civ-r95-keys span { display: flex; align-items: center; gap: 4px; }
+.civ-r95-keys i { width: 9px; height: 9px; border-radius: 2px; }
+.civ-r95-kv { display: flex; justify-content: space-between; gap: 10px; padding: 1px 0; color: var(--ink-2, var(--ink)); }
+.civ-r95-kv b { font: 600 12px/1.3 var(--fig, var(--font)); color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; }
+.civ-r95-spark { height: 36px; }
+.civ-r95-spark svg { width: 100%; height: 100%; display: block; }
+.civ-r95-spark path { fill: none; stroke: var(--r95, var(--accent)); stroke-width: 1.8; vector-effect: non-scaling-stroke; }

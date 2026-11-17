@@ -50,9 +50,16 @@ const dot = (x, y, r) => `M${x - r} ${y}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 
 function prims(kind) {
   if (kind === "works") return [
     { d: "M12 1.6 L22.4 12 L12 22.4 L1.6 12 Z", fill: "F", stroke: "K", w: 1.3, halo: true },
-    { d: dot(12.6, 6.8, 1.45), fill: "K" },
-    { d: "M12.3 8.7 L11.2 12.6 M11.2 12.6 L9.8 16 M11.2 12.6 L12.8 15.8 M11.9 9.9 L14.8 11.4 M14.8 11.4 L15.6 14.6", stroke: "K", w: 1.7 },
-    { d: "M13.6 16.4 Q14.8 15 16 15.9 Z", fill: "K", stroke: "K", w: 0.8 },
+    // the MUTCD W21-1 / TAC "road work" worker: facing left, leaning into a long-handled shovel whose blade digs into a
+    // pile at his feet; back leg straight, front knee bent
+    { d: dot(12.3, 6.5, 1.65), fill: "K" },                                        // head
+    { d: "M12.9 8.9 L15.5 11.9", stroke: "K", w: 2.7 },                            // torso, bent forward
+    { d: "M15.5 11.9 L17.6 15.6", stroke: "K", w: 2.1 },                           // back leg
+    { d: "M15.3 12.2 L13.9 14.2 L14.5 16.5", stroke: "K", w: 2.1 },                // front leg, knee bent
+    { d: "M12.8 9.3 L12.2 11.5 M13.4 9.8 L11 12.8", stroke: "K", w: 1.5 },         // arms on the handle
+    { d: "M13.1 10.3 L9.3 15", stroke: "K", w: 1.3 },                              // shovel handle
+    { d: "M8.4 14.3 L10.2 15.6 L9.3 16.9 L7.6 15.6 Z", fill: "K" },               // blade
+    { d: "M6.9 17.2 Q8.9 14.6 11.1 17.2 Z", fill: "K" },                           // pile
   ];
   if (kind === "closure") return [
     { d: C10, fill: "F", halo: true },

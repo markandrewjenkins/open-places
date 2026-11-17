@@ -10,3 +10,5 @@
 .ps-src { max-height: none; }
 .ps-src .civ-row { color: inherit; text-decoration: none; cursor: pointer; }
 .ps-note { margin: 0 0 6px; font-size: 11.5px; line-height: 1.4; color: var(--muted); }
+.ln-meet .civ-row, .ps-src .civ-row { justify-content: space-between; }
+.ln-meet .civ-row-v, .ps-src .civ-row-v { text-align: right; }

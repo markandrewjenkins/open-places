@@ -102,7 +102,7 @@ function paint() {
       el("p", { class: "nt-lead" }, el("em", { class: "civ-tag hot-tag", "data-kind": "live" }, "Live"), ` ${good} break${good === 1 ? "" : "s"} good and ${fair} fair in the next 3 days. `,
         el("b", {}, "Good"), " ≥ 1 m at ≥ 10 s reaching the beach, ", el("b", {}, "fair"), " ≥ 0.6 m at ≥ 7 s. Waves only: check wind, tide and hazards before you go."),
       surfTable(r, { onPick: (s) => pick(s.id), sel: SURF.sel }),
-      el("div", { class: "civ-fp-foot" }, el("span", {}, SRC), el("a", { class: "civ-open", href: "#lifestyle/hot" }, "What's Hot →")));
+      el("div", { class: "civ-fp-foot" }, el("span", {}, SRC)));
   }
   detail(m);
 }

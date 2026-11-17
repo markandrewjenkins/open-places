@@ -60,7 +60,7 @@ const MODULE_SOURCES = {
   alerts: ["eccc", "nws", "usgs", "drivebc", "openmeteo", "tsunami"], natalerts: ["eccc", "nws"],
   weather: ["openmeteo", "eccc-radar", "nowcoast", "rainviewer"], air: ["openmeteo-aq"],
   transit: ["gtfs", "bct"], lstops: ["gtfs", "bct"], route95: ["data", "gtfs", "bct"],
-  roads: ["drivebc", "drivebc-cams"], malahat: ["drivebc", "drivebc-cams"], biking: ["data", "openmeteo"],
+  roads: ["drivebc", "drivebc-cams"], malahat: ["drivebc", "drivebc-cams"], biking: ["data", "openmeteo"], galloping: ["data", "openmeteo"],
   airtraffic: ["adsb", "data"], waterways: ["ais", "data"], ferries: ["ais"],
   quakes: ["usgs", "nrcan"], bigquakes: ["usgs"], tsunami: ["nws", "tsunami"], ar: ["openmeteo"], unusual: ["data", "eccc", "nws"],
   hazards: ["bcws", "cwfis", "wfigs", "nws"], patterns: ["openmeteo", "nhc", "data", "eccc", "nws"], enso: ["data"], outlook: ["data"],

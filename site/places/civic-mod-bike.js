@@ -21,10 +21,10 @@ import "./civic-mod-bike.css";
 const OSM = "© OpenStreetMap contributors (ODbL)";
 const WX = "Open-Meteo (CC BY 4.0)";
 const fc = (features) => ({ type: "FeatureCollection", features });
-const net = (ctx) => file("bike/crd.json", ctx);
+export const net = (ctx) => file("bike/crd.json", ctx);
 // times in the place's own time zone (the forecast's), not the viewer's
-const hhmm = (t, tz) => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: tz || undefined }).replace(/\s?([AP])M/i, (m, a) => ` ${a.toLowerCase()}m`);
-const hr = (t, tz) => new Date(t).toLocaleTimeString([], { hour: "numeric", timeZone: tz || undefined }).replace(/\s?([AP])M/i, (m, a) => a.toLowerCase());
+export const hhmm = (t, tz) => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: tz || undefined }).replace(/\s?([AP])M/i, (m, a) => ` ${a.toLowerCase()}m`);
+export const hr = (t, tz) => new Date(t).toLocaleTimeString([], { hour: "numeric", timeZone: tz || undefined }).replace(/\s?([AP])M/i, (m, a) => a.toLowerCase());
 
 // ------------------------------------------------------------------ classes: colour and line style
 export const CLASSES = [
@@ -40,7 +40,7 @@ const lineFC = (d) => fc(d.lines.map((x, i) => ({ type: "Feature", id: i, geomet
 const ptFC = (d) => fc([...d.parking.map((p, i) => ({ type: "Feature", id: i, geometry: { type: "Point", coordinates: [p[0], p[1]] }, properties: { k: "parking", cap: p[2] ?? -1, cov: p[3] } })),
   ...d.repair.map((p, i) => ({ type: "Feature", id: d.parking.length + i, geometry: { type: "Point", coordinates: [p[0], p[1]] }, properties: { k: "repair", n: p[2] || "" } }))]);
 /** a round button with a wrench, for repair stations (drawn at 2x) */
-function repairImage() {
+export function repairImage() {
   const s = 44, cv = document.createElement("canvas"); cv.width = cv.height = s;
   const g = cv.getContext("2d"), fill = color("var(--m-bike, #2f8f45)"), surf = color("var(--surface)");
   g.fillStyle = surf; g.beginPath(); g.arc(22, 22, 21, 0, Math.PI * 2); g.fill();
@@ -160,29 +160,37 @@ export function conditions(w) {
 }
 
 // ------------------------------------------------------------------ panels
-const foot = (text) => el("div", { class: "civ-fp-foot" }, el("span", { title: text }, text));
-const TONE = ["var(--live)", "var(--warn)", "var(--bad)"];
+export const foot = (text) => el("div", { class: "civ-fp-foot" }, el("span", { title: text }, text));
+export const TONE = ["var(--live)", "var(--warn)", "var(--bad)"];
+/** now: temperature, wind and gusts, rain, sunset (or sunrise) · shared with the Galloping Goose inset */
+export function nowEl(c) {
+  const n = c.now;
+  return el("div", { class: "civ-bk-now" },
+    el("span", {}, el("b", {}, n.temp != null ? `${Math.round(n.temp)}°` : "–"), "now"),
+    el("span", {}, el("b", {}, n.wind != null ? `${Math.round(n.wind)}` : "–"), `km/h wind${n.gust != null ? `, gusts ${Math.round(n.gust)}` : ""}`),
+    el("span", {}, el("b", {}, n.rain > 0 ? `${n.rain.toFixed(1)} mm` : "Dry"), n.rain > 0 ? "rain this hour" : "no rain now"),
+    el("span", {}, el("b", {}, n.set ? (n.day ? hhmm(n.set, c.tz) : hhmm(n.rise, c.tz)) : "–"), n.day ? "sunset" : "sunrise"));
+}
+/** the next 9 hours: chance of rain (bars), gusts, temperature; dark hours shaded */
+export function hoursEl(c) {
+  return el("div", { class: "civ-bk-hours", role: "table", "aria-label": "Next hours" },
+    ...c.hours.map((h) => el("div", { class: `civ-bk-h${h.dark ? " dark" : ""}`, role: "row", title: `${hr(h.t, c.tz)}: ${Math.round(h.temp)}°, rain ${h.pop ?? "–"}%, gusts ${h.gust != null ? Math.round(h.gust) : "–"} km/h${h.dark ? ", dark" : ""}` },
+      el("span", { class: "t" }, hr(h.t, c.tz)),
+      el("span", { class: "bar" }, el("i", { style: `height:${Math.max(2, h.pop ?? 0)}%` })),
+      el("span", { class: "v" }, `${h.pop ?? "–"}%`),
+      el("span", { class: `g${(h.gust ?? 0) >= WINDY ? " hi" : (h.gust ?? 0) >= GUSTY ? " mid" : ""}` }, h.gust != null ? `${Math.round(h.gust)}` : "–"),
+      el("span", { class: "d" }, `${Math.round(h.temp)}°`))));
+}
+export const HOURS_KEY = () => el("p", { class: "note civ-bk-key" }, "Bars: chance of rain. Middle row: gusts, km/h (amber from 35, red from 50). Shaded hours are dark.");
+export { GUSTY, WINDY, WET };
 function condPanel(ctx, d) {
   const c = conditions(d.w);
   const body = el("div", { class: "civ-fp-body civ-bk" });
   if (!c) body.append(el("p", { class: "note civ-empty" }, d.wErr ? "The forecast didn't load (Open-Meteo may be busy); conditions will show once the Weather tile has its data." : "Loading the forecast…"), foot(WX));
   else {
-    const n = c.now;
     body.append(
       el("div", { class: "civ-bk-verdict", style: `--tone:${TONE[c.tone]}` }, el("b", {}, c.verdict), c.reasons.length > 1 ? el("span", {}, c.reasons.slice(1).map((r) => r[0]).join(" · ")) : null),
-      el("div", { class: "civ-bk-now" },
-        el("span", {}, el("b", {}, n.temp != null ? `${Math.round(n.temp)}°` : "–"), "now"),
-        el("span", {}, el("b", {}, n.wind != null ? `${Math.round(n.wind)}` : "–"), `km/h wind${n.gust != null ? `, gusts ${Math.round(n.gust)}` : ""}`),
-        el("span", {}, el("b", {}, n.rain > 0 ? `${n.rain.toFixed(1)} mm` : "Dry"), n.rain > 0 ? "rain this hour" : "no rain now"),
-        el("span", {}, el("b", {}, n.set ? (n.day ? hhmm(n.set, c.tz) : hhmm(n.rise, c.tz)) : "–"), n.day ? "sunset" : "sunrise")),
-      el("div", { class: "civ-bk-hours", role: "table", "aria-label": "Next hours" },
-        ...c.hours.map((h) => el("div", { class: `civ-bk-h${h.dark ? " dark" : ""}`, role: "row", title: `${hr(h.t, c.tz)}: ${Math.round(h.temp)}°, rain ${h.pop ?? "–"}%, gusts ${h.gust != null ? Math.round(h.gust) : "–"} km/h${h.dark ? ", dark" : ""}` },
-          el("span", { class: "t" }, hr(h.t, c.tz)),
-          el("span", { class: "bar" }, el("i", { style: `height:${Math.max(2, h.pop ?? 0)}%` })),
-          el("span", { class: "v" }, `${h.pop ?? "–"}%`),
-          el("span", { class: `g${(h.gust ?? 0) >= WINDY ? " hi" : (h.gust ?? 0) >= GUSTY ? " mid" : ""}` }, h.gust != null ? `${Math.round(h.gust)}` : "–"),
-          el("span", { class: "d" }, `${Math.round(h.temp)}°`)))),
-      el("p", { class: "note civ-bk-key" }, "Bars: chance of rain. Middle row: gusts, km/h (amber from 35, red from 50). Shaded hours are dark."),
+      nowEl(c), hoursEl(c), HOURS_KEY(),
       foot(`${WX} · the page's own forecast for ${ctx.place.short || ctx.place.name}`));
   }
   return { id: "bkwx", title: "Riding Conditions", place: "left", el: float(body, "biking:wx") };
@@ -209,6 +217,18 @@ function netPanel(ctx, d) {
 }
 
 // ------------------------------------------------------------------ the leaf (wrapped by mod() in civic-modules.js)
+const nearMemo = new Map();
+/** km of network within r km of a town's centre (midpoint of each piece), or null for a region / before the file */
+export function nearKm(N, p, r = 5) {
+  if (!N || !p || p.level !== "muni") return null;
+  const key = `${p.id}:${N.generated}`; if (nearMemo.has(key)) return nearMemo.get(key);
+  const [lo, la] = p.ll, kx = 111.32 * Math.cos((la * Math.PI) / 180), ky = 110.57;
+  let sum = 0;
+  for (const l of N.lines) { const m = l.g[l.g.length >> 1];
+    if (Math.hypot((m[0] - lo) * kx, (m[1] - la) * ky) > r) continue;
+    for (let i = 1; i < l.g.length; i++) sum += Math.hypot((l.g[i][0] - l.g[i - 1][0]) * kx, (l.g[i][1] - l.g[i - 1][1]) * ky); }
+  nearMemo.set(key, sum); return sum;
+}
 const BOUNDS = [[-123.62, 48.38], [-123.3, 48.56]];   // the core network: Langford and Colwood to Victoria and Saanich
 export function coverageOf(ctx) {
   const N = net(ctx).data; if (!N?.bbox) return null;
@@ -222,6 +242,8 @@ export function bikeDef(h) {
     return { p: ctx.place, net: n.data, netErr: !!n.err, w: w.data && !w.data.err ? w.data : null, wErr: !!w.err };
   };
   const tot = (d) => (d.net ? Math.round(Object.values(d.net.km).reduce((a, b) => a + b, 0)) : null);
+  // "· 63 km near Langford": the network within 5 km of a town's centre (a region's page shows only the total)
+  const near = (d) => { const k = nearKm(d.net, d.p); return k == null ? "" : ` · ${Math.round(k)} km near ${d.p.short || d.p.name}`; };
   return {
     id: "biking", title: "Biking", tileTitle: "Biking", scale: "region", at: ["crd"], reach: 2, eyebrow: "Region", heading: "Biking",
     color: "var(--m-bike)",
@@ -229,16 +251,17 @@ export function bikeDef(h) {
     status: () => ({ kind: h.LIVE, text: "Live", long: `Riding conditions: ${WX}, the page's own forecast (live). Bike network, parking and repair stations: ${OSM}, built by pipelines/bike/network.py. Bike counters planned (no open licence); no open bike-share feed in Greater Victoria.` }),
     source: () => `OpenStreetMap (ODbL) · ${WX}`,
     badge: (d) => conditions(d.w)?.word || "",
-    tileKpis: (d) => { const c = conditions(d.w); return [[c ? c.verdict : "—", c ? `${Math.round(c.now.wind ?? 0)} km/h wind · ${c.now.rain > 0 ? "wet" : "dry"}` : "riding conditions"], [tot(d) != null ? `${tot(d)} km` : "—", "bike network (OSM)"]]; },
+    tileKpis: (d) => { const c = conditions(d.w); return [[c ? c.verdict : "—", c ? `${Math.round(c.now.wind ?? 0)} km/h wind · ${c.now.rain > 0 ? "wet" : "dry"}` : "riding conditions"], [tot(d) != null ? `${tot(d)} km` : "—", `in Greater Victoria${d.net ? near(d) : ""}`]]; },
     kpis: (d) => { const c = conditions(d.w), N = d.net;
       return [["Riding", c ? c.verdict : "—", c ? `${c.now.temp != null ? `${Math.round(c.now.temp)}° · ` : ""}${Math.round(c.now.wind ?? 0)} km/h wind` : d.wErr ? "forecast unavailable" : "loading"],
-        ["Network", tot(d) != null ? `${tot(d)} km` : "—", N ? `${Math.round(N.km.trail || 0)} km trails · ${Math.round(N.km.protected || 0)} km protected` : "OpenStreetMap"],
+        ["Network", tot(d) != null ? `${tot(d)} km` : "—", N ? `Greater Victoria${near(d)}` : "OpenStreetMap"],
         ["Parking", N ? `${N.parking.length}` : "—", N ? `${N.repair.length} repair stations` : ""], ["Counters", "Planned", "no open licence yet"]]; },
     mini: (host, d) => { const c = conditions(d.w);
       h.rowsList(host, [[c ? c.verdict : "Riding conditions", c ? `${Math.round(c.now.wind ?? 0)} km/h` : "—"], ...(d.net ? CLASSES.map((x) => [x.label, `${Math.round(d.net.km[x.k] || 0)} km`]) : [])], { fit: true }); },
     stage: {
       layout: "map", pane: "none", layers: [BIKE_NET, BIKE_PTS],
-      view: () => ({ center: [(BOUNDS[0][0] + BOUNDS[1][0]) / 2, (BOUNDS[0][1] + BOUNDS[1][1]) / 2], zoom: 11.6, bounds: BOUNDS }),
+      // the whole region's network is loaded; a town's page opens on the town (pan for the rest), the region on its core
+      view: (ctx) => (ctx.place.level === "muni" ? null : { center: [(BOUNDS[0][0] + BOUNDS[1][0]) / 2, (BOUNDS[0][1] + BOUNDS[1][1]) / 2], zoom: 11.6, bounds: BOUNDS }),
       panels: (ctx) => { const d = need(ctx) || { p: ctx.place }; return [condPanel(ctx, d), netPanel(ctx, d)]; },
       coverage: coverageOf,
     },

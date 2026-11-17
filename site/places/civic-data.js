@@ -78,6 +78,9 @@ export const inherit = (p, k) => chainOf(p).find((n) => n[k] != null)?.[k];
 export const dataKey = (p, k) => chainOf(p).find((n) => n.data?.[k])?.data[k];
 export const countryOf = (p) => chainOf(p).find((n) => n.level === "country");
 export const provinceOf = (p) => chainOf(p).find((n) => n.level === "province");
+/** a place's IANA time zone, from its province or state (null for a country, the world, or a spot outside them) */
+const TZ = { bc: "America/Vancouver", on: "America/Toronto", wa: "America/Los_Angeles", cal: "America/Los_Angeles", nv: "America/Los_Angeles", az: "America/Phoenix" };
+export const tzOf = (p) => (p && TZ[provinceOf(p)?.id]) || null;
 export const LIT = PLACES.filter((p) => p.lit);
 
 const fmtLL = (lat, lon) => `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? "N" : "S"} ${Math.abs(lon).toFixed(2)}°${lon >= 0 ? "E" : "W"}`;

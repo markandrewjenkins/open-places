@@ -545,11 +545,12 @@ const PAT_TTL = 90 * 60e3; // the GFS runs every 6 h; the grid is the costly cal
 const DOMAINS = { west: { lat: [20, 60], lon: [-180, -120], view: [[-180, -7], [-110, 62]] }, east: { lat: [25, 60], lon: [-105, -45], view: [[-108, 14], [-40, 62]] } };
 const domainOf = (ctx) => (ctx.place.ll[0] < -100 ? "west" : "east");
 /** Open-Meteo on a 5° (latitude) by 10° (longitude) grid, 63 points (each counts as an Open-Meteo call), every 3 h, yesterday to 5 days ahead: sea-level pressure and water-vapour transport */
-// The grid is fetched only while a Hazards page is open (it costs 63 Open-Meteo calls); elsewhere the alert check uses
+// The grid is fetched only while Weather Patterns (or its insets, or the Weather summary) is open (it costs 63 Open-Meteo
+// calls); elsewhere the alert check uses
 // whatever is already cached (memory or localStorage) and otherwise waits.
 const PEEK = { data: null, err: null, v: 0 };
 const patGrid = (ctx) => { const k = domainOf(ctx), D = DOMAINS[k], lats = d3.range(D.lat[0], D.lat[1] + 0.1, 5), lons = d3.range(D.lon[0], D.lon[1] + 0.1, 10);
-  if (ctx.route?.topic !== "hazard" && !cache.has(`pat:grid2:${k}`)) {
+  if (!(ctx.route?.topic === "weather" && ["patterns", "ar", "enso", "summary"].includes(ctx.route.sub)) && !cache.has(`pat:grid2:${k}`)) {
     let kept = null; try { kept = JSON.parse(localStorage.getItem(`odp-hz:pat:grid2:${k}`) || "null"); } catch { /* storage off */ }
     if (!kept || Date.now() - kept.at >= PAT_TTL) return PEEK;
   }
@@ -699,7 +700,7 @@ function patNeed(ctx, h) {
   { const top = ar && !ar.err ? ar.top : null, nowIvt = ar?.series?.[0]?.y ?? 0;
     const pine = !!(top && pl?.pineapple);
     const s = !ar || (!ar.series && !ar.err) ? "loading" : ar.err ? "na" : top && top.cat >= 1 && (nowIvt >= 250 || +top.start - now < 36 * 36e5) ? "active" : top || nowIvt >= 250 ? "watch" : "quiet";
-    cards.push({ id: "ar", name: pine ? "Atmospheric River · Pineapple Express" : "Atmospheric River", s, href: "#hazard/ar",
+    cards.push({ id: "ar", name: pine ? "Atmospheric River · Pineapple Express" : "Atmospheric River", s, href: "#weather/ar",
       key: top ? `AR${top.cat}` : ar?.series ? `${f0(ar.max)} kg/m/s` : "…",
       sub: top ? `${["", "weak", "moderate", "strong", "extreme", "exceptional"][top.cat] || "below scale"}, peak ${f0(top.max)} kg/m/s ${fDayT(top.peak)}, above 250 for ${top.hours} h${pine ? `; plume reaches ${Math.round(pl.south)}°N near Hawaii` : pl?.south != null ? `; plume reaches ${Math.round(pl.south)}°N` : ""}`
         : ar?.series ? `No water-vapour transport above 250 kg/m/s here in 7 days; peak ${f0(ar.max)}.` : "Loading the moisture forecast…",
@@ -707,7 +708,7 @@ function patNeed(ctx, h) {
 
   // El Niño / La Niña
   { const e = en && !en.err ? en : null;
-    cards.push({ id: "enso", name: "El Niño / La Niña", s: !e ? (en?.err ? "na" : "loading") : e.phase !== "Neutral" ? "active" : /watch/i.test(e.e.status || "") ? "watch" : "quiet", href: "#hazard/enso",
+    cards.push({ id: "enso", name: "El Niño / La Niña", s: !e ? (en?.err ? "na" : "loading") : e.phase !== "Neutral" ? "active" : /watch/i.test(e.e.status || "") ? "watch" : "quiet", href: "#weather/enso",
       key: e ? e.phase : "…", sub: e ? `${e.e.status || e.phase}. Relative Niño 3.4 index ${e.now.y > 0 ? "+" : ""}${e.now.y.toFixed(1)} °C (${e.now.s}).` : "Loading CPC's status…",
       src: "NOAA CPC (public domain), daily snapshot", spark: e ? { v: [...e.roni.slice(-18).map((q) => q.y), ...e.fc.map((q) => q.p50)], fc: Math.min(18, e.roni.length), thr: [0.5, -0.5], zero: true, tip: "Niño 3.4 index, 18 seasons and CPC's outlook" } : null }); }
 
@@ -772,7 +773,7 @@ function patLayers(h) {
     { id: "pat-n34", title: "Niño 3.4", kind: "fill", color: "var(--m-enso, var(--accent))",
       data: (ctx) => { const d = D(ctx); if (!d?.enso || d.k !== "west") return null; const v = d.enso.now.y;
         return fc([{ type: "Feature", geometry: rect(N34), properties: { id: "n34", title: `Niño 3.4 region · ${d.enso.phase}`, label: "Niño 3.4", color: ENSO_C(v), fop: Math.abs(v) >= 0.5 ? Math.min(0.26, 0.1 + 0.07 * Math.abs(v)) : 0.06,
-          body: `Sea-surface temperature ${v > 0 ? "+" : ""}${v.toFixed(1)} °C from normal (relative index, ${d.enso.now.s}). El Niño from +0.5, La Niña from −0.5.`, meta: "NOAA CPC (public domain)", href: "#hazard/enso", link: "El Niño / La Niña →" } }]); } },
+          body: `Sea-surface temperature ${v > 0 ? "+" : ""}${v.toFixed(1)} °C from normal (relative index, ${d.enso.now.s}). El Niño from +0.5, La Niña from −0.5.`, meta: "NOAA CPC (public domain)", href: "#weather/enso", link: "El Niño / La Niña →" } }]); } },
     // water-vapour transport: filled bands at 250 / 500 / 750 kg/m/s (the AR thresholds), at the map time
     { id: "pat-ivt", title: "Moisture (IVT)", icon: "droplet", color: "var(--m-ar, var(--accent-2))", kind: "fill", optional: true,
       data: (ctx) => { const d = D(ctx), g = d?.grid; if (!g) return null; const t = at(d);
@@ -1004,7 +1005,7 @@ export function patternsDef(h) {
     main: (d) => ({ title: "Pattern Status", sub: "", draw: (host) => host.replaceChildren(...d.cards.map(cardEl)), listTitle: "Sources", list: (host) => h.rowsList(host, d.cards.map((c) => [c.name, c.src])) }),
     // alerts (civic-alerts.js): a bomb cyclone forecast within 2,500 km; a tropical storm within 1,000 km; a heat dome
     detect: (d) => d.cards.filter((c) => (c.id === "bomb" || c.id === "tropics" || c.id === "heat") && (c.s === "active" || c.s === "watch")).map((c) => ({
-      id: `pat:${c.id}:${c.id === "bomb" && c.e ? +c.e.t0 : new Date().toDateString()}`, level: c.s === "active" && c.id !== "bomb" ? "warn" : "notice", href: "#hazard/patterns",
+      id: `pat:${c.id}:${c.id === "bomb" && c.e ? +c.e.t0 : new Date().toDateString()}`, level: c.s === "active" && c.id !== "bomb" ? "warn" : "notice", href: "#weather/patterns",
       title: `${c.name}: ${c.s === "active" ? "active" : "watch"}`, body: `${c.key}. ${c.sub}` })),
     stage: { layout: "map", pane: "none", layers: patLayers(h),
       view: (ctx) => { const b = DOMAINS[domainOf(ctx)].view; return { center: [(b[0][0] + b[1][0]) / 2, (b[0][1] + b[1][1]) / 2], zoom: 3, bounds: b }; },

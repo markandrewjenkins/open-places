@@ -1,8 +1,11 @@
 """Download raw inputs for Fall Foliage Watch.
 
-  python -m pipelines.foliage.fetch [trees|inat|photos|modis|weather|daily|all]
+  python -m pipelines.foliage.fetch [trees|crd|inat|photos|modis|weather|daily|all]
 
-trees    every deciduous street tree in Victoria, Esquimalt, Vancouver and Toronto (municipal inventories)
+trees    every deciduous street tree in Victoria, Esquimalt, Vancouver and Toronto (municipal inventories), plus
+         OpenStreetMap trees elsewhere in Greater Victoria
+crd      only the Greater Victoria part of trees (Victoria, Esquimalt, then crowd), merged into the cached file
+crowd    only the Saanich significant, OpenStreetMap and iNaturalist trees (no inventory downloads)
 inat     iNaturalist observations of tree genera carrying the "Leaves" annotation (green / colored / no live leaves)
 modis    MODIS MCD12Q2 autumn green-down dates, 2001 onward, for each city canopy and day-trip site
 weather  daily temperature for every site: ERA5 reanalysis (Open-Meteo archive) plus the current forecast
@@ -19,6 +22,7 @@ import numpy as np
 import pandas as pd
 import requests
 
+from pipelines.common import crowd_trees, osm_trees
 from pipelines.common.http import USER_AGENT, get_json
 
 from .config import (INAT_FIRST_YEAR, INAT_REGIONS, INAT_TERM_LEAVES, MODIS_API, MODIS_FIRST, MODIS_LAST, RAW, SITES)
@@ -62,7 +66,7 @@ def _arcgis(url: str, where: str, fields: str) -> list[dict]:
     rows, offset = [], 0
     while True:
         d = get_json(url, {"where": where, "outFields": fields, "outSR": 4326, "f": "json", "resultOffset": offset,
-                           "resultRecordCount": 2000, "orderByFields": "OBJECTID"})
+                           "resultRecordCount": 2000, "orderByFields": "OBJECTID"}, min_interval=3)
         feats = d.get("features", [])
         rows += feats
         # servers cap pages below the requested size (Esquimalt: 1,000), so follow their "more records" flag
@@ -85,25 +89,7 @@ def trees() -> None:
         "lon": (r.get("geo_point_2d") or {}).get("lon"), "lat": (r.get("geo_point_2d") or {}).get("lat")} for r in van]))
     print(f"  kept {len(frames[-1]):,} of {len(van):,}", flush=True)
 
-    print("City of Victoria trees…", flush=True)
-    vic = _arcgis(VIC_TREES, "1=1", "SiteID,Address,OnStreet,Street,BotanicalName,CommonName,DiameterAtBreastHeight,Height,Area")
-    frames.append(_keep([{
-        "city": "victoria", "id": f"vic-{f['attributes'].get('SiteID')}", "botanical": f["attributes"].get("BotanicalName") or "",
-        "common": f["attributes"].get("CommonName") or "", "street": (f["attributes"].get("OnStreet") or f["attributes"].get("Street") or "").title(),
-        "area": f["attributes"].get("Area") or "", "dbh_cm": f["attributes"].get("DiameterAtBreastHeight"), "height_m": f["attributes"].get("Height"),
-        "lon": (f.get("geometry") or {}).get("x"), "lat": (f.get("geometry") or {}).get("y")} for f in vic]))
-    print(f"  kept {len(frames[-1]):,} of {len(vic):,}", flush=True)
-
-    print("Township of Esquimalt trees…", flush=True)
-    esq = _arcgis(ESQ_TREES, "1=1", "uniqueid,SPP_bot,SPP_com,DBH,address,onstr,street,suffix,active")
-    frames.append(_keep([{
-        "city": "esquimalt", "id": f"esq-{f['attributes'].get('uniqueid')}", "botanical": f["attributes"].get("SPP_bot") or "",
-        "common": f["attributes"].get("SPP_com") or "",
-        "street": (f["attributes"].get("onstr") if (f["attributes"].get("onstr") or "Unassigned") != "Unassigned"
-                   else " ".join(x for x in [f["attributes"].get("street"), f["attributes"].get("suffix")] if x) or "").title(),
-        "area": "Esquimalt", "dbh_cm": f["attributes"].get("DBH"), "height_m": None,
-        "lon": (f.get("geometry") or {}).get("x"), "lat": (f.get("geometry") or {}).get("y")} for f in esq]))
-    print(f"  kept {len(frames[-1]):,} of {len(esq):,}", flush=True)
+    frames += crd_frames()
 
     print("Toronto street trees (datastore dump, ~690k rows)…", flush=True)
     res = get_json(TOR_CKAN, {"id": TOR_PACKAGE})["result"]["resources"]
@@ -121,11 +107,89 @@ def trees() -> None:
         for r in tor.to_dict("records")]))
     print(f"  kept {len(frames[-1]):,} of {len(tor):,}", flush=True)
 
-    df = pd.concat(frames, ignore_index=True)
+    save_trees(pd.concat(frames, ignore_index=True))
+
+
+def save_trees(df: pd.DataFrame) -> None:
     for c in ("dbh_cm", "height_m", "lon", "lat"):
         df[c] = pd.to_numeric(df[c], errors="coerce")
     save(df, "trees")
     print(f"  trees: {len(df):,} deciduous street trees · {df.key.nunique()} species groups", flush=True)
+
+
+def _num(v) -> str:
+    v = str(v or "").strip()
+    return "" if v in ("0", "None", "nan") else v
+
+
+def crd_frames() -> list[pd.DataFrame]:
+    """Greater Victoria: the City of Victoria (OGL-Victoria) and Township of Esquimalt (no licence stated) inventories,
+    with house numbers, then trees mapped in OpenStreetMap (ODbL) elsewhere in the region, where no municipality
+    publishes an open inventory (Saanich, Oak Bay, Langford, Colwood, View Royal, Sidney, the Saanich Peninsula…)."""
+    frames = []
+    print("City of Victoria trees…", flush=True)
+    vic = _arcgis(VIC_TREES, "1=1", "SiteID,Address,OnStreet,Street,BotanicalName,CommonName,DiameterAtBreastHeight,Height,Area")
+    frames.append(_keep([{
+        "city": "victoria", "id": f"vic-{f['attributes'].get('SiteID')}", "botanical": f["attributes"].get("BotanicalName") or "",
+        "common": f["attributes"].get("CommonName") or "", "street": (f["attributes"].get("OnStreet") or f["attributes"].get("Street") or "").title(),
+        "address": _num(f["attributes"].get("Address")),
+        "area": f["attributes"].get("Area") or "", "dbh_cm": f["attributes"].get("DiameterAtBreastHeight"), "height_m": f["attributes"].get("Height"),
+        "lon": (f.get("geometry") or {}).get("x"), "lat": (f.get("geometry") or {}).get("y")} for f in vic]))
+    print(f"  kept {len(frames[-1]):,} of {len(vic):,}", flush=True)
+
+    print("Township of Esquimalt trees…", flush=True)
+    esq = _arcgis(ESQ_TREES, "1=1", "uniqueid,SPP_bot,SPP_com,DBH,address,onstr,street,suffix,active")
+    frames.append(_keep([{
+        "city": "esquimalt", "id": f"esq-{f['attributes'].get('uniqueid')}", "botanical": f["attributes"].get("SPP_bot") or "",
+        "common": f["attributes"].get("SPP_com") or "",
+        "street": (f["attributes"].get("onstr") if (f["attributes"].get("onstr") or "Unassigned") != "Unassigned"
+                   else " ".join(x for x in [f["attributes"].get("street"), f["attributes"].get("suffix")] if x) or "").title(),
+        "address": _num(f["attributes"].get("address")),
+        "area": "Esquimalt", "dbh_cm": f["attributes"].get("DBH"), "height_m": None,
+        "lon": (f.get("geometry") or {}).get("x"), "lat": (f.get("geometry") or {}).get("y")} for f in esq if f["attributes"].get("active") != 0]))
+    print(f"  kept {len(frames[-1]):,} of {len(esq):,}", flush=True)
+
+    return frames + crowd_frames(pd.concat(frames, ignore_index=True))
+
+
+CROWD = ["saanich", "osm", "inat"]
+
+
+def crowd_frames(inv: pd.DataFrame, refresh_inat: bool = False) -> list[pd.DataFrame]:
+    """Greater Victoria beyond the inventories: Saanich's significant trees (no licence stated), trees mapped in
+    OpenStreetMap (ODbL), then iNaturalist observations of the street-tree genera as reported trees (CC0 / CC BY /
+    CC BY-NC, credited per observer). Each source drops trees within 10-25 m of one already placed."""
+    frames = []
+    house = lambda a: a.split(" ")[0] if a and a[0].isdigit() else ""
+    genera = list(_genus_ids().values())
+    for city, get, metres in [("saanich", lambda: crowd_trees.saanich_significant(), 10), ("osm", lambda: osm_trees.read("Victoria"), 25),
+                              ("inat", lambda: crowd_trees.inat(genera, RAW / "inat_trees.json", refresh_inat), 10),
+                              ("inat", lambda: crowd_trees.inat(genera, RAW / "inat_casual.json", refresh_inat, casual=True), 10)]:
+        try:
+            rows = get()
+        except Exception as e:                  # each source is optional
+            print(f"  {city} trees skipped: {e}", flush=True)
+            continue
+        placed = pd.concat([inv, *frames], ignore_index=True)
+        rows = osm_trees.far_from(rows, placed.lon.astype(float).to_numpy(), placed.lat.astype(float).to_numpy(), metres)
+        o = _keep([{"area": "", "dbh_cm": None, "height_m": None, **r, "city": city, "address": house(r.get("address") or ""), "ref": crowd_trees.ref(r)} for r in rows])
+        print(f"  {city}: kept {len(o):,} deciduous trees of {len(rows):,} outside the inventories", flush=True)
+        if len(o):
+            frames.append(o)
+    return frames
+
+
+def crd() -> None:
+    """Refresh only the Greater Victoria trees in the cached trees.parquet (Vancouver and Toronto stay as they are)."""
+    old = pd.read_parquet(RAW / "trees.parquet")
+    save_trees(pd.concat([old[~old.city.isin(["victoria", "esquimalt", *CROWD])], *crd_frames()], ignore_index=True))
+
+
+def crowd() -> None:
+    """Refresh only the Saanich, OpenStreetMap and iNaturalist trees in the cached trees.parquet (no inventory downloads)."""
+    old = pd.read_parquet(RAW / "trees.parquet")
+    keep = old[~old.city.isin(CROWD)]
+    save_trees(pd.concat([keep, *crowd_frames(keep[keep.city.isin(["victoria", "esquimalt"])], refresh_inat=True)], ignore_index=True))
 
 
 def _genus_ids() -> dict[str, int]:
@@ -284,6 +348,10 @@ if __name__ == "__main__":
     what = sys.argv[1] if len(sys.argv) > 1 else "all"
     if what == "daily":
         daily()
+    if what == "crd":
+        crd()
+    if what == "crowd":
+        crowd()
     for name, fn in [("weather", weather), ("modis", modis), ("inat", inat), ("photos", photos), ("trees", trees)]:
         if what in (name, "all"):
             print(f"{name}…", flush=True)

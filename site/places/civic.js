@@ -18,7 +18,7 @@ import "../src/shared/basemap.js";   // dark basemap labels match the light styl
 import "maplibre-gl/dist/maplibre-gl.css";
 import { initTheme, initSkin, el, cssVar } from "../src/shared/ui.js";
 import { createConsole, rovingTabs } from "../src/shared/console.js";
-import { PLACES, LEVELS, LIT, byId, childrenOf, chainOf, anywhere, placeFromParam, TODAY, monthF, km, nearestLit, boundaryOf, hasBoundary, inGeom } from "./civic-data.js";
+import { PLACES, LEVELS, LIT, byId, childrenOf, chainOf, anywhere, placeFromParam, TODAY, monthF, km, nearestLit, boundaryOf, hasBoundary, inGeom, tzOf } from "./civic-data.js";
 import { ALL, BASICS, SPECIALS, TOPICS, TOPIC_ALIAS, nodeFor, score, inSeason, collectAlerts } from "./civic-modules.js";
 import { createGlobe } from "./civic-globe.js";
 import { createAlerts, rel, tagAlert } from "./civic-alerts.js";
@@ -77,7 +77,7 @@ function focusAlerts(items) {
 const shortVal = (v) => { let s = Array.isArray(v) ? v[0] : v; if (/^0 ?min$/.test(String(s ?? ""))) s = "now"; return s != null && String(s).length && String(s).length <= 8 ? String(s) : ""; };
 const fWhen = (s) => { const d = new Date(s); return `${d.toLocaleDateString([], { weekday: "short" })} ${clock(d)}`; };
 
-// ------------------------------------------------------------------ About & Methodology (with "Coming later")
+// ------------------------------------------------------------------ About (with "Coming later")
 const comingLater = () => {
   const rows = ALL.filter((m) => m.planned).map((m) => [m.title, (m.at === "*" ? "Everywhere" : m.at.map((id) => byId.get(id)?.short).filter(Boolean).join(", ")), String(m.why || m.src || "").split(/(?<=\.)\s/)[0]]);
   rows.push(["Vehicle traffic and cameras outside BC", "Washington, California, Ontario", "Planned until WSDOT, Caltrans and Ontario 511 feeds and camera terms are checked."]);
@@ -87,7 +87,7 @@ const comingLater = () => {
     el("ul", {}, ...rows.map(([t, w, why]) => el("li", {}, el("b", {}, t), el("small", {}, ` · ${w}`), el("br"), why))));
 };
 const about = {
-  eyebrow: "Open Places", heading: "About & Methodology",
+  title: "About", eyebrow: "Open Places", heading: "About",
   html: () => el("div", { class: "cx-row cols-3 civ-about" },
     el("div", { class: "card prose" }, el("h3", {}, "What It Is"),
       el("p", {}, el("b", {}, "What's happening where you live right now, from open public data, on one page.")),
@@ -128,12 +128,13 @@ function scaleTag(l) {
 function canonHash(h) {
   const [a, ...rest] = String(h || "").replace(/^#\/?/, "").split("/");
   let to = null;
-  const MERGED = { bigquakes: "#hazard/quakes/world", lstops: "#getting-around/transit" };   // leaves folded into another page
+  const MERGED = { bigquakes: "#hazard/quakes/world", lstops: "#getting-around/transit", patterns: "#weather/patterns", ar: "#weather/ar", enso: "#weather/enso", hot: "#lifestyle/summary" };   // leaves folded into another page (Weather Patterns moved from Hazards to Weather)
   if (MERGED[a] || MERGED[rest[0]]) to = MERGED[a] || MERGED[rest[0]];
   else if (!TOPIC.has(a) && TOPIC_OF.has(a)) to = `#${TOPIC_OF.get(a).id}/${a}${rest.length ? `/${rest.join("/")}` : ""}`;
   else if (!TOPIC.has(a) && rest[0] && TOPIC_OF.has(rest[0])) to = `#${TOPIC_OF.get(rest[0]).id}/${rest.join("/")}`;   // a moved leaf
   else if (!TOPIC.has(a) && TOPIC_ALIAS[a]) to = `#${TOPIC_ALIAS[a]}/${SUM}`;                                          // a renamed topic
   else if (TOPIC.has(a) && !rest[0]) to = `#${a}/${SUM}`;
+  else if (TOPIC.has(a) && TOPIC_OF.has(rest[0]) && TOPIC_OF.get(rest[0]).id !== a) to = `#${TOPIC_OF.get(rest[0]).id}/${rest.join("/")}`;   // a leaf that moved topic (#nature/trails → #lifestyle/trails)
   else if (TOPIC.has(a)) {
     // another place's twin of a page (waterways-next: Sea Traffic for US ports) → this place's own page of that name
     const l = LEAF.get(rest[0]);
@@ -444,7 +445,8 @@ function paintSummary(t, host, c) {
   if (!ready) return;
   const wrap = host.querySelector(".civ-sg"), grid = host.querySelector(".civ-sum-tiles"), ls = shownLeaves(t);
   stripInto(wrap, t.id);
-  const live = ls.filter(isLive), data = ls.filter((l) => !isLive(l));
+  // a topic of mostly published pages (sumAll: Things to Do) tiles every page, live ones first; the rest tile the live ones
+  const live = t.sumAll ? [...ls.filter(isLive), ...ls.filter((l) => !isLive(l) && l.tile)] : ls.filter(isLive), data = ls.filter((l) => !live.includes(l));
   const want = live.map((l) => tileFor(l, "sum").el);
   if (want.length !== grid.children.length || want.some((n, i) => grid.children[i] !== n)) grid.replaceChildren(...want);
   if (!live.length) grid.replaceChildren(el("p", { class: "note civ-empty civ-fp" }, ls.length ? `No live feed for ${t.title.toLowerCase()} in ${c.place.name}; its published data is listed on the right.` : `No ${t.title.toLowerCase()} pages reach ${c.place.name} yet.`));
@@ -549,7 +551,7 @@ function paintAlertsPanel() {
   // each row carries its item, so a click fits the map to it (the rows are b.items in order; matched by their text)
   for (const r of be.querySelectorAll(".civ-brf")) { const x = b.items.find((i) => i.text === r.querySelector("p")?.textContent); if (x) tagAlert(r, x); }
   put(alertsBox, be,
-    el("div", { class: "civ-fp-foot" }, el("span", {}, "Summarised by fixed rules from this page's live feeds"), el("a", { class: "civ-open", href: "#now/alerts" }, "All alerts →")));
+    el("div", { class: "civ-fp-foot" }, el("span", {}, "Summarised by fixed rules from this page's live feeds"), el("a", { class: "civ-open", href: "#now/alerts" }, "Alerts →")));
   const n = b.items.filter((x) => x.tier === 1).length;
   ovs.right.querySelector(".civ-fp-h span").textContent = n ? `What You Need to Know · ${n} now` : "What You Need to Know";
 }
@@ -652,10 +654,16 @@ function viewGroups() {
     { label: "Further up · warnings that cover the place", mods: mods.filter((l) => d(l) >= 2 && d(l) < 99), small: true },
   ].filter((g) => g.mods.length);
 }
+/** "Updated 5:34 pm", plus the place's own time when its zone differs from the viewer's ("· 8:34 pm in Toronto") */
+const MY_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return undefined; } })();
+const clockIn = (t, tz, abbr = false) => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: tz, ...(abbr ? { timeZoneName: "short" } : {}) })
+  .replace(/\s?([AP])\.?M\.?/i, (x, a) => ` ${a.toLowerCase()}m`);
 function paintUpdated() {
   const v = viewSources(viewGroups());
-  upd.lastChild.textContent = v.at ? `Updated ${clock(v.at)}` : "Updating…";
-  upd.title = "Every data source on this view, with its licence and freshness";
+  const tz = tzOf(ctx.place), name = ctx.place.anywhere ? "this spot" : ctx.place.short || ctx.place.name;
+  const two = !!(v.at && tz && clockIn(v.at, tz) !== clock(v.at));
+  upd.lastChild.textContent = v.at ? `Updated ${clock(v.at)}${two ? ` · ${clockIn(v.at, tz)} in ${name}` : ""}` : "Updating…";
+  upd.title = `${v.at ? `Updated ${clockIn(v.at, MY_TZ, true)} your time${two ? `, ${clockIn(v.at, tz, true)} in ${name}` : ""}. ` : ""}Every data source on this view, with its licence and freshness`;
   if (!srcPop.hidden) srcPop.replaceChildren(sourcesPanel(v, { title: `${ctx.place.anywhere ? ctx.place.name : ctx.place.short} · ${cx.route.topic === "overview" ? "Overview" : document.title.split(" · ")[0]}` }));
 }
 let updQ = false;
@@ -676,7 +684,7 @@ function paintAlerts() {
   strip.dataset.state = state;
   const chip = (x) => tagAlert(el("a", { class: "civ-al-i", href: x.href, "data-sev": x.sev, title: [x.title, x.where, x.src].filter(Boolean).join(" · ") },
     el("i", { class: "civ-sev", "data-sev": x.sev }), el("b", {}, x.title), x.where ? el("span", {}, x.where) : null), x);
-  const head = el("a", { class: "civ-al-k", href: "#now/alerts", title: "All alerts" }, items.length ? `Alerts · ${items.length}` : "Alerts");
+  const head = el("a", { class: "civ-al-k", href: "#now/alerts", title: "Alerts" }, items.length ? `Alerts · ${items.length}` : "Alerts");
   let body;
   if (state === "clear") body = [el("span", { class: "civ-al-clear" }, a.loading ? "Checking alerts…" : `All clear for ${ctx.place.anywhere ? "this spot" : ctx.place.short}`)];
   else if (state === "warning") {

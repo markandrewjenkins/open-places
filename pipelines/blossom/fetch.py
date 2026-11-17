@@ -1,6 +1,8 @@
 """Download raw inputs for Cherry Blossom Watch.
 
-  python -m pipelines.blossom.fetch [trees|inat|weather|all]
+  python -m pipelines.blossom.fetch [trees|crowd|inat|weather|all]
+
+crowd  re-reads only the Saanich, OpenStreetMap and iNaturalist trees into the cached trees.parquet (no inventory downloads)
 
 Writes parquet files to data/blossom/raw/.
 """
@@ -12,6 +14,7 @@ from datetime import date
 import pandas as pd
 
 from pipelines.common.eccc import climate_daily
+from pipelines.common import crowd_trees, osm_trees
 from pipelines.common.http import get_json
 
 from .config import GROUPS, INAT_FIRST_YEAR, INAT_TERM_FLOWERING, RAW, REGIONS
@@ -104,6 +107,53 @@ def fetch_trees() -> pd.DataFrame:
     trees["cultivar"] = [cultivar_key(b, c) for b, c in zip(trees.botanical, trees.common)]
     trees = trees[trees.cultivar.notna()].reset_index(drop=True)
     trees["group"] = trees.cultivar.map(lambda k: CULTIVARS[k][1])
+    return save_trees(add_crowd(trees))
+
+
+CROWD = ["saanich", "osm", "inat"]   # "inat" holds verifiable then casual cultivated records (ref ends "|u")
+PRUNUS = 47351    # iNaturalist taxon: genus Prunus
+
+
+def _frame(rows: list[dict], city: str) -> pd.DataFrame:
+    o = pd.DataFrame([{"area": "", "dbh_cm": None, "height_m": None, **r, "city": city} for r in rows])
+    if not len(o):
+        return o
+    o["cultivar"] = [cultivar_key(b, c) for b, c in zip(o.botanical, o.common)]
+    o = o[o.cultivar.notna()].copy()
+    o["group"] = o.cultivar.map(lambda k: CULTIVARS[k][1])
+    return o
+
+
+def add_crowd(trees: pd.DataFrame, refresh_inat: bool = False) -> pd.DataFrame:
+    """Greater Victoria beyond the Victoria and Esquimalt inventories (no other council publishes one with species):
+    Saanich's significant trees (no licence stated), cherries and plums mapped in OpenStreetMap (natural=tree, Prunus; ODbL),
+    then iNaturalist observations as reported trees (CC0 / CC BY / CC BY-NC, credited per observer). Each source drops
+    trees within 10-25 m of one already placed, so a tree mapped twice shows once."""
+    trees = trees[~trees.city.isin(CROWD)]
+    placed = trees[trees.city.isin(["victoria", "esquimalt"])]
+    frames = []
+    for city, get, metres in [("saanich", lambda: crowd_trees.saanich_significant(), 10),
+                              ("osm", lambda: [r for r in osm_trees.read("Victoria") if r["botanical"].lower().startswith("prunus")], 25),
+                              ("inat", lambda: crowd_trees.inat([PRUNUS], RAW / "inat_trees.json", refresh_inat), 10),
+                              ("inat", lambda: crowd_trees.inat([PRUNUS], RAW / "inat_casual.json", refresh_inat, casual=True), 10)]:
+        try:
+            rows = get()
+        except Exception as e:                  # each source is optional; keep the rest if one fails
+            print(f"  {city} trees skipped: {e}")
+            continue
+        lons = pd.concat([placed.lon, *[f.lon for f in frames]]).to_numpy() if frames else placed.lon.to_numpy()
+        lats = pd.concat([placed.lat, *[f.lat for f in frames]]).to_numpy() if frames else placed.lat.to_numpy()
+        rows = osm_trees.far_from(rows, lons, lats, metres)
+        for r in rows:
+            r["ref"] = crowd_trees.ref(r)
+        o = _frame(rows, city)
+        print(f"  {city}: {len(o):,} cherries and plums outside the inventories")
+        if len(o):
+            frames.append(o)
+    return pd.concat([trees, *frames], ignore_index=True)
+
+
+def save_trees(trees: pd.DataFrame) -> pd.DataFrame:
     print(trees.groupby(["city", "group"]).size().unstack(fill_value=0))
     RAW.mkdir(parents=True, exist_ok=True)
     trees.to_parquet(RAW / "trees.parquet", index=False)
@@ -171,6 +221,8 @@ if __name__ == "__main__":
     print(f"Fetching {what} ({date.today()})")
     if what in ("trees", "all"):
         fetch_trees()
+    if what in ("osm", "crowd"):     # only the crowd and Saanich trees, into the cached trees.parquet (no inventory downloads)
+        save_trees(add_crowd(pd.read_parquet(RAW / "trees.parquet"), refresh_inat=True))
     if what in ("inat", "all"):
         fetch_inat()
     if what in ("weather", "all"):

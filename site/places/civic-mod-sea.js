@@ -6,19 +6,24 @@
 // a compact legend with counts, and either the selected ship's card or the nearest ships.
 // Selection lives in the URL (#getting-around/waterways/<mmsi>): an alert about one ship links there, and the page
 // eases to it, rings it and shows its card. Clicking the selected ship (on the map, in the list or the alert) again clears it.
+// Harbours and port terminals (civic-poi.js PORTS) are markers too: a click opens the port's card (what it is, who runs
+// it, ships at or near it, ships bound for it by AIS destination) in the same panel (#getting-around/waterways/port-<id>).
 //
-// The ship card leads with an example photo of its class (Wikimedia Commons, credited; src/shared/typephoto.js) or a
-// drawn side profile (src/ships/profiles.js), and a one-line plain explanation of the class.
+// The ship card leads with a photo of that exact vessel when Wikidata has an openly licensed one (credited;
+// src/ships/vesselinfo.js), else the class's drawn side profile (src/ships/profiles.js), a one-line plain explanation
+// of the class, and its operator / owner when known.
 //
 // Exports: seaStage (the module's `stage`), shipCard(v, ctx) (DOM, the "Vapor Trails" aircraft card's look for ships).
 import maplibregl from "maplibre-gl";
 import { el } from "../src/shared/ui.js";
 import { CLASSES, CLASS, classOf, classSize, classURI, addClassImages, aisTypeText, NAV, flagOf } from "../src/ships/classes.js";
 import { reckon, PARKED_NAV } from "../src/ships/ferries.js";
-import { startAIS, aisState, onAIS, aisShips, ferryOf, ferryIds, aisAge, hdgOf, titleCase, statusLine, vesselMapHref, aisCoverage, FERRY_TRIANGLE } from "./civic-mod-ferries.js";
+import { startAIS, aisState, onAIS, aisShips, ferryOf, ferryIds, aisAge, hdgOf, titleCase, statusLine, aisCoverage, FERRY_TRIANGLE } from "./civic-mod-ferries.js";
 import { km, chainOf } from "./civic-data.js";
 import { vesselProfileURI } from "../src/ships/profiles.js";
-import { typeFigure } from "../src/shared/typephoto.js";
+import { vesselFigure, operatorRows, loadVesselInfo, useWhaleFleet } from "../src/ships/vesselinfo.js";   // exact-vessel photo, operator
+import { FLEET as WHALE_FLEET } from "./civic-whaleboats.js";
+import { PORTS, PORT, addPoiLayer, portCard } from "./civic-poi.js";   // harbours and terminals
 import { destination } from "../src/ships/destination.js";   // AIS destination text → "Vancouver, BC (CAVAN)" (UN/LOCODE)
 import "./civic-mod-sea.css";
 
@@ -30,7 +35,8 @@ const VIEWS = { crd: [[-123.95, 48.16], [-122.98, 48.76]], metrovan: [[-123.62, 
 const FERRY_VIEWS = { crd: FERRY_TRIANGLE, metrovan: FERRY_TRIANGLE, seattle: [[-122.75, 47.45], [-122.2, 48.0]] };
 const regionOf = (ctx) => chainOf(ctx.place).find((n) => VIEWS[n.id])?.id || null;
 const opOf = (ctx) => (regionOf(ctx) === "seattle" ? { op: "wa", name: "WSF", long: "Washington State Ferries", hash: "#getting-around/wsferries" } : { op: "bc", name: "BC Ferries", long: "BC Ferries", hash: "#getting-around/ferries" });
-const S = { sel: null, route: undefined, focus: false, h: null, ctx: null, fly: false };
+const S = { sel: null, poi: null, route: undefined, focus: false, h: null, ctx: null, fly: false };
+useWhaleFleet(WHALE_FLEET);
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const compass = (d) => COMPASS[Math.round(((d % 360) + 360) % 360 / 45) % 8];
 const ago = (s) => (s < 90 ? `${Math.round(s)} s ago` : s < 5400 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`);
@@ -48,11 +54,24 @@ function vessels(ctx) {
 
 // ------------------------------------------------------------------ selection (URL-backed)
 /** pick a ship (or clear it: the same id again, or null); fly: ease the map to it */
+function setHash() {
+  const item = S.sel || (S.poi ? `port-${S.poi}` : null);
+  S.route = item;
+  try { history.replaceState(null, "", item ? `${LEAF}/${encodeURIComponent(item)}` : LEAF); } catch { /* ignore */ }
+}
 function pick(id, { fly = false } = {}) {
   S.sel = id && id !== S.sel ? String(id) : null;
-  S.route = S.sel;
-  try { history.replaceState(null, "", S.sel ? `${LEAF}/${encodeURIComponent(S.sel)}` : LEAF); } catch { /* ignore */ }
+  if (S.sel) S.poi = null;
+  setHash();
   S.fly = !!(fly && S.sel);
+  S.h?.paint();
+  S.ctx?.refresh?.();
+}
+/** pick a harbour / terminal (or clear it: the same one again) */
+function pickPort(id) {
+  S.poi = id && id !== S.poi && PORT[id] ? id : null;
+  if (S.poi) S.sel = null;
+  setHash(); S.fly = false;
   S.h?.paint();
   S.ctx?.refresh?.();
 }
@@ -61,12 +80,16 @@ function pick(id, { fly = false } = {}) {
 const hashItem = () => { const m = /^#getting-around\/waterways\/([^/]+)/.exec(location.hash); return m ? decodeURIComponent(m[1]) : null; };
 function syncRoute() {
   const item = hashItem();
-  if (item !== S.route) { S.route = item; S.sel = item; S.fly = !!item; S.h?.paint(); }
+  if (item !== S.route) {
+    S.route = item;
+    const port = item && /^port-/.test(item) ? item.slice(5) : null;
+    S.poi = port && PORT[port] ? port : null; S.sel = port ? null : item; S.fly = !!S.sel; S.h?.paint();
+  }
 }
 
 // ------------------------------------------------------------------ map layer
 function seaLayer(map, ctx) {
-  S.ctx = ctx; startAIS(ctx); syncRoute();
+  S.ctx = ctx; startAIS(ctx); syncRoute(); loadVesselInfo();
   const P = "sea", ids = { halo: `${P}-halo`, ships: `${P}-ships`, lbl: `${P}-lbl` };
   let alive = true;
   const geo = () => ({ type: "FeatureCollection", features: vessels(ctx).map((v) => ({ type: "Feature", geometry: { type: "Point", coordinates: v.pos },
@@ -91,7 +114,11 @@ function seaLayer(map, ctx) {
       "text-offset": [0, 1.5], "text-anchor": "top", "text-optional": true, "text-allow-overlap": false }, paint: { "text-color": ink, "text-halo-color": surf, "text-halo-width": 1.5 } }, B);
     paint();
   }
+  // the harbours and terminals, under the ships (a click on a ship over a marker is the ship's)
+  const ports = addPoiLayer(map, { prefix: "sea-port", features: () => PORTS, sel: () => S.poi, onPick: pickPort, above: [ids.ships],
+    color: () => getComputedStyle(document.body).getPropertyValue("--m-waterways").trim() || "#2a63d6", beforeId: [ids.halo, "st-place-p"], labelZoom: 10 });
   function paint() {
+    ports.paint();
     if (!alive || !map.getLayer(ids.ships)) return;
     map.getSource(ids.ships).setData(geo());
     map.setFilter(ids.halo, ["==", ["get", "id"], S.sel || ""]);
@@ -120,7 +147,7 @@ function seaLayer(map, ctx) {
   const tick = setInterval(() => { if (!document.hidden) paint(); }, 5000);
   S.h = { paint, fitFerries };
   return () => {
-    alive = false; off(); clearInterval(tick);
+    alive = false; off(); clearInterval(tick); ports.destroy();
     map.off("click", ids.ships, onClick); map.off("mousemove", ids.ships, onMove); map.off("mouseleave", ids.ships, onLeave); map.off("style.load", add);
     for (const l of [ids.lbl, ids.ships, ids.halo]) if (map.getLayer(l)) map.removeLayer(l);
     if (map.getSource(ids.ships)) map.removeSource(ids.ships);
@@ -140,7 +167,7 @@ export function shipCard(v, ctx) {
       el("img", { src: classURI(v.cls, dark), alt: "", height: 26, style: { transform: `rotate(${Math.round(h ?? 0)}deg)` } }),
       el("b", {}, titleCase(s.name) || "Unnamed vessel"), el("span", {}, c.name),
       el("button", { type: "button", class: "sea-x", title: "Clear the selection", "aria-label": "Clear the selection", onclick: () => pick(null) }, "×")),
-    typeFigure({ set: "vessels", key: c.id, drawing: vesselProfileURI(c.id, { dark }), label: c.name }),
+    vesselFigure(s, { drawing: vesselProfileURI(c.id, { dark }), label: c.name }),   // that very vessel, or the class drawing
     el("p", { class: "sea-about" }, c.about),
     el("dl", {},
       ...row("Type", s.type ? `${type} (AIS ${s.type})` : `${c.name} (${type})`),
@@ -149,12 +176,12 @@ export function shipCard(v, ctx) {
       ...row("Heading", h != null ? `${String(Math.round(h)).padStart(3, "0")}° ${compass(h)}${s.cog != null && v.moving && Math.abs(((s.cog - h + 540) % 360) - 180) > 8 ? `, course ${Math.round(s.cog)}°` : ""}` : "not broadcast"),
       ...(f ? row("Ferry", statusLine(f)) : row("Destination", dest ? el("span", { title: `As broadcast: ${s.dest}` }, dest.text) : "not broadcast")),
       ...row("Flag", flag || "unknown"),
+      ...operatorRows(s),
       ...row("Status", NAV[s.nav] || "not given"),
       ...row("Where", `${d < 10 ? d.toFixed(1) : Math.round(d)} km ${compass(bearing(ctx.place.ll, v.pos))} of ${ctx.place.short}`),
       ...row("Last report", `${ago(v.age)}${v.moving && v.age > 60 ? " (position estimated since)" : ""}`)),
-    el("p", { class: "sea-links" }, f && v.fer ? el("a", { href: `${o.hash}/${encodeURIComponent(v.id)}` }, `In ${o.name} →`) : null,
-      el("a", { href: vesselMapHref(s), target: "_blank", rel: "noopener" }, "Live Vessel Map ↗")),
-    el("p", { class: "air-note" }, `AIS from aisstream.io via the relay; not for navigation. MMSI ${s.mmsi}; flag from its MMSI${dest?.known ? "; port names from UN/LOCODE (UNECE)" : ""}.`));
+    f && v.fer ? el("p", { class: "sea-links" }, el("a", { href: `${o.hash}/${encodeURIComponent(v.id)}` }, `In ${o.name} →`)) : null,
+    el("p", { class: "air-note" }, `AIS from aisstream.io via the relay; not for navigation. MMSI ${s.mmsi}; flag from its MMSI${dest?.known ? "; port names from UN/LOCODE (UNECE)" : ""}; operator from Wikidata (CC0) or the fleet's public name.`));
 }
 
 // ------------------------------------------------------------------ the left panel
@@ -164,7 +191,7 @@ function seaPanel(ctx) {
   if (!st.at) return el("p", { class: "note civ-empty" }, st.err ? `Live ships aren't answering (${st.err.message || st.err}); retrying.` : "Listening for ships…");
   const all = vessels(ctx), near = all.filter((v) => km(v.pos, ctx.place.ll) <= NEAR_KM).sort((a, b) => km(a.pos, ctx.place.ll) - km(b.pos, ctx.place.ll));
   const o = opOf(ctx), dark = ctx.theme === "dark", nFer = near.filter((v) => v.fer).length;
-  const sel = S.sel && all.find((v) => v.id === S.sel);
+  const sel = S.sel && all.find((v) => v.id === S.sel), port = S.poi && PORT[S.poi];
   const age = (Date.now() - st.asOf) / 1000;
   const strip = el("div", { class: `air-strip ${age < 300 ? "live" : "delayed"}`, title: "Live AIS from aisstream.io through the Open Places relay, every minute" },
     el("i", { class: "air-dot" }), el("span", {}, age < 300 ? "LIVE" : "DELAYED"), el("b", {}, `updated ${ago(age)}`));
@@ -185,9 +212,10 @@ function seaPanel(ctx) {
   const gone = S.sel && !sel ? el("p", { class: "note" }, `Ship ${S.sel} isn't in the live AIS right now (not heard in the last 30 minutes).`) : null;
   return el("div", { class: "civ-fp-body sea-panel" }, strip, seg,
     sel ? shipCard(sel, ctx) : gone,
-    legend,
-    sel ? null : list,
-    el("p", { class: "note" }, `${near.length} ships within ${NEAR_KM} km · aisstream.io via the relay · not for navigation · `, el("a", { href: "../ships/", target: "_blank", rel: "noopener" }, "Full dashboard ↗")));
+    port ? portCard(port, all, { onClose: () => pickPort(null), onShip: (id) => pick(id, { fly: true }), sel: S.sel, dark, classURI, className: (c) => CLASS[c]?.name }) : null,
+    port ? null : legend,
+    sel || port ? null : list,
+    el("p", { class: "note" }, `${near.length} ships within ${NEAR_KM} km · harbours and terminals are marked: select one for its ships · aisstream.io via the relay · not for navigation`));
 }
 
 /** the module's `stage` (civic-layers.js stageOf): the map of the region's waters, the ship layer and the panel */

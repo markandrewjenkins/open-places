@@ -18,7 +18,7 @@
 
 .sea-card { padding: 8px 10px; border: 1px solid var(--border, var(--line)); border-left: 3px solid var(--sc, var(--accent)); border-radius: 6px; background: color-mix(in srgb, var(--surface) 70%, transparent); }
 .sea-card-h { align-items: center; }
-.sea-card-h img { flex: none; width: auto; }
+.sea-card-h img { flex: none; width: 26px; height: 26px; object-fit: contain; margin-right: 8px; }   /* a square box, so the turned icon never reaches the name */
 .sea-card-h b { font-size: 14px; }
 .sea-card-h span { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sea-x { flex: none; width: 22px; height: 22px; border: 1px solid var(--border, var(--line)); border-radius: 6px; background: transparent; color: var(--ink); font: inherit; font-size: 14px; line-height: 1; cursor: pointer; }
@@ -35,3 +35,15 @@
 .air-selcard .air-card-h { padding-right: 26px; }
 .air-selx { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border: 1px solid var(--border, var(--line)); border-radius: 6px; background: transparent; color: var(--ink); font: inherit; font-size: 14px; line-height: 1; cursor: pointer; }
 .air-selx:hover, .air-selx:focus-visible { border-color: var(--m-airtraffic, var(--accent)); }
+
+/* places of interest (civic-poi.js): harbour / terminal and airport cards */
+.poi-h .poi-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; align-self: center; margin-right: 6px; background: var(--surface); border: 3px solid var(--m-waterways, var(--accent)); box-sizing: border-box; }
+.poi-h b { font-size: 14px; flex: 1 1 auto; min-width: 0; }
+.air-selcard .poi-h .poi-dot { border-color: var(--m-airtraffic, var(--accent)); }
+.air-selcard .poi-card .poi-h { padding-right: 0; }
+.poi-h span { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.poi-sub { margin: 10px 0 3px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.poi-card .poi-list { margin-top: 0; }
+.poi-card .poi-list li button img { flex: none; object-fit: contain; }
+.poi-card > .note { margin: 2px 0; font-size: 12px; }
+.poi-card .poi-list.sea-list button { grid-template-columns: 16px 1fr auto; }

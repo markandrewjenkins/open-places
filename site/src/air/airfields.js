@@ -6,7 +6,8 @@
 // small circle instead (1.2 km, large 2.2 km), so every airport in view is still marked; in Greater Victoria the water
 // aerodromes with scheduled flights (Victoria Harbour, YWH; data/air/airports.json) get a 0.6 km circle.
 //
-//   addAirfields(map, { prefix = "apt", color, center: [lon, lat], km = 90, beforeId, onPick, above }) → { destroy() }
+//   addAirfields(map, { prefix = "apt", color, center: [lon, lat], km = 90, beforeId, onPick, above }) → { select(code), destroy() }
+//     select(code): keep one airport (ICAO or IATA code) highlighted, as on hover; "" clears it
 //     onPick(props, lngLat) on a click (props: name, code, iata, icao, src); without it a click opens a small popup
 //     (class popupClass) with the name, codes and source, and a second click on the same airport closes it. Hover
 //     brightens the fill and shows the pointer. color / ink / halo may be functions (read again after a theme change);
@@ -67,7 +68,7 @@ export async function airfields(center, km = 90) {
 }
 
 export function addAirfields(map, { prefix = "apt", color = "#8aa0b8", center, km = 90, beforeId, onPick, halo = "rgba(0,0,0,0.6)", ink, above = [], popupClass = "" } = {}) {
-  let alive = true, data = null, hover = null, pop = null, popName = "";
+  let alive = true, data = null, hover = null, pop = null, popName = "", selCode = "";
   const val = (v) => (typeof v === "function" ? v() : v);
   const src = `${prefix}-src`;
   async function add() {
@@ -84,8 +85,12 @@ export function addAirfields(map, { prefix = "apt", color = "#8aa0b8", center, k
       layout: { "text-field": ["step", ["zoom"], ["coalesce", ["get", "code"], ""], 10.5, ["format", ["get", "name"], {}, "\n", {}, ["get", "code"], { "text-font": ["literal", ["Noto Sans Bold"]] }]],
         "text-size": 11.5, "text-font": ["Noto Sans Regular"], "text-max-width": 10, "text-optional": true },
       paint: { "text-color": val(ink) || c, "text-halo-color": val(halo), "text-halo-width": 1.4 } }, B);
+    shade();
   }
-  const setHover = (id) => { if (hover === id) return; if (hover != null && map.getSource(src)) map.setFeatureState({ source: src, id: hover }, { hover: false }); hover = id; if (id != null) map.setFeatureState({ source: src, id }, { hover: true }); };
+  // the hovered airport and the selected one (select()) both get the brighter fill
+  const isSel = (p) => !!selCode && (p.icao === selCode || p.iata === selCode || p.code === selCode);
+  const shade = () => { if (!map.getSource(src) || !data) return; for (const f of data.features) map.setFeatureState({ source: src, id: f.id }, { hover: f.id === hover || isSel(f.properties) }); };
+  const setHover = (id) => { if (hover === id) return; hover = id; shade(); };
   const onMove = (e) => { setHover(e.features?.[0]?.id ?? null); map.getCanvas().style.cursor = "pointer"; };
   const onLeave = () => { setHover(null); map.getCanvas().style.cursor = ""; };
   // a click on an aircraft drawn over the airport belongs to the aircraft (`above`: those layer ids)
@@ -108,6 +113,7 @@ export function addAirfields(map, { prefix = "apt", color = "#8aa0b8", center, k
   map.on("style.load", add);
   if (map.getStyle()?.layers?.length) add(); else map.once("load", add);
   return {
+    select(code) { selCode = code || ""; shade(); },
     destroy() {
       alive = false; pop?.remove();
       map.off("mousemove", L, onMove); map.off("mouseleave", L, onLeave); map.off("click", L, onClick); map.off("style.load", add);

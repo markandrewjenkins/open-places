@@ -38,6 +38,10 @@
 // button above the zoom buttons ("Back to Langford") returns to the page's starting view; it hides again on a new page.
 // moved: true once the user has moved the map since this page showed; the page's own refits then leave the view alone.
 
+// ------------------------------------------------------------------ satellite: imagery instead of the map's land and water
+// A "Satellite" button by the zoom buttons swaps in EOX Sentinel-2 cloudless 2016 (CC BY 4.0; the later years are
+// non-commercial) under the basemap roads and labels and every overlay, and back; each viewer's choice is remembered.
+
 // ------------------------------------------------------------------ focus: one thing fitted and highlighted (alerts)
 // focus({ key, geo: GeoJSON geometry, zoom?, color?, page? }) fits the map to the geometry (zoom = the most it zooms in)
 // and highlights it; page = the show() key it belongs to, so a click that also changes page fits once that page shows.
@@ -120,6 +124,7 @@ export function createStage({ ctx, isDark }) {
     map = new maplibregl.Map({ container: mapEl, style: STYLE[isDark() ? "dark" : "light"], center: ctx.place.ll, zoom: 10, attributionControl: { compact: true }, maxZoom: 16, dragRotate: false, pitchWithRotate: false });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     map.addControl(homeControl(), "bottom-right");   // added after: it sits just above the zoom buttons
+    map.addControl(satControl(), "bottom-right");
     map.touchZoomRotate.disableRotation();
     // a blank stand-in for basemap sprites the style lacks; owners' layers (tlayers.js "iso|…", air/layer.js) draw their own
     map.on("styleimagemissing", (e) => { if (e.id.includes("|") || /^(opair|air|ov|tr)-/.test(e.id)) return; if (!map.hasImage(e.id)) map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) }); });
@@ -211,7 +216,7 @@ export function createStage({ ctx, isDark }) {
     // polls: start what's shown, stop the rest
     for (const s of want) if (s.start && !running.has(s.id)) running.set(s.id, s.start(ctx, () => update()) || (() => {}));
     for (const [id, stop] of running) if (!ids.has(id)) { try { stop(); } catch { /* ignore */ } running.delete(id); }
-    drawCoverage(fresh); drawPlace(); drawFocus(fresh);
+    drawSat(); drawCoverage(fresh); drawPlace(); drawFocus(fresh);
     paintChips();
   }
   function update() { if (map && styleReady) { for (const s of cur.specs.filter(isOn)) if (!s.custom && map.getSource(`st-${s.id}`)) map.getSource(`st-${s.id}`).setData(features(s)); drawCoverage(); drawPlace(); } paintChips(); }
@@ -258,6 +263,37 @@ export function createStage({ ctx, isDark }) {
   const geoSig = (g) => (g ? `${g.type}|${JSON.stringify(g.coordinates).length}|${JSON.stringify(g.coordinates).slice(0, 60)}` : "");
   /** the coverage's dotted line steps aside where the coverage is the place itself (the dashed place line says it) */
   function sameLine() { if (map.getLayer("cv-al")) map.setPaintProperty("cv-al", "line-opacity", cov && plSig && geoSig(cov.feature.geometry) === plSig ? 0 : 0.8); }
+
+  // ---------------------------------------------------------------- satellite (see the header)
+  const SAT_KEY = "op-basemap";
+  let sat = (() => { try { return localStorage.getItem(SAT_KEY) === "sat"; } catch { return false; } })(), satBtn = null;
+  // EOX's own WMTS (no key; the 2016 edition is the one released under CC BY 4.0), overzoomed past its ~10 m pixels
+  const SAT_SRC = { type: "raster", tileSize: 256, maxzoom: 14,
+    tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg"],
+    attribution: '<a href="https://cloudless.eox.at" target="_blank" rel="noopener">EOxCloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2016), <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>' };
+  function drawSat() {
+    if (!map || !styleReady || !map.style?._loaded) return;
+    if (!sat) { if (map.getLayer("sat")) map.removeLayer("sat"); if (map.getSource("sat")) map.removeSource("sat"); return; }
+    if (map.getLayer("sat")) return;
+    if (!map.getSource("sat")) map.addSource("sat", SAT_SRC);
+    // over the basemap's land, water and parks; under its roads, boundaries and labels and all of ours
+    const ls = map.getStyle().layers;
+    const before = ls.find((l) => /^(st-|cv-|pl-|fx-)/.test(l.id) || l.type === "symbol" || (l.type === "line" && /road|highway|transport|tunnel|bridge|rail|boundary/.test(l.id)))?.id;
+    map.addLayer({ id: "sat", type: "raster", source: "sat", paint: { "raster-opacity": 1, "raster-fade-duration": 150 } }, before);
+  }
+  function satControl() {
+    satBtn = el("button", { type: "button", class: "civ-satbtn" });
+    satBtn.addEventListener("click", (e) => { e.stopPropagation(); sat = !sat; try { localStorage.setItem(SAT_KEY, sat ? "sat" : "map"); } catch { /* private window */ } paintSat(); drawSat(); });
+    paintSat();
+    const box = el("div", { class: "maplibregl-ctrl maplibregl-ctrl-group civ-satctl" }, satBtn);
+    return { onAdd: () => box, onRemove: () => box.remove() };
+  }
+  function paintSat() {
+    if (!satBtn) return;
+    satBtn.textContent = sat ? "Map" : "Satellite";
+    satBtn.title = sat ? "Back to the map" : "Satellite imagery (Sentinel-2 cloudless 2016, EOX, CC BY 4.0)";
+    satBtn.setAttribute("aria-pressed", String(sat));
+  }
 
   // ---------------------------------------------------------------- home (see the header): pl-* layers, the back button
   function placeNow() { try { const f = home?.outline?.(); return f?.geometry ? f : null; } catch (e) { console.warn("[stage] outline:", e?.message || e); return null; } }

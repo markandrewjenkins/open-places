@@ -1,4 +1,4 @@
-// Open Places: the Rain Map for Weather & Daylight (an extra card in the weather pane; the module itself is the `weather`
+// Open Places: the Rain Map for Forecast (an extra card in the weather pane; the module itself is the `weather`
 // block in civic-modules.js). A MapLibre map centred on the place with the last ~2 h of radar, animated.
 //   Canada (and clicked spots in North America): ECCC MSC GeoMet WMS, North American 1 km radar composite, rain (mm/h)
 //     RADAR_1KM_RRAI or snow (cm/h) RADAR_1KM_RSNO, a frame every 6 min; Open Government Licence – Canada. CORS-open.
@@ -220,7 +220,7 @@ export function rainCard(ctx) {
 }
 
 // ------------------------------------------------------------------ the radar as the page's map (map stage, civic-stage.js)
-// Weather & Daylight's page map: the same sources, frames and legend as the Rain Map card, drawn on the shared stage map
+// Forecast's page map: the same sources, frames and legend as the Rain Map card, drawn on the shared stage map
 // (radarLayer, a custom layer spec) with its controls in a small floating panel (radarPanel). One frame list per source
 // and layer every 6 min at most (frames() above caches); re-adds its rasters after a theme change.
 const G = { map: null, ctx: null, key: "", frames: [], idx: 0, playing: !reduced(), timer: 0, kind: "rain", loadedAt: 0, ui: null, err: "", rate: null };

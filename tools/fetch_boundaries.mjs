@@ -1,19 +1,17 @@
 // Coverage outlines for Open Places (site/places/civic-stage.js coverage, the dotted "this page covers" outline):
 //   - provinces and states: Natural Earth 1:50m admin-1 (public domain), only the Open Places provinces/states,
 //     simplified (Douglas-Peucker) and with small islands dropped, so the file stays small
-//   - Greater Victoria (crd): the union of the 13 CRD municipalities in site/public/data/langford/crd_csd.json
-//     (Statistics Canada census subdivisions, Open Licence – Statistics Canada). The CSD polygons were simplified one by
-//     one, so their shared edges don't match exactly; the union is made on a ~70 m grid (with a small closing that seals
-//     the slivers between neighbours), traced and simplified.
+//   - Greater Victoria (crd): Statistics Canada's Victoria CMA (935), 2021 cartographic boundary (Statistics Canada Open
+//     Licence): the municipalities, the Juan de Fuca electoral area part and the reserves, contiguous, no holes; simplified
 // Writes site/public/data/places/boundaries.json: { generated, sources, features: [{ id, name, level, geometry }] }.
-// Run by hand when the outlines need a refresh (one download of about 5 MB from GitHub, cached in the folder you give):
+// Run by hand when the outlines need a refresh (about 5 MB from GitHub and 1.3 MB from Statistics Canada, cached in the folder you give):
 //   node tools/fetch_boundaries.mjs [cache dir]
 // Countries come from world-atlas (already a site dependency) at run time, not from this file.
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const OUT = new URL("../site/public/data/places/boundaries.json", import.meta.url);
-const CSD = new URL("../site/public/data/langford/crd_csd.json", import.meta.url);
+const CMA = "https://geo.statcan.gc.ca/geo_wa/rest/services/2021/Cartographic_boundary_files/MapServer/6/query?where=CMAUID%3D%27935%27&outFields=CMAUID,CMANAME&outSR=4326&f=geojson";
 const NE = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson";
 // Open Places place id → ISO 3166-2 (site/places/civic-data.js PLACES, level "province")
 const ADMIN1 = { bc: "CA-BC", on: "CA-ON", wa: "US-WA", cal: "US-CA", nv: "US-NV", az: "US-AZ" };
@@ -74,81 +72,33 @@ async function admin1(cacheDir) {
   }));
 }
 
-// ------------------------------------------------------------------ Greater Victoria: the union of the CSDs on a grid
-function crdUnion() {
-  const j = JSON.parse(readFileSync(CSD, "utf8"));
-  const polys = j.features.flatMap((f) => (f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates));
-  let w = 180, s = 90, e = -180, n = -90;
-  for (const p of polys) for (const [x, y] of p[0]) { w = Math.min(w, x); e = Math.max(e, x); s = Math.min(s, y); n = Math.max(n, y); }
-  const C = 0.0008, pad = 4;   // ~60 m north-south, ~90 m east-west at 48.5°N
-  w -= pad * C; s -= pad * C; e += pad * C; n += pad * C;
-  const W = Math.ceil((e - w) / C), H = Math.ceil((n - s) / C);
-  let g = new Uint8Array(W * H);
-  // scanline fill of every polygon (even-odd per polygon: holes stay open)
-  for (const p of polys) {
-    for (let r = 0; r < H; r++) {
-      const y = s + (r + 0.5) * C, xs = [];
-      for (const ring of p) for (let i = 0, k = ring.length - 1; i < ring.length; k = i++) {
-        const [xi, yi] = ring[i], [xk, yk] = ring[k];
-        if ((yi > y) !== (yk > y)) xs.push(xi + ((y - yi) * (xk - xi)) / (yk - yi));
-      }
-      xs.sort((a, b) => a - b);
-      for (let i = 0; i + 1 < xs.length; i += 2) {
-        const c0 = Math.max(0, Math.ceil((xs[i] - w) / C - 0.5)), c1 = Math.min(W - 1, Math.floor((xs[i + 1] - w) / C - 0.5));
-        for (let c = c0; c <= c1; c++) g[r * W + c] = 1;
-      }
-    }
+// ------------------------------------------------------------------ Greater Victoria: the Victoria CMA (935)
+// Statistics Canada's 2021 cartographic boundary for the Victoria census metropolitan area: the 13 municipalities, the
+// Juan de Fuca electoral area (Part 1: East Sooke, Otter Point, Willis Point …) and the First Nations reserves, in one
+// shoreline-clipped polygon set with no holes. Fetched from StatCan's own map service (no key), cached.
+async function victoriaCMA(cacheDir) {
+  const f = join(cacheDir, "statcan_cma935.geojson");
+  if (!existsSync(f)) {
+    console.log("downloading the Victoria CMA boundary from Statistics Canada…");
+    const r = await fetch(CMA, { headers: { "User-Agent": "openplaces" } });
+    if (!r.ok) throw new Error(`StatCan CMA: ${r.status}`);
+    writeFileSync(f, Buffer.from(await r.arrayBuffer()));
   }
-  // closing (dilate then erode, 2 cells): seals the slivers between neighbouring municipalities
-  const morph = (src, on) => { const out = new Uint8Array(W * H);
-    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
-      let v = on ? 0 : 1;
-      for (let dr = -2; dr <= 2 && v !== (on ? 1 : 0); dr++) for (let dc = -2; dc <= 2; dc++) {
-        const rr = r + dr, cc = c + dc, x = rr < 0 || cc < 0 || rr >= H || cc >= W ? 0 : src[rr * W + cc];
-        if (on && x) { v = 1; break; } if (!on && !x) { v = 0; break; }
-      }
-      out[r * W + c] = v;
-    }
-    return out; };
-  g = morph(morph(g, true), false);
-  // trace: directed boundary edges, chained into rings on the grid's vertices
-  const at = (r, c) => (r < 0 || c < 0 || r >= H || c >= W ? 0 : g[r * W + c]);
-  const next = new Map();   // "x,y" → [[x2,y2], …]
-  const addE = (a, b) => { const k = a.join(); (next.get(k) || next.set(k, []).get(k)).push(b); };
-  for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
-    if (!at(r, c)) continue;
-    if (!at(r - 1, c)) addE([c + 1, r], [c, r]);       // south edge, running west
-    if (!at(r + 1, c)) addE([c, r + 1], [c + 1, r + 1]); // north edge, running east
-    if (!at(r, c - 1)) addE([c, r], [c, r + 1]);       // west edge, running north
-    if (!at(r, c + 1)) addE([c + 1, r + 1], [c + 1, r]); // east edge, running south
-  }
-  const rings = [];
-  for (const [k0] of next) {
-    while (next.get(k0)?.length) {
-      const ring = [k0.split(",").map(Number)];
-      let k = k0;
-      for (;;) { const list = next.get(k); if (!list?.length) break; const b = list.pop(); if (!list.length) next.delete(k); ring.push(b); k = b.join(); if (k === k0) break; }
-      if (ring.length > 4) rings.push(ring.map(([x, y]) => [w + x * C, s + y * C]));
-    }
-  }
-  // the edges above run with the inside on the right: outers come out clockwise (negative area), holes counter-clockwise
-  const outers = rings.filter((rg) => -area(rg) > 4e-5).sort((a, b) => area(a) - area(b));
-  const holes = rings.filter((rg) => area(rg) > 4e-5);
-  const inRing = (ring, [x, y]) => { let ins = false; for (let i = 0, k = ring.length - 1; i < ring.length; k = i++) { const [xi, yi] = ring[i], [xk, yk] = ring[k]; if ((yi > y) !== (yk > y) && x < ((xk - xi) * (y - yi)) / (yk - yi) + xi) ins = !ins; } return ins; };
-  const out = outers.map((o) => [o, ...holes.filter((h) => inRing(o, h[0]))]);
-  const geom = simplifyGeom({ type: "MultiPolygon", coordinates: out }, C * 1.2, 0);
-  return { id: "crd", name: "Greater Victoria", level: "region", note: "union of the 13 CRD municipalities (electoral areas not included)", geometry: geom };
+  const g = JSON.parse(readFileSync(f, "utf8")).features[0].geometry;
+  // ~110 m simplification; islets under ~0.15 km² dropped (Discovery, Chatham, James islands stay)
+  const geom = simplifyGeom(g, 0.0015, 2e-5);
+  return { id: "crd", name: "Greater Victoria", level: "region", note: "Victoria CMA (935), Statistics Canada 2021 cartographic boundary", geometry: geom };
 }
 
 const cacheDir = process.argv[2] || join(process.cwd(), ".cache-boundaries");
 mkdirSync(cacheDir, { recursive: true });
-const features = [crdUnion(), ...(await admin1(cacheDir))];
+const features = [await victoriaCMA(cacheDir), ...(await admin1(cacheDir))];
 mkdirSync(new URL("../site/public/data/places/", import.meta.url), { recursive: true });
 writeFileSync(OUT, JSON.stringify({
   generated: new Date().toISOString().slice(0, 10),
   sources: [
     { name: "Natural Earth 1:50m admin-1 states and provinces", licence: "Public domain", url: "https://www.naturalearthdata.com/" },
-    { name: "Statistics Canada census subdivisions (via crd_csd.json)", licence: "Open Licence – Statistics Canada", url: "https://www.statcan.gc.ca/en/reference/licence" },
+    { name: "Statistics Canada 2021 cartographic boundary files: Victoria CMA (935)", licence: "Statistics Canada Open Licence", url: "https://www.statcan.gc.ca/en/reference/licence" },
   ],
   features,
 }));

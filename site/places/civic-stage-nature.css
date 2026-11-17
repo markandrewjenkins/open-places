@@ -47,3 +47,18 @@ button.nt-row:hover, button.nt-row:focus-visible { background: color-mix(in okla
 .lp-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .lp-txt b { font: 700 14px/1.2 var(--font); }
 .lp-txt span { font-size: 12px; line-height: 1.35; color: var(--ink-2); }
+
+/* Cherry Blossom Watch: tier highlight toggle and legend (tier colours as on the blossom dashboard) */
+:root { --bt-S: #7d0f3d; --bt-A: #a81f52; --bt-B: #c0527f; --bt-C: #8f7a6c; --bt-D: #6f655e; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bt-S: #ff9cc4; --bt-A: #ec5c94; --bt-B: #bf6a8f; --bt-C: #a39589; --bt-D: #8a8079; } }
+:root[data-theme="dark"] { --bt-S: #ff9cc4; --bt-A: #ec5c94; --bt-B: #bf6a8f; --bt-C: #a39589; --bt-D: #8a8079; }
+.nt-tiers { display: grid; gap: 6px; }
+.nt-tl { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 11.5px; color: var(--muted); }
+.nt-tl span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nt-tl span.off { opacity: .45; }
+.nt-tl b { font: 700 11.5px/1 var(--fig); margin-right: 2px; }
+.nt-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; box-shadow: 0 0 0 1px var(--border); }
+/* Whale Watching: species silhouettes in the legend */
+.nt-wkey .nt-k { grid-template-columns: 26px minmax(0, 1fr) auto; }
+.nt-wi { width: 26px; height: 18px; display: block; }
+.nt-wkey .nt-k i { width: 12px; height: 12px; margin-left: 7px; }

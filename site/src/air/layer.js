@@ -25,7 +25,7 @@
 //         tick = 1000              ms between position updates (0: the caller calls update())
 //       The layer ids are `${prefix}-ac` (airborne/taxiing), `${prefix}-parked`, `${prefix}-sel`, `${prefix}-rare`,
 //       `${prefix}-hear`, `${prefix}-lbl`, `${prefix}-vt` (trails); feature property `id` is idOf(a).
-//   aircraftCard(a, { place, image = true }) → HTMLElement   one aircraft: callsign, type photo or drawing (typeImage),
+//   aircraftCard(a, { place, image = true }) → HTMLElement   one aircraft: map glyph and callsign, type photo or drawing (typeImage), operator (operator.js),
 //                                    type, kind, height, speed, phase, distance
 //   overheadList(list, { limit = 8, selected, onPick, range }) → HTMLElement   compact "overhead now" list
 //   feedStrip(state) → HTMLElement   "LIVE · updated 8 s ago" / "DELAYED · …" / "FEED DOWN · …"
@@ -41,6 +41,7 @@ import { createTrack, ingest, aircraftOf, reckon, feedState, agoS, poller } from
 import { livePart, hubAirCovers } from "../shared/livehub.js";
 import { typeFigure } from "../shared/typephoto.js";
 import { familyOf, FAMILIES, profileURI } from "./profiles.js";
+import { operatorEl } from "./operator.js";
 
 export const idOf = (a) => a.hex || `p${a.lat},${a.lon}`;
 const PH = { climbing: "↑", descending: "↓", level: "→", ground: "·" };
@@ -246,10 +247,13 @@ export function typeImage(a) {
 export function aircraftCard(a, { place = "the centre", image = true } = {}) {
   const row = (k, v) => [el("dt", {}, k), el("dd", {}, v)];
   return el("div", { class: "air-card" },
-    el("div", { class: "air-card-h" }, el("i", { style: { background: kindColor(a.kind || "other") } }), el("b", {}, callsign(a)), el("span", {}, a.tname || typeInfo(a.type, a.cat).name)),
+    // the map's own glyph (airframe shape in the kind's colour, turned to the track), then the callsign
+    el("div", { class: "air-card-h" }, el("img", { class: "air-card-g", alt: "", width: 26, height: 26, src: svgURI(planeSVG(a.shape || typeInfo(a.type, a.cat).shape, cssVar(KIND[a.kind || "other"].v) || KIND[a.kind || "other"].hex, cssVar("--surface") || "#ffffff", 32)),
+      style: { transform: `rotate(${Math.round(a.track ?? 0)}deg)` } }), el("b", {}, callsign(a)), el("span", {}, a.tname || typeInfo(a.type, a.cat).name)),
     image ? typeImage(a) : null,
     el("dl", {},
       ...row("Kind", KIND[a.kind || "other"].label),
+      ...row("Operator", operatorEl(a)),
       ...row("Height", airborne(a) ? `${fFL(a.alt)}${a.alt != null && a.alt >= 18000 ? ` (${fAlt(a.alt)})` : ""}` : a.taxi ? "taxiing" : "parked"),
       ...row("Speed", kt(a.gs)),
       ...(airborne(a) ? row("Doing", `${PH[a.phase] || ""} ${a.phase}${a.track != null ? `, heading ${compass(a.track)}` : ""}`) : []),
@@ -257,7 +261,7 @@ export function aircraftCard(a, { place = "the centre", image = true } = {}) {
       ...(a.pass && a.pass.d < 2.5 && a.pass.t < 900 ? row("Next pass", `${fKm(a.pass.d)} from ${place} in ${Math.floor(a.pass.t / 60)}:${String(Math.floor(a.pass.t % 60)).padStart(2, "0")}`) : []),
       ...(a.rare ? row("Rare", a.rare.name) : []),
       ...(a.age > 45 ? row("Last report", `${agoS(a.age)} (position estimated since)`) : [])),
-    el("p", { class: "air-note" }, "Type from a crowd-sourced database (adsb.lol, ODbL); height is barometric."));
+    el("p", { class: "air-note" }, "Type from a crowd-sourced database (adsb.lol, ODbL); airline from the callsign (OpenFlights, ODbL); country from the ICAO address block; height is barometric."));
 }
 export function overheadList(list, { limit = 8, selected = "", onPick, range } = {}) {
   const L = [...list].filter((a) => range == null || a.km <= range).sort((a, b) => (a.km ?? 0) - (b.km ?? 0));

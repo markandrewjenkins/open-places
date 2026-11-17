@@ -19,3 +19,9 @@
 .gr-pick b { color: var(--ink); }
 .gr-pick a { color: var(--accent); font-weight: 600; text-decoration: none; }
 .gr-pick a:hover { text-decoration: underline; }
+.gr-facts { height: auto; margin: 0 0 6px; }
+/* label · bar · value rows in the stage panels (Growth & Building, Water Supply, Electricity Grid) */
+.gr-list .civ-row { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(30px, 1fr) auto; gap: 8px; align-items: center; }
+.gr-list .civ-row-bar i { background: var(--m-water, var(--s1)); }
+.gr-facts .civ-row { justify-content: space-between; }
+.gr-facts .civ-row-v { text-align: right; }

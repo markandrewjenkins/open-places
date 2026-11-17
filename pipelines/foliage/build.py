@@ -35,7 +35,9 @@ from .species import HUES, SPECIES, TIER_BLURB, TIMING, lookup
 
 CITIES = {
     "victoria": {"name": "Greater Victoria", "site": "victoria", "inat": "pnw", "center": [-123.36, 48.44], "zoom": 12.6,
-                 "tree_cities": ["victoria", "esquimalt"], "credit": "City of Victoria and Township of Esquimalt"},
+                 "tree_cities": ["victoria", "esquimalt", "saanich", "osm", "inat"],
+                 "credit": "City of Victoria (OGL-Victoria), Township of Esquimalt and District of Saanich significant trees (no licence stated), "
+                           "OpenStreetMap (ODbL) and trees reported on iNaturalist (CC0, CC BY or CC BY-NC, per observer; IDs of planted trees unverified)"},
     "vancouver": {"name": "Vancouver", "site": "vancouver", "inat": "pnw", "center": [-123.12, 49.255], "zoom": 12.2,
                   "tree_cities": ["vancouver"], "credit": "City of Vancouver"},
     "toronto": {"name": "Toronto", "site": "toronto", "inat": "greatlakes", "center": [-79.40, 43.70], "zoom": 11.4,
@@ -244,6 +246,10 @@ def build_trees(trees: pd.DataFrame, species_index: dict[str, int]):
     for ckey, c in CITIES.items():
         t = trees[trees.city.isin(c["tree_cities"])].copy()
         t["sp"] = t.key.map(species_index)
+        t = t[t.sp.notna()]
+        t["sp"] = t.sp.astype(int)
+        cities = list(c["tree_cities"])
+        extra = "address" in t and (t.address.fillna("") != "").any()
         t["ix"] = np.floor(t.lon / CELL_LON).astype(int)
         t["iy"] = np.floor(t.lat / CELL_LAT).astype(int)
         cells = []
@@ -257,8 +263,13 @@ def build_trees(trees: pd.DataFrame, species_index: dict[str, int]):
             # coordinates as integers (degrees × 1e5, ~1 m): the JSON writer rounds floats to 3 decimals
             streets_here = sorted(set(g.street.fillna("").astype(str)))
             sidx = {n: i for i, n in enumerate(streets_here)}
+            # columns 7-8 (house number, source city index into index.json "cities") came later; readers that
+            # destructure the first six ignore them. Column 9, on reported trees only: "observation id|observer|licence"
+            num = lambda v: "" if v is None or (isinstance(v, float) and math.isnan(v)) else str(v)
             rows = [[int(round(r.lon * 1e5)), int(round(r.lat * 1e5)), int(r.sp), int(r.dbh_cm) if pd.notna(r.dbh_cm) else 0,
-                     sidx[str(r.street or "")], cidx[str(r.common or "")]] for r in g.itertuples()]
+                     sidx[str(r.street or "")], cidx[str(r.common or "")]] + ([num(r.address), cities.index(r.city)] if extra else [])
+                    + ([r.ref] if extra and isinstance(getattr(r, "ref", None), str) and r.ref else [])
+                    for r in g.itertuples()]
             dump(base / f"{ix}_{iy}.json", {"s": streets_here, "r": rows}, quiet=True)
             hist = g.sp.value_counts()
             cells.append([int(ix), int(iy), int(len(g)), [[int(k), int(v)] for k, v in hist.items()]])
@@ -268,7 +279,7 @@ def build_trees(trees: pd.DataFrame, species_index: dict[str, int]):
         streets = sorted(([name, int(len(g)), [[int(k), int(v)] for k, v in g.sp.value_counts().items()],
                            [round(g.lon.median(), 5), round(g.lat.median(), 5)]] for name, g in st if len(g) >= 6),
                          key=lambda r: -r[1])[:700]
-        dump(base / "index.json", {"cell": [CELL_LON, CELL_LAT], "cells": cells, "streets": streets, "commons": commons, "n": int(len(t))})
+        dump(base / "index.json", {"cell": [CELL_LON, CELL_LAT], "cells": cells, "streets": streets, "commons": commons, "n": int(len(t)), "cities": cities})
         print(f"  trees {ckey}: {len(t):,} trees in {len(cells)} tiles, {len(streets)} streets", flush=True)
 
 
@@ -286,6 +297,23 @@ def pick_photos(inat: pd.DataFrame):
     path = RAW / "photos.json"
     top = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     return {**local, **top}
+
+
+def trees_only():
+    """Rewrite the tree tiles (after `fetch crd`) against the species list already in foliage.json, and patch each
+    city's tree counts there; the timing model and forecast are untouched."""
+    path = OUT / "foliage.json"
+    F = json.loads(path.read_text(encoding="utf-8"))
+    species_index = {s["key"]: s["i"] for s in F["species"]}
+    trees = pd.read_parquet(RAW / "trees.parquet")
+    build_trees(trees, species_index)
+    for ckey, c in CITIES.items():
+        t_city = trees[trees.city.isin(c["tree_cities"]) & trees.key.isin(species_index)]
+        F["cities"][ckey].update({"credit": c["credit"], "n_trees": int(len(t_city)),
+                                  "species_counts": {str(species_index[k]): int(v) for k, v in t_city.key.value_counts().items()}})
+    for s in F["species"]:
+        s["count"] = {ck: int(((trees.city.isin(c["tree_cities"])) & (trees.key == s["key"])).sum()) for ck, c in CITIES.items()}
+    dump(path, F)
 
 
 # ============================================================================= main
@@ -398,4 +426,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    trees_only() if "--trees-only" in sys.argv else main()

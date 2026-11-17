@@ -3,7 +3,7 @@
 // population growth since 2016, population growth last year); the place being viewed has the dotted "highlighted area"
 // outline (src/shared/area.js). Floating panels: the municipalities ranked by the chosen metric (left; click a row to
 // outline it on the map, click again to clear), homes permitted per year for the place, Victoria CMA housing starts and
-// completions, and, when the place is Langford, the Boom Tracker's 12-month forecast as an inset with a link to it.
+// completions, and, when the place is Langford, the 12-month forecast with its backtest and this year's projection.
 // Wrapped by mod() in civic-modules.js (block `langford`; the id stays for old links and saved state).
 //
 // Data (published JSON, rebuilt daily by pipelines/langford: fetch permits population census starts, then build):
@@ -12,7 +12,7 @@
 //                               Licence), and Victoria CMA housing starts / completions (Statistics Canada table
 //                               34-10-0154-01, CMHC data, Statistics Canada Open Licence). No municipal housing-starts
 //                               split is published under an open licence, so starts are shown for the metro area only.
-//   data/langford/langford.json the Langford Boom Tracker's forecast (open data only)
+//   data/langford/langford.json Langford's 12-month forecast and backtest (open data only)
 //   data/langford/crd_csd.json  Statistics Canada 2021 census subdivision boundaries (Statistics Canada Open Licence)
 // The City of Langford's own layers (tracker.json, orthos.json) have no licence and are never read here.
 import * as d3 from "d3";
@@ -94,12 +94,11 @@ const HERE = { id: "gr-here", title: "This municipality", kind: "area", passive:
     return fc(x.g.features.filter((f) => ids.has(f.properties.id)).map((f) => ({ ...f, properties: { title: x.by.get(f.properties.id)?.name || f.properties.name } }))); } };
 
 // ------------------------------------------------------------------ panels
-const foot = (text, href, label = "Full dashboard ↗") => el("div", { class: "civ-fp-foot" }, el("span", { title: text }, text),
-  href ? el("a", { class: "civ-open", href, target: href.startsWith("../") ? null : "_blank", rel: "noopener" }, label) : null);
-function chartBody({ lede, legend = null, h = 170, draw, credit, href, hrefLabel }) {
+const foot = (text) => el("div", { class: "civ-fp-foot" }, el("span", { title: text }, text));
+function chartBody({ lede, legend = null, h = 170, draw, credit, after = null }) {
   const host = el("div", { class: "civ-fpc", style: `height:${h}px` });
   requestAnimationFrame(() => { if (host.isConnected) try { draw(host); } catch (e) { console.warn("[growth] panel:", e?.message || e); } });
-  return el("div", { class: "civ-fp-body" }, lede ? el("p", { class: "civ-fp-lede" }, lede) : null, legend, host, foot(credit, href, hrefLabel));
+  return el("div", { class: "civ-fp-body" }, lede ? el("p", { class: "civ-fp-lede" }, lede) : null, legend, host, after, foot(credit));
 }
 const note = (text, credit) => el("div", { class: "civ-fp-body" }, el("p", { class: "note civ-empty" }, text), foot(credit));
 
@@ -150,14 +149,23 @@ function startsPanel(d, K) {
       { time: true, tipX: fMon, yFmt: d3.format("~s"), unit: "homes", yZero: true }) }), "growth:starts");
 }
 
-/** Langford only: the Boom Tracker's 12-month forecast of homes permitted (an inset of the standalone dashboard) */
-function boomPanel(d, K) {
-  const f = d.L?.forecast?.["langford:units_total"], g = d.L?.permits?.geos?.langford, mo = d.L?.permits?.months;
-  if (!f || !g) return float(note("Boom Tracker forecast not loaded.", "BC Stats permits (OGL-BC)"), "growth:boom");
+/** Langford only: the 12-month forecast of homes permitted, its backtest, this year's projection and the growth since the
+ *  2021 census (all from langford.json, open data only: BC Stats permits and population, StatCan census) */
+function forecastPanel(d, K) {
+  const f = d.L?.forecast?.["langford:units_total"], fc = d.L?.forecast?.["crd:units_total"], g = d.L?.permits?.geos?.langford, mo = d.L?.permits?.months, k = d.L?.kpis;
+  if (!f || !g) return float(note("Forecast not loaded.", "BC Stats permits (OGL-BC)"), "growth:boom");
   const n = 24, past = g.units_total.slice(-n).map((y, i) => ({ x: monthOf(mo[mo.length - n + i]), y: y ?? 0 }));
   const fut = f.months.map((m, i) => ({ x: monthOf(m), y: f[f.headline][i] })), band = f.months.map((m, i) => ({ x: monthOf(m), lo: f.lo80[i], hi: f.hi80[i] }));
-  return float(chartBody({ lede: `Langford: about ${f0(f.total12)} homes permitted in the next 12 months (80% range ${f0(f.total12_lo80)}–${f0(f.total12_hi80)}), from the trailing 12-month mean, backtested from ${fMon(monthOf(f.first_origin))}. Monthly, last 2 years and the forecast.`,
-    h: 140, credit: "Langford Boom Tracker · BC Stats permits (OGL-BC) · forecast is an estimate", href: "../langford/", hrefLabel: "Boom Tracker ↗",
+  const sc = f.scores || {}, cy = f.calendar_year, cov = f.band_coverage;
+  const row = (l, v, t) => el("div", { class: "civ-row", title: t || null }, el("span", { class: "civ-row-l" }, l), el("b", { class: "civ-row-v" }, v));
+  const facts = el("div", { class: "civ-rows gr-facts" },
+    cy ? row(`${cy.year} projected`, f0(cy.projected), `${f0(cy.actual_ytd)} permitted in ${cy.months_actual} months, plus ${f0(cy.forecast_rest)} forecast for the rest of the year`) : null,
+    fc ? row("CRD, next 12 months", `${f0(fc.total12)} (${f0(fc.total12_lo80)}–${f0(fc.total12_hi80)})`, "The same model for the whole Capital Regional District, 80% range") : null,
+    sc.mean12 && sc.snaive ? row("Typical monthly miss", `±${f0(sc.mean12.mae)} homes`, `Backtest from ${fMon(monthOf(f.first_origin))}: the 12-month mean misses by ${f0(sc.mean12.mae)} a month on average; a seasonal variant ${f0(sc.seasonal?.mae)}, same month last year ${f0(sc.snaive.mae)}`) : null,
+    cov ? row("80% range held", `${Math.round(cov.empirical * 100)}% of the time`, `Range fitted on forecasts made before ${fMon(monthOf(cov.fit_origins_before))}, checked on ${cov.n_scored} later months`) : null,
+    k?.units_since_census ? row("Since the 2021 census", `${f0(k.units_since_census)} homes`, `Permitted from ${fMon(monthOf(k.units_since_census_from))}: ${Math.round(k.units_since_census_vs_stock * 100)}% of the ${f0(k.dwellings_2021)} dwellings counted in 2021`) : null);
+  return float(chartBody({ lede: `Langford: about ${f0(f.total12)} homes permitted in the next 12 months (80% range ${f0(f.total12_lo80)}–${f0(f.total12_hi80)}), from the trailing 12-month mean. Monthly permits, last 2 years (solid), and the forecast (dashed, shaded range).`,
+    h: 120, after: facts, credit: "BC Stats permits & population (OGL-BC) · StatCan census (Statistics Canada Open Licence) · the forecast is an estimate",
     draw: (h) => K.lineChart(h, [{ values: past, color: HUE, name: "Homes permitted", cssVar: "--m-langford", width: 1.8 }, { values: [past.at(-1), ...fut], color: "var(--ink)", dash: "4 3", name: "Forecast", cssVar: "--ink" }],
       { time: true, tipX: fMon, yFmt: d3.format("~s"), unit: "homes", yZero: true, band: { values: band, color: "var(--ink)" } }) }), "growth:boom");
 }
@@ -177,7 +185,7 @@ export function growthDef(K) {
         { id: "gr-rank", title: "Municipalities", place: "left", el: rankPanel(d, ctx) },
         { id: "gr-years", title: d.here ? `Homes Permitted, ${d.here.name}` : "Homes Permitted, CRD", place: "right", el: yearsPanel(d, K) },
         { id: "gr-starts", title: "Housing Starts, Victoria CMA", place: "right", el: startsPanel(d, K) },
-        ...(d.langford ? [{ id: "gr-boom", title: "Boom Tracker Forecast", place: "right", el: boomPanel(d, K) }] : []),
+        ...(d.langford ? [{ id: "gr-boom", title: "Langford Forecast", place: "right", el: forecastPanel(d, K) }] : []),
       ];
     },
   };

@@ -13,6 +13,7 @@ import { color } from "./civic-stage.js";
 import { icon } from "./civic-icons.js";
 import { float } from "./civic-float.js";
 import { boatsLayer, whaleBoats, boatsState, boatLine, FLEET } from "./civic-whaleboats.js";
+import { whaleCanvas, whaleImage } from "./civic-whale-icons.js";
 import "./civic-stage-nature.css";
 
 // ================================================================== shared bits
@@ -28,7 +29,7 @@ const mid = (b) => [(b[0][0] + b[1][0]) / 2, (b[0][1] + b[1][1]) / 2];
 const surf = () => color("var(--surface)"), ink = () => color("var(--ink)");
 
 // popups and panels in the shell's classes (civ-popc, civ-fp-*)
-const card = (leaf, kicker, title, lines, href, link = "Full dashboard ↗") => el("div", { class: "civ-popc", style: `--lc: var(--m-${leaf}, var(--accent))` },
+const card = (leaf, kicker, title, lines, href, link = "Open ↗") => el("div", { class: "civ-popc", style: `--lc: var(--m-${leaf}, var(--accent))` },
   el("div", { class: "civ-popk" }, icon(leaf, { size: 13 }), kicker), el("b", { class: "civ-popt" }, title),
   ...lines.filter(Boolean).map((l) => (typeof l === "string" ? el("p", { class: "civ-popb" }, l) : l)),
   href ? el("a", { class: "civ-popa", href, target: href.startsWith("#") ? null : "_blank", rel: "noopener" }, link) : null);
@@ -41,7 +42,7 @@ const ramp = (stops, ends) => el("div", {}, el("div", { class: "nt-ramp", style:
 const rows = (items) => el("div", { class: "nt-rows" }, ...items.map(([n, name, val, on, hint]) => el(on ? "button" : "div", on ? { type: "button", class: "nt-row", onclick: on, title: hint || name } : { class: "nt-row", title: hint || name },
   el("b", {}, String(n)), el("span", { class: "nt-n" }, name), el("small", {}, val))));
 const cred = (t) => el("p", { class: "nt-cred" }, t);
-const foot = (text, href) => el("div", { class: "civ-fp-foot" }, el("span", {}, text), el("a", { class: "civ-open", href, target: "_blank", rel: "noopener" }, "Full dashboard ↗"));
+const foot = (text) => el("div", { class: "civ-fp-foot" }, el("span", {}, text));
 const body = (...kids) => el("div", { class: "civ-fp-body nt-body" }, ...kids.filter(Boolean));
 const wait = (t = "Loading the published data…") => body(el("p", { class: "note civ-empty" }, t));
 
@@ -73,7 +74,7 @@ function mount(leaf, map, ctx, o) {
   }
   const hits = () => (o.click || []).map((s) => P + s).filter((l) => map.getLayer(l));
   const hit = (p) => { const ls = hits(); return ls.length ? map.queryRenderedFeatures([[p.x - 5, p.y - 5], [p.x + 5, p.y + 5]], { layers: ls })[0] || null : null; };
-  const mark = (id) => { if (map.getLayer(`${P}sel`)) map.setFilter(`${P}sel`, ["==", ["get", "id"], id ?? "__none"]); };
+  const mark = (id) => { for (const l of [`${P}sel`, `${P}tsel`, `${P}rsel`]) if (map.getLayer(l)) map.setFilter(l, ["==", ["get", "id"], id ?? "__none"]); };
   function close() { const p = pop; pop = null; sel = null; p?.remove(); mark(null); }
   function open(f, ll) {
     const k = `${f.layer?.id}:${f.properties.id ?? f.properties.name}`;
@@ -119,7 +120,6 @@ const focus = (leaf, f) => () => live[leaf]?.focus(f);
 // Forecast model as in src/blossom/main.js: each tree group's peak date has 20 predictive quantiles; the chance a tree is
 // in bloom on a day is P(peak within ± half the group's bloom window). Out of season the trees are coloured by their
 // group's forecast peak date; in season by today's bloom chance.
-const BLOSSOM = "../blossom/";
 const isLeap = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 const doyOf = (dt) => { let n = Math.round((Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()) - Date.UTC(dt.getFullYear(), 0, 0)) / 864e5); if (isLeap(dt.getFullYear()) && dt.getMonth() > 1) n -= 1; return n; };
 const dateOfDoy = (doy, y) => new Date(y, 0, Math.round(doy) + (isLeap(y) && doy > 59 ? 1 : 0));
@@ -155,8 +155,98 @@ function blossomModel(ctx) {
 }
 const bRamp = () => d3.interpolateRgbBasis([color("var(--m-darksky)"), color("var(--m-blossom)"), color("var(--m-foliage)")]);
 const stName = (s) => s.replace(/(\d)(Th|St|Nd|Rd)\b/g, (m, d, x) => d + x.toLowerCase());
-const B_CRED = { victoria: "Street trees: City of Victoria (OGL-Victoria), Township of Esquimalt (no licence stated).", vancouver: "Street trees: City of Vancouver (OGL-Vancouver)." };
+const B_CRED = { vancouver: "Street trees: City of Vancouver (OGL-Vancouver)." };
+// Greater Victoria councils with no tree inventory with species (checked 2026-11; Saanich publishes only its significant trees, and the
+// Colwood, Langford and Sidney LiDAR tree points carry no species): trees there come only from OpenStreetMap and iNaturalist
+const NO_TREES = { victoria: "No council tree inventory with species in Oak Bay, Langford, Colwood, View Royal, Sidney, Central and North Saanich, Sooke, Metchosin or Highlands, nor in Saanich beyond its significant trees: trees there are crowd-reported only, so coverage is patchy." };
+const CROWD = ["osm", "inat"];   // crowd-sourced tree points, outlined in ink on the maps
+/** a reported tree's provenance ("observation id|observer|licence", plus "|u" for a casual, unverified id) */
+const inatRef = (ref) => { const [obs, login, lic, u] = String(ref || "").split("|"); return obs ? { obs, login, lic, u: u === "u" } : null; };
+const treeKind = (city, ref) => (city === "inat" ? `Reported tree${inatRef(ref)?.u ? " · unverified ID" : ""}` : city === "osm" ? "Mapped tree" : city === "saanich" ? "Significant tree" : "Street tree");
+/** the card's source line and link for one tree point */
+function treeSource(city, ref, [lon, lat], label, licence) {
+  const r = city === "inat" && inatRef(ref);
+  if (r) return [meta(`iNaturalist observer ${r.login}, ${r.lic}`), `https://www.inaturalist.org/observations/${r.obs}`, "Observation ↗"];
+  return [meta(`Source: ${label}${licence ? ` (${licence})` : ""}`), city === "osm" ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=19/${lat}/${lon}` : null, "On OpenStreetMap ↗"];
+}
+const TIERS = ["S", "A", "B", "C", "D"];
+const BT = { blossom: null, foliage: null };   // tiers highlighted on each map (null = all)
+const tierOn = (leaf) => (BT[leaf] ? ["in", ["get", "t"], ["literal", [...BT[leaf]]]] : true);
+const dimmed = (leaf, v, k = 0.55) => (BT[leaf] ? ["case", tierOn(leaf), v, ["*", k, v]] : v);
+function setTier(leaf, t) {
+  const on = BT[leaf];
+  if (t === "all") BT[leaf] = null;
+  else if (!on) BT[leaf] = new Set([t]);
+  else { if (on.has(t)) on.delete(t); else on.add(t); if (!on.size || on.size === TIERS.length) BT[leaf] = null; }
+  live[leaf]?.redraw();
+}
+/** All · S · A · B · C · D toggle (from All a tier isolates itself; then tiers add or drop; All resets) + what the tiers mean.
+ *  blurb: { S: "Worth a special trip", … }; count(t) → trees of that tier here */
+function tierBar(leaf, blurb, count) {
+  const box = el("div", { class: "nt-tiers" });
+  const paint = () => box.replaceChildren(
+    el("div", { class: "nt-seg", role: "group", "aria-label": "Highlight tiers" },
+      el("button", { type: "button", "aria-pressed": String(!BT[leaf]), title: "Every tree", onclick: () => { setTier(leaf, "all"); paint(); } }, "All"),
+      ...TIERS.map((t) => el("button", { type: "button", "aria-pressed": String(!!BT[leaf]?.has(t)), style: `--tc: var(--bt-${t})`, title: `${t} tier: ${blurb?.[t] || ""}`,
+        onclick: () => { setTier(leaf, t); paint(); } }, el("i", { style: `background: var(--bt-${t})` }), t, el("b", {}, f0(count(t)))))),
+    el("div", { class: "nt-tl" }, ...TIERS.map((t) => el("span", { class: BT[leaf] && !BT[leaf].has(t) ? "off" : "" }, el("b", { style: `color: var(--bt-${t})` }, t), ` ${blurb?.[t] || ""}`))));
+  paint();
+  return box;
+}
+
+// ---- ready-made trips (blossom/ and foliage/ trips.json): routes past the most trees, precomputed on each mode's road
+// graph (trip_<region>_<mode>.json, decoded with edgeCoords like the Sunday Wanders loops). Mode buttons swap the graph.
+const TRIP = { blossom: { mode: "car", el: null }, foliage: { mode: "car", el: null } };
+const TRIP_G = new Map();
+const TMODE = { car: ["Drive", 28], bike: ["Ride", 14], foot: ["Walk", 4.5] };   // label, km/h for the time estimate
+const tripUrl = (leaf, k, md) => `../data/${leaf}/trip_${k}_${md}.json`;
+const tripGraph = async (leaf, k) => { const url = tripUrl(leaf, k, TRIP[leaf].mode); if (!TRIP_G.has(url)) TRIP_G.set(url, await graph(url)); return TRIP_G.get(url); };
+const tripLines = (leaf, k, p) => { const md = TRIP[leaf].mode, G = TRIP_G.get(tripUrl(leaf, k, md)); return G && p.steps?.[md] ? p.steps[md].map(([e, r]) => edgeCoords(G, e, !!r)) : [p.waypoints]; };
+const tripKm = (lines) => d3.sum(lines, (l) => d3.sum(l.slice(1), (q, i) => km(l[i], q)));
+function tripFC(leaf, k, presets) {
+  return fc((presets || []).filter((p) => p.steps?.[TRIP[leaf].mode]).map((p, i) => ({ type: "Feature", properties: { id: `trip:${p.id}`, n: i + 1, name: p.name }, geometry: { type: "MultiLineString", coordinates: tripLines(leaf, k, p) } })));
+}
+const tripStarts = (leaf, presets) => fc((presets || []).filter((p) => p.steps?.[TRIP[leaf].mode]).map((p, i) => pt(p.waypoints[0], { id: `trip:${p.id}`, n: String(i + 1) })));
+/** map layers for the trips: a casing under the trees, the picked trip above them, numbered starts */
+const tripLayers = (leaf) => [
+  { id: "trips", type: "line", source: "trips", layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": ink(), "line-opacity": 0.28, "line-width": ["interpolate", ["linear"], ["zoom"], 12, 3, 16, 7] } },
+];
+const tripTop = () => [
+  { id: "rsel", type: "line", source: "trips", filter: ["==", ["get", "id"], "__none"], layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": ink(), "line-opacity": 0.85, "line-width": ["interpolate", ["linear"], ["zoom"], 12, 3, 16, 6] } },
+  { id: "tripn", type: "circle", source: "tripn", paint: { "circle-radius": 9, "circle-color": ink(), "circle-stroke-color": surf(), "circle-stroke-width": 2 } },
+  { id: "tripn-l", type: "symbol", source: "tripn", layout: { "text-field": ["get", "n"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-allow-overlap": true }, paint: { "text-color": surf() } },
+];
+function tripCard(leaf, k, p, what) {
+  const lines = tripLines(leaf, k, p), d = tripKm(lines), [lab, kmh] = TMODE[TRIP[leaf].mode];
+  return card(leaf, `${what} trip · ${lab}`, p.name, [`Along ${p.streets.slice(0, 5).map(stName).join(", ")}.`, `${d.toFixed(1)} km, about ${Math.round((d / kmh) * 60)} min.`,
+    meta("Route: Open Places planner on OpenStreetMap roads and paths (ODbL)")]);
+}
+/** the right panel's trip list, with Drive · Ride · Walk (a mode again does nothing; the graph loads on demand) */
+function tripPanel(leaf, k, presets, what, top = []) {
+  const T = TRIP[leaf]; if (!T.el) T.el = body();
+  const paint = () => {
+    const ps = (presets || []).filter((p) => p.steps?.[T.mode]);
+    T.el.replaceChildren(...top,
+      sub("Ready-Made Trips"),
+      el("div", { class: "nt-seg", role: "group", "aria-label": "Travel mode" }, ...Object.entries(TMODE).filter(([md]) => (presets || []).some((p) => p.steps?.[md])).map(([md, [lab]]) =>
+        el("button", { type: "button", "aria-pressed": String(T.mode === md), onclick: () => { if (T.mode === md) return; T.mode = md; tripGraph(leaf, k).then(() => { live[leaf]?.redraw(); paint(); }); paint(); } }, lab))),
+      ps.length ? rows(ps.map((p, i) => { const lines = tripLines(leaf, k, p), d = tripKm(lines), b = bboxOf(lines.flat(), 0.002);
+        return [i + 1, p.name.replace(/ & more$/, ""), `${d.toFixed(1)} km · ${Math.round((d / TMODE[T.mode][1]) * 60)} min`, focus(leaf, { layer: "trips", props: { id: `trip:${p.id}`, name: p.name }, ll: p.waypoints[0], bounds: b, zoom: 15 }), p.streets.join(", ")]; }))
+        : el("p", { class: "note" }, "No ready-made trips for this mode."),
+      cred(`Trips past the most ${what === "Blossom" ? "cherry and plum trees" : "colourful trees"}, routed by the Open Places planner on OpenStreetMap roads and paths (ODbL). Click a trip to see it on the map.`));
+  };
+  paint();
+  return T.el;
+}
 const bWin = (x) => `${fDate(x.mid)} (80%: ${fDate(x.p10)}–${fDate(x.p90)})`;
+/** where the region's trees come from, with licences, and which municipalities publish no open inventory */
+function bSources(b) {
+  const cs = b.region.tree_cities || [], counts = b.m.counts?.trees_by_city || {};
+  if (!cs.length || !b.m.cities?.[cs[0]]?.licence) return B_CRED[b.k] || "";
+  const inv = cs.filter((c) => !CROWD.includes(c)).map((c) => `${b.m.cities[c].source.replace(/ (tree inventory|public trees)$/, "")} (${b.m.cities[c].licence})`).join("; ");
+  const crowd = cs.filter((c) => CROWD.includes(c) && counts[c]).map((c) => `${f0(counts[c])} ${c === "inat" ? "reported on iNaturalist (CC0, CC BY or CC BY-NC, per observer; IDs of planted trees unverified)" : "mapped in OpenStreetMap (ODbL)"}`);
+  return `Trees: ${inv}${crowd.length ? `; elsewhere, crowd-sourced cherries and plums, outlined: ${crowd.join(" and ")}` : ""}.${NO_TREES[b.k] ? ` ${NO_TREES[b.k]}` : ""}`;
+}
 
 const blossomStage = {
   layout: "map",
@@ -169,45 +259,61 @@ const blossomStage = {
   layers: (map, ctx) => mount("blossom", map, ctx, {
     load: async (c) => {
       const [, , , t, cv] = await Promise.all(["forecast", "meta", "streets", "trees", "cultivars"].map((n) => whenFile(`blossom/${n}.json`, c)));
+      const trips = await whenFile("blossom/trips.json", c).then((x) => x[blossomModel(c).k]?.presets || [], () => []);
+      if (trips.length) await tripGraph("blossom", blossomModel(c).k).catch(() => null);
       const b = blossomModel(c), cities = b.region.tree_cities.map((x) => t.cities.indexOf(x));
-      const trees = fc(t.rows.filter((r) => cities.includes(r[5])).map((r, i) => pt([r[0], r[1]], { id: i, g: t.groups[r[2]], c: t.cultivars[r[3]], s: t.streets[r[4]], city: t.cities[r[5]], dbh: r[6], ht: r[7], a: r[8] })));
-      return { b, trees, cv };
+      const trees = fc(t.rows.filter((r) => cities.includes(r[5])).map((r, i) => pt([r[0], r[1]], { id: i, g: t.groups[r[2]], c: t.cultivars[r[3]], t: cv[t.cultivars[r[3]]]?.tier || "D",
+        osm: CROWD.includes(t.cities[r[5]]) ? 1 : 0, s: t.streets[r[4]], city: t.cities[r[5]], dbh: r[6], ht: r[7], a: r[8], ref: r[9] || "" })));
+      return { b, trees, cv, trips };
     },
-    sources: ({ b, trees }) => ({
+    sources: ({ b, trees, trips }) => ({
       trees: { type: "geojson", data: trees },
+      trips: { type: "geojson", data: tripFC("blossom", b.k, trips) }, tripn: { type: "geojson", data: tripStarts("blossom", trips) },
       streets: { type: "geojson", data: fc(b.streets.map((s, i) => pt([s.lon, s.lat], { id: s.id, name: s.street, rank: i + 1, top: i < 8 ? 1 : 0, n: s.n, label: i < 8 ? `${i + 1}  ${stName(s.street)}` : "" }))) },
     }),
     layers: ({ b }) => {
       const R = bRamp(), byG = ["match", ["get", "g"], ...b.groups.flatMap((x) => [x.g, R(x.t)]), "#999"];
       const P = b.inBloom ? ["match", ["get", "g"], ...b.groups.flatMap((x) => [x.g, b.P[x.g][b.today] || 0]), 0] : 1;
       return [
+        ...tripLayers("blossom"),
         ...(b.inBloom ? [{ id: "glow", type: "circle", source: "trees", paint: { "circle-color": color("var(--m-blossom)"), "circle-blur": 1, "circle-opacity": ["*", 0.3, P], "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, ["*", 6, P], 15, ["*", 16, P]] } }] : []),
-        { id: "trees", type: "circle", source: "trees", paint: { "circle-color": byG, "circle-opacity": b.inBloom ? ["+", 0.35, ["*", 0.65, P]] : 0.85,
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, b.inBloom ? ["+", 0.8, ["*", 1.6, P]] : 1.3, 14, b.inBloom ? ["+", 1.8, ["*", 3.4, P]] : 3, 17, 6],
-          "circle-stroke-color": surf(), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12.5, 0, 14, 0.8] } },
+        { id: "trees", type: "circle", source: "trees", paint: { "circle-color": byG,
+          "circle-opacity": BT.blossom ? ["case", tierOn("blossom"), b.inBloom ? ["+", 0.5, ["*", 0.5, P]] : 0.95, 0.12] : b.inBloom ? ["+", 0.35, ["*", 0.65, P]] : 0.85,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, dimmed("blossom", b.inBloom ? ["+", 0.8, ["*", 1.6, P]] : 1.3), 14, dimmed("blossom", b.inBloom ? ["+", 1.8, ["*", 3.4, P]] : 3), 17, dimmed("blossom", 6)],
+          // trees from OpenStreetMap (the fallback outside the inventories) get an ink outline
+          "circle-stroke-color": ["case", ["==", ["get", "osm"], 1], ink(), surf()], "circle-stroke-opacity": BT.blossom ? ["case", tierOn("blossom"), 1, 0.2] : 1,
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, ["case", ["==", ["get", "osm"], 1], 1.2, 0], 12.5, ["case", ["==", ["get", "osm"], 1], 1.4, 0], 14, ["case", ["==", ["get", "osm"], 1], 1.6, 0.8]] } },
+        { id: "tsel", type: "circle", source: "trees", filter: ["==", ["get", "id"], "__none"], paint: { "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": ink(), "circle-stroke-width": 2.2,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 5, 14, 8, 17, 11] } },
         { id: "streets", type: "circle", source: "streets", paint: { "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": color("var(--m-blossom)"),
           "circle-stroke-width": ["case", ["==", ["get", "top"], 1], 2.4, 1.2], "circle-stroke-opacity": ["case", ["==", ["get", "top"], 1], 1, 0.55],
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, ["+", 4, ["*", 0.6, ["sqrt", ["get", "n"]]]], 15, ["+", 8, ["*", 1.4, ["sqrt", ["get", "n"]]]]] } },
         { id: "sel", type: "circle", source: "streets", filter: ["==", ["get", "id"], "__none"], paint: { "circle-color": color("var(--m-blossom)"), "circle-opacity": 0.22, "circle-radius": ["+", 10, ["*", 1.4, ["sqrt", ["get", "n"]]]] } },
         { id: "labels", type: "symbol", source: "streets", filter: ["==", ["get", "top"], 1], layout: { "text-field": ["get", "label"], "text-size": 12, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.3], "text-anchor": "top", "text-optional": true },
           paint: { "text-color": ink(), "text-halo-color": surf(), "text-halo-width": 1.5 } },
+        ...tripTop(),
       ];
     },
-    click: ["streets", "trees"],
-    popup: (f, { b, cv }) => {
+    click: ["tripn", "streets", "trees", "trips"],
+    popup: (f, { b, cv, trips }) => {
       const p = f.properties;
+      if (/trips|tripn|rsel/.test(f.layer.id)) { const x = trips.find((q) => `trip:${q.id}` === p.id); return x ? tripCard("blossom", b.k, x, "Blossom") : null; }
       if (f.layer.id.endsWith("streets")) {
         const s = b.streets.find((x) => x.id === p.id); if (!s) return null;
         const mix = Object.entries(s.groups).sort((a, z) => z[1] - a[1]).slice(0, 3).map(([g, n]) => `${n} ${b.m.groups[g].label.split(" (")[0]}`).join(", ");
         return card("blossom", `Blossom street · #${b.streets.indexOf(s) + 1}`, `${stName(s.street)}${s.city === "esquimalt" ? " (Esquimalt)" : ""}`,
           [`${f0(s.n)} cherry and plum trees: ${mix}.`, b.inBloom ? `About ${f0(s.out)} likely in bloom today.` : `Most in bloom at once around ${fDate(dateOfDoy(s.day, b.y))} (about ${f0(s.out)} trees, forecast).`,
-            meta(`Forecast issued ${b.f.issued} · street-tree inventory`)], `${BLOSSOM}#region=${b.k}`);
+            meta(`Forecast issued ${b.f.issued} · street-tree inventory`)]);
       }
-      const g = b.groups.find((x) => x.g === p.g), c = cv[p.c] || {};
-      return card("blossom", `Street tree · ${c.tier ? `${c.tier} tier` : "cherry / plum"}`, c.name || p.c,
+      const g = b.groups.find((x) => x.g === p.g), c = cv[p.c] || {}, src = b.m.cities?.[p.city] || {}, [lon, lat] = f.geometry.coordinates;
+      const where = p.a || p.s || (CROWD.includes(p.city) ? `${p.city === "inat" ? "Reported" : "Mapped"} at ${lat.toFixed(5)}, ${lon.toFixed(5)}` : "");
+      const [srcLine, href, link] = treeSource(p.city, p.ref, [lon, lat], src.source || p.city, src.licence || "licence unknown");
+      return card("blossom", `${treeKind(p.city, p.ref)} · ${c.tier ? `${c.tier} tier` : "cherry / plum"}`, c.name || p.c,
         [`${g?.label || p.g}. ${b.inBloom ? `Bloom chance today ${Math.round((b.P[p.g]?.[b.today] || 0) * 100)}%. ` : ""}Forecast peak ${g ? bWin(g) : "—"}.`,
-          c.colour ? `${c.colour}${c.form ? `, ${c.form.toLowerCase()}` : ""}.` : null,
-          meta(`${p.a || p.s} · ${p.city[0].toUpperCase()}${p.city.slice(1)}${p.ht ? ` · ${p.ht} m tall` : ""}`)], `${BLOSSOM}#region=${b.k}`);
+          c.colour ? `${c.colour}${c.form ? `, ${c.form.toLowerCase()}` : ""}${c.habit && !/^varies$/i.test(c.habit) ? `; ${c.habit.toLowerCase()}` : ""}.` : null,
+          c.tier ? el("p", { class: "civ-popb" }, el("b", { style: `color: var(--bt-${c.tier})` }, `${c.tier} tier`), `: ${b.m.tiers?.[c.tier] || ""}.`) : null,
+          meta(`${where}${src.name && !CROWD.includes(p.city) ? ` · ${src.name}` : ""}${p.dbh >= 5 ? ` · ${Math.round(p.dbh)} cm trunk` : ""}${p.ht ? ` · ${p.ht} m tall` : ""}`),
+          srcLine], href, link);
     },
   }),
   panels: (ctx) => {
@@ -218,11 +324,15 @@ const blossomStage = {
       lead(tag("data", "Data"), " ", b.inBloom ? el("span", {}, el("b", {}, "In bloom now."), ` Brighter, larger dots are likelier in bloom today (${fDate(ctx.date)}).`)
         : el("span", {}, `Spring ${b.y}: dots are coloured by their group's forecast peak. First peak `, el("b", {}, fDate(soon.mid)), days > 0 ? `, in ${days} days.` : ".")),
       key(b.groups.map((x) => [R(x.t), x.label, `${fDate(x.mid)} · ${fDate(x.p10)}–${fDate(x.p90)}`])),
+      sub("Tiers"),
+      tierBar("blossom", b.m.tiers, (t) => { const cv = data("blossom/cultivars.json", ctx) || {}, cs = b.region.tree_cities || [];
+        return d3.sum(Object.values(cv).filter((c) => c.tier === t), (c) => d3.sum(cs, (ct) => c.counts?.[ct] || 0)); }),
       sub(b.inBloom ? "Best Streets Today" : "Best Streets at Peak"),
       rows(b.streets.slice(0, 6).map((s, i) => [i + 1, stName(s.street) + (s.city === "esquimalt" ? " (Esq.)" : ""), b.inBloom ? `${f0(s.out)} in bloom` : `${f0(s.out)} out · ${fDate(dateOfDoy(s.day, b.y))}`,
         focus("blossom", { layer: "streets", props: { id: s.id, name: s.street }, ll: [s.lon, s.lat], zoom: 15 }), `${s.n} trees on ${s.street}`])),
-      cred(`${B_CRED[b.k] || ""} Weather: ECCC (OGL-Canada). Forecast: Open Places model.`),
-      foot(`Forecast issued ${b.f.issued}`, `${BLOSSOM}#region=${b.k}`)) }];
+      cred(`${bSources(b)} Weather: ECCC (OGL-Canada). Forecast: Open Places model. Tiers: editorial.`),
+      foot(`Forecast issued ${b.f.issued}`)) },
+      ...((data("blossom/trips.json", ctx)?.[b.k]?.presets || []).length ? [{ id: "nt-btrips", title: "Blossom Trips", place: "right", el: tripPanel("blossom", b.k, data("blossom/trips.json", ctx)[b.k].presets, "Blossom") }] : [])];
   },
 };
 
@@ -230,7 +340,7 @@ const blossomStage = {
 // Colour model as in src/foliage/main.js: per species, P(turned) and P(bare) on each day are logistic curves around this
 // season's simulated green-down dates, shifted by the species' timing. A map square (the dashboard's tree index cells)
 // takes its most common autumn hue, mixed with green and bare by their shares today.
-const FOLIAGE = "../foliage/", FD0 = 244, FD1 = 349, TIMING = { early: -9, mid: 0, late: 10, "very late": 18 };
+const FD0 = 244, FD1 = 349, TIMING = { early: -9, mid: 0, late: 10, "very late": 18 };
 const LEAF_GREEN = "#6f8f4e", LEAF_BARE = "#b7a690";   // the dashboard's own leaf colours (data colours, as the species hues)
 const sig = (x) => 1 / (1 + Math.exp(-x));
 const fDoy = (dt) => Math.round((Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()) - Date.UTC(dt.getFullYear(), 0, 1)) / 864e5) + 1;
@@ -262,52 +372,136 @@ function foliageModel(ctx) {
   fMemo.set(mk, res);
   return res;
 }
+// Single street trees (the dashboard's foliage/trees/<k>/<x>_<y>.json tiles, loaded for the map view as it pans), each
+// coloured by its species' modelled colour today; below TREE_Z the dashboard's coarse map squares stand in.
+const TREE_Z = 12.5;
+const FSRC = {   // where each tile's trees come from (index.json "cities"; the last tile column indexes it)
+  victoria: ["City of Victoria tree inventory", "Open Government Licence – Victoria"], esquimalt: ["Township of Esquimalt tree inventory", "no licence stated"],
+  saanich: ["District of Saanich significant trees", "no licence stated"], osm: ["Tree mapped in OpenStreetMap", "ODbL 1.0"],
+  inat: ["Tree reported on iNaturalist", "CC0, CC BY or CC BY-NC, per observer"], vancouver: ["City of Vancouver public trees", "Open Government Licence – Vancouver"],
+  toronto: ["City of Toronto street trees", "Open Government Licence – Toronto"],
+};
+const FT = { tiles: new Map(), busy: new Set() };
+const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+/** today's colour of one species' trees, as the dashboard draws them (green → its autumn hue → bare) */
+const fColour = (f, sp) => { const [t, b] = f.tb[sp]; return d3.color(d3.interpolateLab(d3.interpolateLab(LEAF_GREEN, f.F.species[sp].colour)(Math.min(1, t / 0.75)), LEAF_BARE)(Math.min(1, b))).formatHex(); };
+function treeFeatures(k, ix, species) {
+  const out = [];
+  for (const [key, ch] of FT.tiles) {
+    if (!key.startsWith(`${k}/`)) continue;
+    ch.r.forEach(([x, y, sp, dbh, si, ci, a, src, ref], i) => {
+      const city = ix.cities?.[src || 0] || k;
+      out.push(pt([x / 1e5, y / 1e5], { id: `${key}:${i}`, sp, t: species?.[sp]?.tier || "D", dbh, st: ch.s[si] || "", cn: ix.commons[ci] || "", a: a || "", src: city, crowd: CROWD.includes(city) ? 1 : 0, ref: ref || "" }));
+    });
+  }
+  return fc(out);
+}
+/** fetch the tiles in view (not yet loaded) and refresh the tree source; no-op when zoomed out to the map squares */
+function loadTrees(map, k, ix, species) {
+  if (map.getZoom() < TREE_Z - 0.4) return;
+  const [dx, dy] = ix.cell, bd = map.getBounds(), have = new Set(ix.cells.map(([x, y]) => `${x}_${y}`)), want = [];
+  for (let x = Math.floor(bd.getWest() / dx); x <= Math.floor(bd.getEast() / dx); x++)
+    for (let y = Math.floor(bd.getSouth() / dy); y <= Math.floor(bd.getNorth() / dy); y++) {
+      const key = `${k}/${x}_${y}`;
+      if (have.has(`${x}_${y}`) && !FT.tiles.has(key) && !FT.busy.has(key)) want.push(key);
+    }
+  if (!want.length || want.length > 90) return;
+  want.forEach((key) => FT.busy.add(key));
+  Promise.all(want.map((key) => fetch(`../data/foliage/trees/${key}.json`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (j) FT.tiles.set(key, j); }, () => {}).finally(() => FT.busy.delete(key))))
+    .then(() => map.getSource("nt-foliage-trees")?.setData(treeFeatures(k, ix, species)));
+}
+/** right panel: the most colourful streets today (index.json streets: colourful species only), then the ready-made trips */
+function foliageRight(f, ctx) {
+  const ix = data(`foliage/trees/${f.k}/index.json`, ctx), trips = data("foliage/trips.json", ctx)?.[f.k]?.presets || [];
+  const best = (ix?.streets || []).map(([name, n, hist, ll]) => ({ name, n, ll, now: f.shares(hist).colour * n })).sort((a, b) => b.now - a.now).slice(0, 6);
+  const top = [
+    lead(tag("estimate", "Estimate"), ` Streets with the most colourful trees (S, A and B tiers), ranked by how many are in colour on ${fDate(fDate0(f.d, f.y))}.`),
+    sub("Best Streets Today"),
+    best.length ? rows(best.map((x, i) => [i + 1, stName(x.name), `${f0(x.now)} of ${f0(x.n)} in colour`, () => live.foliage?.map.flyTo({ center: x.ll, zoom: 16, duration: 700 }), `${x.n} colourful street trees`]))
+      : el("p", { class: "note" }, "Loading the streets…")];
+  return trips.length ? tripPanel("foliage", f.k, trips, "Colour", top) : body(...top);
+}
 const foliageStage = {
   layout: "map",
+  // street level, so single trees show: on the place when its own streets are inventoried, else on the city's trees
   view: (ctx) => {
     const f = foliageModel(ctx); if (!f) return null;
     const ix = data(`foliage/trees/${f.k}/index.json`, ctx);
-    if (!ix) return { center: f.c.center, zoom: f.c.zoom };
-    const [dx, dy] = ix.cell, b = bboxOf(ix.cells.flatMap(([x, y]) => [[x * dx, y * dy], [(x + 1) * dx, (y + 1) * dy]]), 0.004);
-    return { center: mid(b), zoom: f.c.zoom, bounds: b };
+    if (!ix) return { center: f.c.center, zoom: 14 };
+    const [dx, dy] = ix.cell, [lon, lat] = ctx.place.ll;
+    const near = d3.sum(ix.cells.filter(([x, y]) => Math.abs((x + 0.5) * dx - lon) < 0.03 && Math.abs((y + 0.5) * dy - lat) < 0.02), (c) => c[2]);
+    return { center: near >= 300 ? ctx.place.ll : f.c.center, zoom: 14 };
   },
-  layers: (map, ctx) => mount("foliage", map, ctx, {
-    load: async (c) => {
-      await whenFile("foliage/foliage.json", c);
-      const f = foliageModel(c), ix = await whenFile(`foliage/trees/${f.k}/index.json`, c), [dx, dy] = ix.cell;
-      const cells = fc(ix.cells.map(([x, y, n, hist]) => {
-        const sh = f.shares(hist), x0 = x * dx, y0 = y * dy;
-        return { type: "Feature", properties: { id: `${x}_${y}`, n, fill: f.mix(hist), w: Math.min(1, Math.sqrt(n / 60)), colour: sh.colour, bare: sh.bare, green: sh.green },
-          geometry: { type: "Polygon", coordinates: [[[x0, y0], [x0 + dx, y0], [x0 + dx, y0 + dy], [x0, y0 + dy], [x0, y0]]] } };
-      }));
-      const hist = new Map(ix.cells.map(([x, y, , h]) => [`${x}_${y}`, h]));
-      const sites = fc(Object.entries(f.F.sites).filter(([, s]) => s.region === f.k).map(([id, s]) => pt([s.lon, s.lat], { id, name: s.name })));
-      return { f, cells, hist, sites };
-    },
-    sources: ({ cells, sites }) => ({ cells: { type: "geojson", data: cells }, sites: { type: "geojson", data: sites } }),
-    layers: () => [
-      { id: "cells", type: "fill", source: "cells", paint: { "fill-color": ["get", "fill"], "fill-opacity": ["+", 0.25, ["*", 0.55, ["get", "w"]]] } },
-      { id: "edge", type: "line", source: "cells", paint: { "line-color": surf(), "line-width": 0.6, "line-opacity": 0.6 } },
-      { id: "sel", type: "line", source: "cells", filter: ["==", ["get", "id"], "__none"], paint: { "line-color": ink(), "line-width": 2.2 } },
-      { id: "sites", type: "circle", source: "sites", paint: { "circle-color": color("var(--m-foliage)"), "circle-radius": 6.5, "circle-stroke-color": surf(), "circle-stroke-width": 2 } },
-      { id: "site-l", type: "symbol", source: "sites", layout: { "text-field": ["get", "name"], "text-size": 12, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.2], "text-anchor": "top" },
-        paint: { "text-color": ink(), "text-halo-color": surf(), "text-halo-width": 1.5 } },
-    ],
-    click: ["sites", "cells"],
-    popup: (feat, { f, hist }) => {
-      const p = feat.properties, href = `${FOLIAGE}#city=${f.k}`;
-      if (feat.layer.id.endsWith("sites")) {
-        const s = f.F.sites[p.id], fc0 = s?.forecast;
-        return card("foliage", "Forecast spot", s.name, [fc0 ? `Peak colour ${fDate(fDate0(Math.round(fc0.p50), f.y))} (80%: ${fDate(fDate0(Math.round(fc0.p10), f.y))}–${fDate(fDate0(Math.round(fc0.p90), f.y))}), ${f.y}.`
-          : "No forecast here: its satellite record is too mixed to model.", meta("Satellite green-down + degree-day model")], href);
-      }
-      const h = (hist.get(p.id) || []).slice().sort((a, b) => b[1] - a[1]);
-      const top = h.slice(0, 3).map(([sp, n]) => `${n} ${f.F.species[sp].common.toLowerCase()} (${STAGE[f.stage(sp)].toLowerCase()})`).join(", ");
-      return card("foliage", `Map square · ${f0(p.n)} street trees`, `${Math.round(p.colour * 100)}% showing colour`,
-        [`${Math.round(p.green * 100)}% still green, ${Math.round(p.bare * 100)}% mostly bare on ${fDate(fDate0(f.d, f.y))} (modelled).`, top ? `Most common: ${top}.` : null,
-          meta(`${f.c.credit} street trees`)], href);
-    },
-  }),
+  layers: (map, ctx) => {
+    let ix = null, k = null, species = null;
+    const off = mount("foliage", map, ctx, {
+      load: async (c) => {
+        await whenFile("foliage/foliage.json", c);
+        const f = foliageModel(c); ix = await whenFile(`foliage/trees/${f.k}/index.json`, c); k = f.k; species = f.F.species;
+        const trips = await whenFile("foliage/trips.json", c).then((x) => x[f.k]?.presets || [], () => []);
+        if (trips.length) await tripGraph("foliage", f.k).catch(() => null);
+        const [dx, dy] = ix.cell;
+        const cells = fc(ix.cells.map(([x, y, n, hist]) => {
+          const sh = f.shares(hist), x0 = x * dx, y0 = y * dy;
+          return { type: "Feature", properties: { id: `${x}_${y}`, n, fill: f.mix(hist), w: Math.min(1, Math.sqrt(n / 60)), colour: sh.colour, bare: sh.bare, green: sh.green },
+            geometry: { type: "Polygon", coordinates: [[[x0, y0], [x0 + dx, y0], [x0 + dx, y0 + dy], [x0, y0 + dy], [x0, y0]]] } };
+        }));
+        const hist = new Map(ix.cells.map(([x, y, , h]) => [`${x}_${y}`, h]));
+        const sites = fc(Object.entries(f.F.sites).filter(([, s]) => s.region === f.k).map(([id, s]) => pt([s.lon, s.lat], { id, name: s.name })));
+        setTimeout(() => loadTrees(map, k, ix, species), 0);
+        return { f, cells, hist, sites, ix, trips };
+      },
+      sources: ({ cells, sites, f, ix, trips }) => ({ cells: { type: "geojson", data: cells }, trees: { type: "geojson", data: treeFeatures(f.k, ix, f.F.species) }, sites: { type: "geojson", data: sites },
+        trips: { type: "geojson", data: tripFC("foliage", f.k, trips) }, tripn: { type: "geojson", data: tripStarts("foliage", trips) } }),
+      layers: ({ f }) => [
+        ...tripLayers("foliage"),
+        { id: "cells", type: "fill", source: "cells", maxzoom: TREE_Z, paint: { "fill-color": ["get", "fill"], "fill-opacity": ["+", 0.25, ["*", 0.55, ["get", "w"]]] } },
+        { id: "edge", type: "line", source: "cells", maxzoom: TREE_Z, paint: { "line-color": surf(), "line-width": 0.6, "line-opacity": 0.6 } },
+        { id: "sel", type: "line", source: "cells", maxzoom: TREE_Z, filter: ["==", ["get", "id"], "__none"], paint: { "line-color": ink(), "line-width": 2.2 } },
+        { id: "trees", type: "circle", source: "trees", minzoom: TREE_Z, paint: {
+          "circle-color": ["match", ["get", "sp"], ...f.F.species.flatMap((x) => [x.i, fColour(f, x.i)]), LEAF_GREEN],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], TREE_Z, dimmed("foliage", 1.6), 14, dimmed("foliage", 2.6), 16, dimmed("foliage", 4.5), 18, dimmed("foliage", 8)],
+          "circle-stroke-color": ["case", ["==", ["get", "crowd"], 1], ink(), surf()],
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], TREE_Z, ["case", ["==", ["get", "crowd"], 1], 1, 0], 14.5, ["case", ["==", ["get", "crowd"], 1], 1.4, 0.6]],
+          "circle-opacity": BT.foliage ? ["case", tierOn("foliage"), 1, 0.12] : 0.95, "circle-stroke-opacity": BT.foliage ? ["case", tierOn("foliage"), 1, 0.15] : 1 } },
+        { id: "tsel", type: "circle", source: "trees", minzoom: TREE_Z, filter: ["==", ["get", "id"], "__none"], paint: { "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": ink(), "circle-stroke-width": 2.2,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], TREE_Z, 5, 16, 8, 18, 12] } },
+        { id: "sites", type: "circle", source: "sites", paint: { "circle-color": color("var(--m-foliage)"), "circle-radius": 6.5, "circle-stroke-color": surf(), "circle-stroke-width": 2 } },
+        { id: "site-l", type: "symbol", source: "sites", layout: { "text-field": ["get", "name"], "text-size": 12, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.2], "text-anchor": "top" },
+          paint: { "text-color": ink(), "text-halo-color": surf(), "text-halo-width": 1.5 } },
+        ...tripTop(),
+      ],
+      click: ["sites", "tripn", "trees", "cells", "trips"],
+      popup: (feat, { f, hist, trips }) => {
+        const p = feat.properties, href = null;
+        if (/trips|tripn|rsel/.test(feat.layer.id)) { const x = trips.find((q) => `trip:${q.id}` === p.id); return x ? tripCard("foliage", f.k, x, "Colour") : null; }
+        if (feat.layer.id.endsWith("sites")) {
+          const s = f.F.sites[p.id], fc0 = s?.forecast;
+          return card("foliage", "Forecast spot", s.name, [fc0 ? `Peak colour ${fDate(fDate0(Math.round(fc0.p50), f.y))} (80%: ${fDate(fDate0(Math.round(fc0.p10), f.y))}–${fDate(fDate0(Math.round(fc0.p90), f.y))}), ${f.y}.`
+            : "No forecast here: its satellite record is too mixed to model.", meta("Satellite green-down + degree-day model")], href);
+        }
+        if (feat.layer.id.endsWith("trees")) {
+          const sp = f.F.species[p.sp], st = f.stage(p.sp), [t, b] = f.tb[p.sp], src = FSRC[p.src] || [p.src, ""], [lon, lat] = feat.geometry.coordinates;
+          const now = st === "b" ? "Mostly bare" : st === "g" ? "Still green" : `${STAGE[st]}: ${sp.hue}`;
+          const where = [p.a, p.st].filter(Boolean).join(" ") || `${p.src === "inat" ? "Reported" : "Mapped"} at ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+          const [srcLine, href, link] = treeSource(p.src, p.ref, [lon, lat], src[0], src[1]);
+          return card("foliage", `${treeKind(p.src, p.ref)} · ${sp.tier} tier`, sp.common,
+            [el("p", { class: "civ-popb" }, el("i", { class: "nt-dot", style: `background:${fColour(f, p.sp)}` }), el("b", {}, now), ` on ${fDate(fDate0(f.d, f.y))} (${Math.round(Math.max(0, t - b) * 100)}% in colour, ${Math.round(b * 100)}% bare; modelled).`),
+              `Peak colour around ${fDate(fDate0(f.peakOf(p.sp), f.y))}. ${sp.note || ""}`,
+              meta(`${cap(sp.key)}${p.cn && p.cn.toLowerCase() !== sp.common.toLowerCase() ? ` · listed as ${p.cn}` : ""}${p.dbh ? ` · ${p.dbh} cm trunk` : ""}`),
+              meta(where), srcLine], href, link);
+        }
+        const h = (hist.get(p.id) || []).slice().sort((a, b) => b[1] - a[1]);
+        const top = h.slice(0, 3).map(([sp, n]) => `${n} ${f.F.species[sp].common.toLowerCase()} (${STAGE[f.stage(sp)].toLowerCase()})`).join(", ");
+        return card("foliage", `Map square · ${f0(p.n)} street trees`, `${Math.round(p.colour * 100)}% showing colour`,
+          [`${Math.round(p.green * 100)}% still green, ${Math.round(p.bare * 100)}% mostly bare on ${fDate(fDate0(f.d, f.y))} (modelled). Zoom in for single trees.`, top ? `Most common: ${top}.` : null,
+            meta(`${f.c.credit} street trees`)], href);
+      },
+    });
+    const onMove = () => { if (ix) loadTrees(map, k, ix, species); };
+    map.on("moveend", onMove);
+    return () => { off(); map.off("moveend", onMove); };
+  },
   panels: (ctx) => {
     const f = foliageModel(ctx);
     if (!f) return [{ id: "nt-foliage", title: "Colour Today", place: "left", el: wait() }];
@@ -315,19 +509,22 @@ const foliageStage = {
     const top = Object.entries(f.c.species_counts).map(([sp, n]) => [+sp, n]).sort((a, b) => b[1] - a[1]).slice(0, 6);
     const when = f.raw > FD1 ? "after the season" : f.raw < FD0 ? "before the season" : fDate(ctx.date);
     return [{ id: "nt-foliage", title: "Colour Today", place: "left", el: body(
-      lead(tag("estimate", "Estimate"), " ", el("b", {}, `${Math.round(f.city.colour * 100)}%`), ` of ${f.c.name}'s street trees showing colour, `, el("b", {}, `${Math.round(f.city.bare * 100)}%`), ` mostly bare (${when}, modelled).`),
-      key([[LEAF_GREEN, "Still green", `${Math.round(f.city.green * 100)}%`], ...hues.map(([h, v]) => [f.F.hues[h], `${h[0].toUpperCase()}${h.slice(1)}`, `${Math.round(v * 100)}%`]), [LEAF_BARE, "Mostly bare", `${Math.round(f.city.bare * 100)}%`]]),
-      sub("Main Street Trees"),
+      lead(tag("estimate", "Estimate"), " ", el("b", {}, `${Math.round(f.city.colour * 100)}%`), ` of ${f.c.name}'s mapped trees showing colour, `, el("b", {}, `${Math.round(f.city.bare * 100)}%`), ` mostly bare (${when}, modelled). Each dot is one tree; click it for its species and peak.`),
+      key([[LEAF_GREEN, "Still green", `${Math.round(f.city.green * 100)}%`], ...hues.map(([h, v]) => [f.F.hues[h], cap(h), `${Math.round(v * 100)}%`]), [LEAF_BARE, "Mostly bare", `${Math.round(f.city.bare * 100)}%`]]),
+      sub("Tiers"),
+      tierBar("foliage", f.F.tiers, (t) => d3.sum(Object.entries(f.c.species_counts), ([sp, n]) => (f.F.species[+sp]?.tier === t ? n : 0))),
+      sub("Main Trees"),
       rows(top.map(([sp, n], i) => [i + 1, f.F.species[sp].common, `${STAGE[f.stage(sp)]} · peak ${fDate(fDate0(f.peakOf(sp), f.y))}`, null, `${f0(n)} trees`])),
-      cred(`Street trees: ${f.c.credit} (open government licences). Weather: ECCC (OGL-Canada). Satellite: MODIS (NASA). Model: Open Places, run ${f.F.generated.slice(0, 10)}.`),
-      foot(`${f0(f.c.n_trees)} street trees · ${f.y} season`, `${FOLIAGE}#city=${f.k}`)) }];
+      cred(`Trees: ${f.c.credit}${f.k === "victoria" ? "; crowd-sourced trees (OpenStreetMap, iNaturalist) are outlined" : ""}.${NO_TREES[f.k] ? ` ${NO_TREES[f.k]}` : ""} Weather: ECCC (OGL-Canada). Satellite: MODIS (NASA). Model: Open Places, run ${f.F.generated.slice(0, 10)}.`),
+      foot(`${f0(f.c.n_trees)} mapped trees · ${f.y} season`)) },
+      { id: "nt-ftrips", title: "Where to Go", place: "right", el: foliageRight(f, ctx) }];
   },
 };
 
 // ================================================================== Whale Watching (was Salish Sea Live)
-// Whale reports (Acartia + iNaturalist, sightings.json) from the last 14 days, coloured by species and faded by age;
+// Whale reports (Acartia + iNaturalist, sightings.json) from the last 14 days, as species silhouettes (civic-whale-icons.js) faded by age;
 // Orcasound hydrophones sized by listener reports (30 days) with next week's chance of whale calls; other hydrophones.
-const SALISH = "../salish/", SAL_DAYS = 14;
+const SAL_DAYS = 14;
 const SP = [["Southern Resident orca", "var(--m-salish)"], ["Other orca", "var(--m-darksky)"], ["Humpback", "var(--m-blossom)"], ["Grey whale", "var(--m-foliage)"],
   ["Minke", "var(--m-golf)"], ["Porpoise / dolphin", "var(--warn)"], ["Other / unknown", "var(--muted)"]];
 function salishModel(ctx) {
@@ -378,18 +575,29 @@ function boatsPanel(ctx) {
     list,
     cred(`Boats picked out of the live AIS feed (aisstream.io via the Open Places relay; not for navigation) by a hand list of ${FLEET.length} vessels from the operators' own fleet pages and the Pacific Whale Watch Association. Names as broadcast; no affiliation with any operator.`)) };
 }
+/** the species silhouettes in this theme's colours, as map images "whale-<sp>" (re-added after a theme or style change) */
+const whaleColours = (sp) => ({ fill: color(SP[sp]?.[1] || "var(--muted)"), line: surf(), ink: ink(), paper: surf() });
+function addWhaleImages(map) {
+  SP.forEach((_, sp) => { const id = `whale-${sp}`; if (map.hasImage(id)) map.removeImage(id); map.addImage(id, whaleImage(sp, whaleColours(sp)), { pixelRatio: 2 }); });
+}
+/** legend row with the species' own silhouette */
+const whaleKey = (rowsIn) => el("div", { class: "nt-key nt-wkey" }, ...rowsIn.map(([sp, label, v]) => {
+  const cv = sp == null ? null : whaleCanvas(sp, whaleColours(sp));
+  return el("div", { class: "nt-k" }, cv ? el("img", { class: "nt-wi", src: cv.toDataURL(), alt: "" }) : el("i", { style: "background: var(--m-salish); opacity: .5" }), el("span", {}, label), el("span", {}, v || ""));
+}));
 const salishLayers = (map, ctx) => mount("salish", map, ctx, {
     load: async (c) => { await Promise.all([whenFile("salish/salish.json", c), whenFile("salish/sightings.json", c)]); return salishModel(c); },
-    sources: ({ s, reps }) => ({
+    sources: ({ s, reps }) => (addWhaleImages(map), {
       reps: { type: "geojson", data: fc(reps.slice().reverse().map((x) => { const h = (Date.now() - x.at) / 36e5;
-        return pt(x.ll, { id: `r${x.id}`, sp: x.sp, op: h < 24 ? 1 : h < 72 ? 0.8 : h < 168 ? 0.55 : 0.3, r: (h < 72 ? 5 : 3.6) + Math.min(3, Math.log2(x.n)) }); })) },
+        return pt(x.ll, { id: `r${x.id}`, sp: x.sp in SP ? x.sp : 6, op: h < 24 ? 1 : h < 72 ? 0.85 : h < 168 ? 0.6 : 0.38, sz: (h < 72 ? 1 : 0.8) + Math.min(0.3, Math.log2(x.n) * 0.08) }); })) },
       phones: { type: "geojson", data: fc(Object.entries(s.hydrophones).map(([id, h]) => pt([h.lon, h.lat], { id, name: h.name, n: h.reports_30d || 0 }))) },
       others: { type: "geojson", data: fc(s.other_hydrophones.map((h) => pt([h.lon, h.lat], { id: h.id, name: h.name }))) },
     }),
     layers: () => [
       { id: "others", type: "circle", source: "others", paint: { "circle-radius": 4, "circle-color": surf(), "circle-stroke-color": color("var(--muted)"), "circle-stroke-width": 1.6 } },
-      { id: "reps", type: "circle", source: "reps", paint: { "circle-color": ["match", ["get", "sp"], ...SP.flatMap(([, c], i) => [i, color(c)]), color("var(--muted)")],
-        "circle-opacity": ["get", "op"], "circle-radius": ["get", "r"], "circle-stroke-color": surf(), "circle-stroke-width": 1, "circle-stroke-opacity": ["get", "op"] } },
+      { id: "tsel", type: "circle", source: "reps", filter: ["==", ["get", "id"], "__none"], paint: { "circle-radius": 16, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": ink(), "circle-stroke-width": 2 } },
+      { id: "reps", type: "symbol", source: "reps", layout: { "icon-image": ["concat", "whale-", ["to-string", ["get", "sp"]]], "icon-size": ["interpolate", ["linear"], ["zoom"], 7, ["*", 0.8, ["get", "sz"]], 11, ["get", "sz"]],
+        "icon-allow-overlap": true, "icon-ignore-placement": true }, paint: { "icon-opacity": ["get", "op"] } },
       { id: "phones", type: "circle", source: "phones", paint: { "circle-radius": ["+", 6, ["*", 0.9, ["sqrt", ["get", "n"]]]], "circle-color": color("var(--m-salish)"), "circle-opacity": 0.16,
         "circle-stroke-color": color("var(--m-salish)"), "circle-stroke-width": 2.2 } },
       { id: "sel", type: "circle", source: "phones", filter: ["==", ["get", "id"], "__none"], paint: { "circle-radius": ["+", 10, ["*", 0.9, ["sqrt", ["get", "n"]]]], "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": ink(), "circle-stroke-width": 2 } },
@@ -414,7 +622,7 @@ const salishLayers = (map, ctx) => mount("salish", map, ctx, {
       return card("salish", `Whale report · ${r.src === 0 ? "Acartia" : "iNaturalist"}`, `${SP[r.sp]?.[0] || "Whale"}${r.n > 1 ? ` × ${r.n}` : ""}`,
         [`Reported ${r.timed ? `${ago(r.at)} · ${new Date(r.at).toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : `on ${r.t} (day only)`}`,
           meta(r.src === 0 ? `Acartia data cooperative${r.ref ? ` · ${r.ref}` : ""}` : `iNaturalist, ${grade === "research" ? "research grade" : "needs ID"} · © the observer`)],
-        r.src === 1 && obs ? `https://www.inaturalist.org/observations/${obs}` : SALISH, r.src === 1 && obs ? "Observation ↗" : "Full dashboard ↗");
+        r.src === 1 && obs ? `https://www.inaturalist.org/observations/${obs}` : null, "Observation ↗");
     },
   });
 const salishPanels = (ctx) => {
@@ -424,13 +632,14 @@ const salishPanels = (ctx) => {
     const o = m.s.outlook.forecast[m.node], h = m.s.hydrophones[m.node];
     return [{ id: "nt-salish", title: "Whale Reports", place: "left", el: body(
       lead(tag("data", "Data"), " ", el("b", {}, f0(m.reps.length)), ` reports in the last ${SAL_DAYS} days, ${f0(m.wk.length)} since ${fDate(new Date(Date.now() - 7 * 864e5))}. Newest `, el("b", {}, m.reps[0] ? ago(m.reps[0].at) : "—"),
-        `. Faded dots are older.${o ? ` ${h.name}: ${Math.round(o.p * 100)}% chance of calls next week.` : ""}`),
-      key(by.map(([sp, n]) => [SP[sp]?.[1] || "var(--muted)", SP[sp]?.[0] || "Other", `${n} since ${fDate(new Date(Date.now() - 7 * 864e5))}`]).concat([["var(--m-salish)", "Orcasound hydrophone (ring = reports)", ""]])),
+        `. Faded whales are older.${o ? ` ${h.name}: ${Math.round(o.p * 100)}% chance of calls next week.` : ""}`),
+      whaleKey(SP.map(([name], sp) => [sp, name, `${new Map(by).get(sp) || "—"}`]).concat([[null, "Orcasound hydrophone (ring = reports)", ""]])),
+      el("p", { class: "nt-cred" }, `Counts: reports since ${fDate(new Date(Date.now() - 7 * 864e5))}.`),
       sub("Latest Encounters"),
       rows(m.enc.slice(0, 7).map((r, i) => [i + 1, `${SP[r.sp]?.[0] || "Whale"}${r.n > 1 ? ` × ${r.n}` : ""}`, `${ago(r.at)} · ${r.k > 1 ? `${r.k} reports` : r.src === 0 ? "Acartia" : "iNat"}`,
         focus("salish", { layer: "reps", props: { id: `r${r.id}` }, ll: r.ll, zoom: 10 })])),
       cred("Sightings: Acartia data cooperative, iNaturalist (© observers). Hydrophones: Orcasound (CC BY-NC-SA 4.0), SIMRES, Raincoast, OrcaLab, JASCO, Ocean Networks Canada."),
-      foot(`Pipeline ran ${m.s.generated.slice(0, 10)} · not live`, SALISH)) }];
+      foot(`Pipeline ran ${m.s.generated.slice(0, 10)} · not live`)) }];
 };
 
 // ================================================================== Light Pollution (was Dark Sky Finder)
@@ -438,7 +647,6 @@ const salishPanels = (ctx) => {
 // much the night lights around it changed since 2014, model.json towns), the light-pollution map (the same model as an image
 // layer, or the change in night lights 2014 → 2025), then where the dark skies are (sites.json, by Bortle class).
 // Model: Open Places, from NASA Black Marble night lights (VNP46A2, public domain) trained on Globe at Night and SQM readings.
-const DARK = "../darksky/";
 const bortleColor = (b) => (b <= 3 ? "var(--live)" : b <= 5 ? "var(--warn)" : "var(--bad)");
 const BORTLE = ["", "Pristine: the zodiacal light and airglow are visible", "Truly dark: the Milky Way casts detail to the horizon", "Rural: the Milky Way is clear, some glow on the horizon",
   "Rural / suburban edge: the Milky Way is visible but plain", "Suburban: the Milky Way is faint overhead and gone near the horizon", "Bright suburban: only hints of the Milky Way overhead",
@@ -499,7 +707,7 @@ function darkPaint() {
     near.length ? sub(`Night Lights Since ${h.model.years[0]}`) : null,
     near.length ? rows(near.slice(0, 5).map((x, i) => [i + 1, x.name, `${x.change_pct >= 0 ? "+" : "−"}${Math.abs(x.change_pct).toFixed(0)}% · ${Math.round(x.km)} km`])) : null,
     cred(`Model: Open Places, from NASA Black Marble night lights (VNP46A2, public domain) trained on ${f0(h.model.n_train)} Globe at Night (NOIRLab, CC BY 4.0) and SQM readings. Change: Black Marble ${h.model.years[0]} vs ${h.model.years[1]}.`),
-    m ? foot(`${m.sites.length} sky sites · ${m.v.toUpperCase()}`, DARK) : null].filter(Boolean));
+    m ? foot(`${m.sites.length} sky sites · ${m.v.toUpperCase()}`) : null].filter(Boolean));
 }
 const darkStage = {
   layout: "map",
@@ -522,7 +730,7 @@ const darkStage = {
     popup: (f, { m }) => {
       const s = m.sites.find((x) => x.id === f.properties.id); if (!s) return null;
       return card("darksky", `${s.kind} · Bortle ${s.bortle}`, s.name, [s.note, `Sky ${s.sqm.toFixed(2)} mag/arcsec² (typical ${s.sqm_typical?.toFixed(2) ?? "—"}), naked-eye limit about magnitude ${s.nelm}.`,
-        meta(`${Math.round(s.km)} km from ${ctx.place.short || ctx.place.name} · measured or modelled`)], DARK);
+        meta(`${Math.round(s.km)} km from ${ctx.place.short || ctx.place.name} · measured or modelled`)]);
     },
   }),
   panels: (ctx) => {
@@ -543,7 +751,6 @@ const darkStage = {
 // The curated scenic loops (sunday.json) drawn on the road network they were routed on (graph_<region>_<mode>.json,
 // decoded with the shared planner's loadGraph / edgeCoords). The panel's mode buttons (All · Drives · Rides · Walks) filter
 // the map and the list and fit the map to that mode's loops; the selected mode again goes back to all.
-const SUNDAY = "../sunday/";
 const MODE = { car: ["Drive", "var(--m-roads)"], bike: ["Ride", "var(--m-sunday)"], foot: ["Walk", "var(--m-lstops)"] };
 const MODES_ORDER = ["car", "bike", "foot"];
 const PLURAL = { car: "Drives", bike: "Rides", foot: "Walks" };
@@ -587,7 +794,7 @@ function sundayPaint() {
     sub(SUN.mode === "all" ? "Top Loops" : `Top ${PLURAL[SUN.mode]}`),
     rows(rs.slice(0, 8).map((x, i) => [i + 1, x.name, `${MODE[x.mode]?.[0] || x.mode} · ${Math.round(x.km)} km · ${Math.round(x.minutes)} min`, focus("sunday", { layer: "lines", props: { id: x.id }, ll: x.waypoints[Math.floor(x.waypoints.length / 2)], bounds: bboxOf(x.waypoints, 0.004), zoom: 14 }), x.blurb])),
     cred("Roads, paths and stops: © OpenStreetMap contributors (ODbL), via the Overpass API. Scores: Open Places."),
-    foot(`Published ${m.gen.slice(0, 10)}`, `${SUNDAY}#region=${m.k}`));
+    foot(`Published ${m.gen.slice(0, 10)}`));
 }
 const sundayStage = {
   layout: "map",
@@ -617,7 +824,7 @@ const sundayStage = {
       const x = m.routes.find((r) => r.id === f.properties.id); if (!x) return null;
       return card("sunday", `${MODE[x.mode]?.[0] || x.mode} · ${x.tier} tier · #${m.routes.indexOf(x) + 1}`, x.name, [x.blurb,
         `${x.km.toFixed(1)} km · ${Math.round(x.minutes)} min${x.water_km >= 0.5 ? ` · ${x.water_km.toFixed(1)} km with water views` : ""}${x.green_km >= 0.5 ? ` · ${x.green_km.toFixed(1)} km of park & forest` : ""}.`,
-        meta(`Scenic score ${Math.round(x.score * 100)} · OpenStreetMap routes`)], `${SUNDAY}#region=${m.k}`);
+        meta(`Scenic score ${Math.round(x.score * 100)} · OpenStreetMap routes`)]);
     },
   }),
   panels: (ctx) => {
@@ -631,7 +838,6 @@ const sundayStage = {
 // ================================================================== Fairway Forecast
 // Courses (courses.json outlines and centres) coloured by today's playable hours from the published forecast
 // (playability.json: dry, light wind, warm enough, in daylight).
-const GOLF = "../golf/";
 const hColor = () => d3.scaleLinear([0, 4, 8], [color("var(--bad)"), color("var(--warn)"), color("var(--live)")]).clamp(true);
 function golfModel(ctx) {
   const C = data("golf/courses.json", ctx), P = data("golf/playability.json", ctx);
@@ -676,7 +882,7 @@ const golfStage = {
         [p ? `Playable ${m.exact ? "today" : m.day}: ${x.h.toFixed(1)} h${best ? `, best round ${best}–${p.best_end[m.di]}` : ""}.` : "No playability forecast for this course.",
           p ? (() => { const rest = p.playable_h.slice(m.di), bi = m.di + rest.indexOf(Math.max(...rest));
             return `Next ${rest.length} days ${d3.sum(rest).toFixed(0)} h; best ${new Date(`${m.P.days[bi]}T12:00`).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} (${p.playable_h[bi].toFixed(1)} h).`; })() : null,
-          meta(`Forecast ${m.P.forecast_fetched.slice(0, 10)} · course map OpenStreetMap`)], GOLF);
+          meta(`Forecast ${m.P.forecast_fetched.slice(0, 10)} · course map OpenStreetMap`)]);
     },
   }),
   panels: (ctx) => {
@@ -689,7 +895,7 @@ const golfStage = {
       sub("Most Playable Hours"),
       rows(ok.slice(0, 7).map((x, i) => [i + 1, x.name, `${x.h.toFixed(1)} h${x.p.best_start[m.di] ? ` · ${x.p.best_start[m.di]}` : ""}`, focus("golf", { layer: "dots", props: { id: x.id }, ll: [x.lon, x.lat], zoom: 13.5 })])),
       cred("Courses: © OpenStreetMap contributors (ODbL). Tree cover: ESA WorldCover (CC BY 4.0). Weather: Open-Meteo (CC BY 4.0)."),
-      foot(`Forecast ${m.P.forecast_fetched.slice(0, 10)} · ${m.courses.length} courses`, GOLF)) }];
+      foot(`Forecast ${m.P.forecast_fetched.slice(0, 10)} · ${m.courses.length} courses`)) }];
   },
 };
 

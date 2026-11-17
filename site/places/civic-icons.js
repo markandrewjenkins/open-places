@@ -47,6 +47,7 @@ const P = {
   calendar: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z",
   info: "M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0M12 16v-4M12 8h.01",
   arrowL: "m12 19-7-7 7-7M19 12H5",
+  compass: "M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36Z",
   ticket: "M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2ZM13 5v2M13 17v2M13 11v2",
   layers: "M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83zM2 12l9.17 4.17a2 2 0 0 0 1.66 0L22 12M2 17l9.17 4.17a2 2 0 0 0 1.66 0L22 17",
   clock: "M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0M12 6v6l4 2",
@@ -56,10 +57,10 @@ const P = {
 
 /** rail topics (TOPICS ids in civic-modules.js, plus the console's own overview and about) */
 export const TOPIC_ICON = { overview: "grid", now: "radio", weather: "cloudSun", "getting-around": "signpost", hazard: "alert", civic: "landmark",
-  nature: "trees", lifestyle: "ticket", about: "info" };
+  nature: "trees", lifestyle: "compass", about: "info" };
 /** leaves (module ids) */
 export const LEAF_ICON = { summary: "grid", alerts: "bell", natalerts: "siren", weather: "cloudSun", air: "wind", transit: "bus", roads: "car", route95: "timer", airtraffic: "plane",
-  waterways: "anchor", "waterways-next": "anchor", malahat: "mountain", ferries: "ship", goose: "bike", biking: "bike", ferry: "ship", bike: "bike", ttc: "train", quakes: "activity", tsunami: "waves",
+  waterways: "anchor", "waterways-next": "anchor", malahat: "mountain", ferries: "ship", goose: "bike", biking: "bike", galloping: "bike", ferry: "ship", bike: "bike", ttc: "train", quakes: "activity", tsunami: "waves",
   ar: "cloudRain", hazards: "flame", bigquakes: "globe", lnotices: "megaphone", lstops: "pin", crime: "shield", blossom: "flower", foliage: "leaf", salish: "waveform", darksky: "moon",
   sunday: "route", trails: "footprints", hot: "sparkles", surf: "waves", events: "calendar", golf: "flag", langford: "building", water: "droplet", grid: "zap", unusual: "sparkles", enso: "globe", outlook: "calendar", patterns: "wind" };
 

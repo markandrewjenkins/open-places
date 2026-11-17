@@ -32,6 +32,17 @@ const pt = (ll, properties) => ({ type: "Feature", geometry: { type: "Point", co
 const isBC = (ctx) => provinceOf(ctx.place)?.id === "bc";
 const westShore = (ctx) => SPOTLIGHT_PLACES.has(ctx.place.id);          // the West Shore starting view
 const busPlace = (ctx) => BUS_SPEED_PLACES.has(ctx.place.id);           // bus speeds: every Greater Victoria place
+// Greater Victoria places load the whole region (DriveBC events, cameras, bus speeds); the starting view stays on the place
+export const crdWide = (ctx) => BUS_SPEED_PLACES.has(ctx.place.id);
+/** the region's box: Port Renfrew to Oak Bay, Race Rocks to Sidney, the Malahat to Mill Bay (Duncan and Cowichan Bay left out) */
+export const CRD_BOX = [-124.55, 48.27, -123.0, 48.72];
+export const inCRDBox = (ll) => !!ll && ll[0] >= CRD_BOX[0] && ll[0] <= CRD_BOX[2] && ll[1] >= CRD_BOX[1] && ll[1] <= CRD_BOX[3];
+export const NEAR_KM = 15;   // "near Langford" in the KPIs
+/** a camera list from R.nearCams cut to the region's box (sites stay nearest first) */
+export function crdCams(near) {
+  const sites = near.sites.filter((s) => inCRDBox(s.main.ll));
+  return { count: sites.reduce((n, s) => n + s.cams.filter((c) => inCRDBox(c.ll)).length, 0) || sites.length, sites };
+}
 const hhmm = (t) => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).replace(/\s?([AP])M/i, (m, a) => ` ${a.toLowerCase()}m`);
 const cap = (s) => String(s || "").charAt(0).toUpperCase() + String(s || "").slice(1);
 const BUS_CREDIT = "BC Transit GTFS-Realtime via the relay · typical speeds from logged buses and BC Transit GTFS · an estimate, not a traffic feed";
@@ -256,9 +267,11 @@ export const trafficView = (ctx) => (westShore(ctx) && ctx.place.level === "muni
 export const malView = () => ({ center: [(MAL_BOUNDS[0][0] + MAL_BOUNDS[1][0]) / 2, (MAL_BOUNDS[0][1] + MAL_BOUNDS[1][1]) / 2], zoom: 11, bounds: MAL_BOUNDS });
 
 // ------------------------------------------------------------------ coverage (the dotted outline: civic-stage.js header)
-/** Vehicle Traffic: DriveBC's events are shown within 30 km of a town, 60 km of a region (L.roads in civic-layers.js);
- *  a province keeps the default (its outline) */
+/** Vehicle Traffic: Greater Victoria places show the whole region (CRD_BOX); elsewhere DriveBC's events are shown within
+ *  30 km of a town, 60 km of a region (L.roads in civic-layers.js); a province keeps the default (its outline) */
 export function trafficCoverage(ctx) {
+  if (crdWide(ctx)) { const [w, so, e, n] = CRD_BOX;
+    return { feature: { type: "Feature", geometry: { type: "Polygon", coordinates: [[[w, so], [e, so], [e, n], [w, n], [w, so]]] }, properties: { id: "cov:roads", title: "Greater Victoria" } }, label: "DriveBC events and cameras · Greater Victoria" }; }
   if (!isBC(ctx) || !(ctx.place.level === "muni" || ctx.place.level === "region" || ctx.place.anywhere)) return null;
   const r = ctx.place.level === "muni" ? 30 : 60;
   return { feature: circleFeature(ctx.place.ll, r, { id: "cov:roads", title: `Within ${r} km` }), label: `DriveBC events · within ${r} km` };

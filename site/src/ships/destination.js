@@ -3,7 +3,8 @@
 // ("CAVAN>USSEA", "CNSHA => CAVAN"). Known ports (locodes.js, from UN/LOCODE) come back as "Vancouver, BC (CAVAN)";
 // anything else is left exactly as broadcast.
 //
-//   destination(raw) → { text, known } | null      text: "Vancouver, BC (CAVAN), anchorage", "Tacoma, WA (USTIW) → …"
+//   destination(raw) → { text, known, to } | null  text: "Vancouver, BC (CAVAN), anchorage", "Tacoma, WA (USTIW) → …";
+//                                                  to: the last named port's code ("USTIW") or null
 import { LOCODES, LOCODE_CREDIT } from "./locodes.js";
 export { LOCODE_CREDIT };
 
@@ -27,12 +28,13 @@ function one(part) {
     const name = plain(s.replace(/\b(B\.?C\.?|WA|USA|U\.S\.A\.|CANADA|CDA)\b/g, " ").replace(/\bPT\.?\b/g, "PORT").replace(/\bN\.?\s?(?=VAN)/, "NORTH "));
     code = ALIAS[name] && LOCODES[ALIAS[name]] ? ALIAS[name] : BY_NAME.get(name) || null;
   }
-  return code ? { ok: true, text: `${LOCODES[code]} (${code})${anch ? ", anchorage" : ""}` } : { ok: false, text: raw };
+  return code ? { ok: true, code, text: `${LOCODES[code]} (${code})${anch ? ", anchorage" : ""}` } : { ok: false, text: raw };
 }
 export function destination(raw) {
   const t = String(raw ?? "").trim();
   if (!t) return null;
   const parts = t.split(/\s*(?:=>|->|>)\s*/).filter(Boolean);
   const out = parts.map(one);
-  return out.some((p) => p.ok) ? { text: out.map((p) => p.text).join(" → "), known: true } : { text: t, known: false };
+  // to: the UN/LOCODE of the last port it names (where it's bound), for the ports' "inbound" lists
+  return out.some((p) => p.ok) ? { text: out.map((p) => p.text).join(" → "), known: true, to: out.at(-1).code || null } : { text: t, known: false, to: null };
 }

@@ -371,7 +371,7 @@ function themeColors() {
   return ["--ramp-0", "--ramp-1", "--ramp-2", "--ramp-3", "--accent", "--accent-2", "--surface"].map((v) => cssVar(v));
 }
 const cityRegion = (i) => meta.cities[trees.cities[i]].region;
-const cityLabel = (i) => ({ victoria: "City of Victoria", vancouver: "City of Vancouver", esquimalt: "Township of Esquimalt" })[trees.cities[i]];
+const cityLabel = (i) => ({ victoria: "City of Victoria", vancouver: "City of Vancouver", esquimalt: "Township of Esquimalt", osm: "OpenStreetMap (ODbL)" })[trees.cities[i]];
 const ICON_LEVELS = 6;
 
 function initMap() {

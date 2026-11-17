@@ -38,3 +38,8 @@ a[data-alert] { cursor: pointer; }
 .civ-stage .civ-homectl[hidden] { display: none; }
 .civ-stage .civ-home { display: grid; place-items: center; cursor: pointer; color: var(--ink); }
 .civ-stage .civ-home:hover { color: var(--accent); }
+
+/* the Satellite / Map toggle above the zoom buttons (civic-stage.js satControl) */
+.civ-stage .civ-satctl .civ-satbtn { width: auto; min-width: 29px; padding: 0 9px; font: 600 11px/29px var(--font, inherit); letter-spacing: .02em; color: var(--ink); cursor: pointer; white-space: nowrap; }
+.civ-stage .civ-satctl .civ-satbtn:hover { color: var(--accent); }
+.civ-stage .civ-satctl .civ-satbtn[aria-pressed="true"] { color: var(--accent); }

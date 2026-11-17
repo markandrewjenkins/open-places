@@ -344,7 +344,7 @@ function addParkLayers(map, ctx, o = {}) {
 }
 
 // ------------------------------------------------------------------ the page state
-const HASH = "#nature/trails";
+const HASH = "#lifestyle/trails";   // Parks & Trails moved to Things to Do (the shell redirects old #nature/trails links)
 const PANE = { sel: null, route: undefined, map: null, parks: null, adv: null, ctx: null, hide: new Set(), els: null };
 const selOf = (item) => (!item ? null : item.startsWith("adv:") ? { k: "adv", id: item.slice(4) } : { k: "park", id: item });
 const itemOf = (s) => (!s ? null : s.k === "adv" ? `adv:${s.id}` : s.id);

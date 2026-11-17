@@ -12,14 +12,29 @@ from datetime import date, datetime, timezone
 import numpy as np
 import pandas as pd
 
-from .config import GROUPS, OUT, REGIONS
+from .config import GROUPS, OUT, RAW, REGIONS
 from .cultivars import CULTIVARS, TIER_BLURB
 from .model import (JAN1, SEASON_DAYS, analog_forecast, build_region_temps, doy_to_idx, fit, idx_to_date,
                     load_inputs, loyo_cv, modelled_groups, observed_bloom, season_array, ANALOG_YEARS)
 
 KINDS = ["clim", "gdd", "chill", "tsens"]
 ISSUE_DATES = [(1, 1), (2, 1), (2, 15), (3, 1), (3, 15), (4, 1)]
-TREE_CITIES = {"victoria": "victoria", "vancouver": "vancouver", "esquimalt": "victoria"}     # city -> forecast region
+TREE_CITIES = {"victoria": "victoria", "vancouver": "vancouver", "esquimalt": "victoria", "saanich": "victoria", "osm": "victoria", "inat": "victoria"}     # city -> forecast region
+# where each city's trees come from (shown with every tree); "osm" is the OpenStreetMap fallback for the rest of a region
+TREE_SOURCES = {
+    "victoria": {"name": "Victoria", "source": "City of Victoria tree inventory", "licence": "Open Government Licence – Victoria",
+                 "url": "https://opendata.victoria.ca/"},
+    "esquimalt": {"name": "Esquimalt", "source": "Township of Esquimalt tree inventory", "licence": "no licence stated",
+                  "url": "https://gis.esquimalt.ca/arcgis/rest/services/Services/Trees/MapServer/0"},
+    "vancouver": {"name": "Vancouver", "source": "City of Vancouver public trees", "licence": "Open Government Licence – Vancouver",
+                  "url": "https://opendata.vancouver.ca/explore/dataset/public-trees/"},
+    "saanich": {"name": "Saanich", "source": "District of Saanich significant trees", "licence": "no licence stated",
+                "url": "https://map.saanich.ca/server/rest/services/MAPS/SaanichMapService_External/MapServer/21"},
+    "osm": {"name": "OpenStreetMap", "source": "Trees mapped in OpenStreetMap (natural=tree, genus Prunus)", "licence": "ODbL 1.0",
+            "url": "https://www.openstreetmap.org/copyright"},
+    "inat": {"name": "iNaturalist", "source": "Trees reported on iNaturalist", "licence": "CC0, CC BY or CC BY-NC, per observer",
+             "url": "https://www.inaturalist.org/"},
+}
 PHOTOS = Path(__file__).with_name("cultivar_photos.json")
 
 
@@ -46,6 +61,67 @@ def _default(o):
 
 def r1(x):
     return None if x is None or (isinstance(x, float) and np.isnan(x)) else round(float(x), 1)
+
+
+def write_trees(trees: pd.DataFrame) -> None:
+    """trees.json (compact rows), cultivars.json (catalogue with counts and best street) and streets.json."""
+    ckeys = list(CULTIVARS)
+    streets = sorted(trees.street.fillna("").unique())
+    sidx = {s: i for i, s in enumerate(streets)}
+    gkeys = list(GROUPS)
+    cities = list(TREE_CITIES)
+    clean = lambda v, lo, hi: None if v is None or pd.isna(v) or not (lo < v < hi) else round(float(v), 1)
+    refs = trees["ref"].fillna("") if "ref" in trees else [""] * len(trees)     # reported trees: "obs id|observer|licence"
+    tree_rows = [[round(lon, 5), round(lat, 5), gkeys.index(g), ckeys.index(ck), sidx[s or ""], cities.index(city),
+                  clean(dbh, 0, 300), clean(ht, 0, 40), (addr or "").strip().title()] + ([rf] if rf else [])
+                 for lon, lat, g, ck, s, city, dbh, ht, addr, rf in zip(trees.lon, trees.lat, trees.group, trees.cultivar, trees.street,
+                                                                        trees.city, trees.dbh_cm, trees.height_m, trees.address, refs)]
+    photos = json.loads(PHOTOS.read_text(encoding="utf-8")) if PHOTOS.exists() else {}
+    catalogue = {}
+    for k, (name, grp, tier, colour, form, habit, note, _) in CULTIVARS.items():
+        d = trees[trees.cultivar == k]
+        best = {}
+        for city in cities:
+            dc = d[(d.city == city) & (d.street.fillna("") != "")]
+            if len(dc):
+                st, n = dc.street.value_counts().index[0], int(dc.street.value_counts().iloc[0])
+                sub = dc[dc.street == st]
+                best[city] = {"street": st, "n": n, "lon": round(float(sub.lon.median()), 5), "lat": round(float(sub.lat.median()), 5)}
+        catalogue[k] = {"name": name, "group": grp, "tier": tier, "colour": colour, "form": form, "habit": habit, "note": note,
+                        "counts": d.city.value_counts().to_dict(), "best_street": best, "photo": photos.get(k)}
+    best_streets = []
+    for (city, street), d in trees[trees.street.fillna("") != ""].groupby(["city", "street"]):
+        if len(d) < 12:
+            continue
+        best_streets.append({"city": city, "region": TREE_CITIES[city], "street": street, "n": len(d),
+                             "groups": d.group.value_counts().to_dict(),
+                             "lon": r1(d.lon.median() * 1e4) / 1e4, "lat": r1(d.lat.median() * 1e4) / 1e4})
+    best_streets.sort(key=lambda s: -s["n"])
+    best_streets = [s for c in cities for s in [x for x in best_streets if x["city"] == c][:40]]
+
+    dump("trees.json", {"cols": ["lon", "lat", "group", "cultivar", "street", "city", "dbh_cm", "height_m", "address", "ref"],
+                        "groups": gkeys, "cultivars": ckeys, "cities": cities, "streets": streets, "rows": tree_rows})
+    dump("cultivars.json", catalogue)
+    dump("streets.json", best_streets)
+
+
+def tree_meta(trees: pd.DataFrame) -> dict:
+    return {"regions": {k: {"has_trees": k in TREE_CITIES.values(), "tree_cities": [c for c, r in TREE_CITIES.items() if r == k]} for k in REGIONS},
+            "cities": {c: {"region": r, **TREE_SOURCES.get(c, {"name": c.title()})} for c, r in TREE_CITIES.items()},
+            "counts": {"trees": len(trees), "trees_by_city": trees.city.value_counts().to_dict()}}
+
+
+def trees_only() -> None:
+    """Rewrite only the tree files (after `fetch osm` or a new inventory) and patch meta.json; the forecast is untouched."""
+    trees = pd.read_parquet(RAW / "trees.parquet")
+    write_trees(trees)
+    meta = json.loads((OUT / "meta.json").read_text(encoding="utf-8"))
+    tm = tree_meta(trees)
+    for k, v in tm["regions"].items():
+        meta["regions"].setdefault(k, {}).update(v)
+    meta["cities"] = tm["cities"]
+    meta["counts"].update(tm["counts"])
+    dump("meta.json", meta)
 
 
 def main(today: date) -> None:
@@ -218,39 +294,7 @@ def main(today: date) -> None:
         backtest[g] = {"summary": summ.round(2).to_dict("records"), "rows": df.drop(columns="hit").to_dict("records")}
         print(f"  backtest {g:<9} " + "  ".join(f"{r.issue}:{r.mae:.1f}d/{r.coverage:.0%}" for r in summ.itertuples()))
 
-    # ---- trees (compact), cultivar catalogue and best streets
-    ckeys = list(CULTIVARS)
-    streets = sorted(trees.street.fillna("").unique())
-    sidx = {s: i for i, s in enumerate(streets)}
-    gkeys = list(GROUPS)
-    cities = list(TREE_CITIES)
-    clean = lambda v, lo, hi: None if v is None or pd.isna(v) or not (lo < v < hi) else round(float(v), 1)
-    tree_rows = [[round(lon, 5), round(lat, 5), gkeys.index(g), ckeys.index(ck), sidx[s or ""], cities.index(city),
-                  clean(dbh, 0, 300), clean(ht, 0, 40), (addr or "").strip().title()]
-                 for lon, lat, g, ck, s, city, dbh, ht, addr in zip(trees.lon, trees.lat, trees.group, trees.cultivar, trees.street,
-                                                                    trees.city, trees.dbh_cm, trees.height_m, trees.address)]
-    photos = json.loads(PHOTOS.read_text(encoding="utf-8")) if PHOTOS.exists() else {}
-    catalogue = {}
-    for k, (name, grp, tier, colour, form, habit, note, _) in CULTIVARS.items():
-        d = trees[trees.cultivar == k]
-        best = {}
-        for city in cities:
-            dc = d[(d.city == city) & (d.street.fillna("") != "")]
-            if len(dc):
-                st, n = dc.street.value_counts().index[0], int(dc.street.value_counts().iloc[0])
-                sub = dc[dc.street == st]
-                best[city] = {"street": st, "n": n, "lon": round(float(sub.lon.median()), 5), "lat": round(float(sub.lat.median()), 5)}
-        catalogue[k] = {"name": name, "group": grp, "tier": tier, "colour": colour, "form": form, "habit": habit, "note": note,
-                        "counts": d.city.value_counts().to_dict(), "best_street": best, "photo": photos.get(k)}
-    best_streets = []
-    for (city, street), d in trees[trees.street.fillna("") != ""].groupby(["city", "street"]):
-        if len(d) < 12:
-            continue
-        best_streets.append({"city": city, "region": TREE_CITIES[city], "street": street, "n": len(d),
-                             "groups": d.group.value_counts().to_dict(),
-                             "lon": r1(d.lon.median() * 1e4) / 1e4, "lat": r1(d.lat.median() * 1e4) / 1e4})
-    best_streets.sort(key=lambda s: -s["n"])
-    best_streets = [s for c in cities for s in [x for x in best_streets if x["city"] == c][:40]]
+    write_trees(trees)
 
     meta = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="minutes"),
@@ -258,7 +302,7 @@ def main(today: date) -> None:
         "regions": {k: {"name": v["name"], "center": v["center"], "station": v["station_label"],
                         "has_trees": k in TREE_CITIES.values(),
                         "tree_cities": [c for c, r in TREE_CITIES.items() if r == k]} for k, v in REGIONS.items()},
-        "cities": {c: {"region": r, "name": c.title()} for c, r in TREE_CITIES.items()},
+        "cities": tree_meta(trees)["cities"],
         "tiers": TIER_BLURB,
         "groups": {k: {"label": v["label"], "color": v["color"], "half_window": v["half_window"],
                        "offset_from": v.get("offset_from")} for k, v in GROUPS.items()},
@@ -271,10 +315,7 @@ def main(today: date) -> None:
     dump("forecast.json", forecast)
     dump("history.json", history)
     dump("backtest.json", backtest)
-    dump("trees.json", {"cols": ["lon", "lat", "group", "cultivar", "street", "city", "dbh_cm", "height_m", "address"],
-                        "groups": gkeys, "cultivars": ckeys, "cities": cities, "streets": streets, "rows": tree_rows})
-    dump("cultivars.json", catalogue)
-    dump("streets.json", best_streets)
+    gkeys = list(GROUPS)
     ok = inat.dropna(subset=["observed_on", "lat", "lon"])
     ok = ok[ok.group.isin(modelled_groups()) & ~ok.flower_annotation.isin([14, 15, 21])]
     for col in ("photo", "photo_attr", "place", "taxon"):
@@ -288,4 +329,6 @@ def main(today: date) -> None:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--today", type=lambda s: date.fromisoformat(s), default=date.today())
-    main(ap.parse_args().today)
+    ap.add_argument("--trees-only", action="store_true", help="rewrite the tree files only (no model fit)")
+    a = ap.parse_args()
+    trees_only() if a.trees_only else main(a.today)

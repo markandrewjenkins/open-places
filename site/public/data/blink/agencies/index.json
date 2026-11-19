@@ -6,8 +6,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611180/20261117 21:00:00/20261118 04:00:00",
-   "feed_start": "20261116",
+   "version": "202611190/20261118 21:00:00/20261119 04:00:00",
+   "feed_start": "20261117",
    "feed_end": "20270103",
    "bbox": [
     -123.75,
@@ -30,7 +30,7 @@
     "stops": 481588
    },
    "static_only": false,
-   "built": "2026-11-18T22:06+00:00"
+   "built": "2026-11-19T22:02+00:00"
   },
   "nanaimo": {
    "name": "BC Transit · Nanaimo",
@@ -1243,8 +1243,8 @@
    "credit": "Data provided by MassDOT / MBTA under the MassDOT Developers License Agreement.",
    "terms": "https://www.mass.gov/files/documents/2017/10/27/develop_license_agree_0.pdf",
    "tz": "America/New_York",
-   "version": "Fall 2026, 2026-11-13T21:35:28+00:00, version D",
-   "feed_start": "20261106",
+   "version": "Fall 2026, 2026-11-19T01:01:13+00:00, version D",
+   "feed_start": "20261112",
    "feed_end": "20261212",
    "bbox": [
     -71.358,
@@ -1253,7 +1253,7 @@
     42.573
    ],
    "routes": 184,
-   "stops": 7289,
+   "stops": 7288,
    "modes": [
     "bus",
     "ferry",
@@ -1268,10 +1268,10 @@
    },
    "bytes": {
     "network": 185918,
-    "stops": 1195825
+    "stops": 1196019
    },
    "static_only": false,
-   "built": "2026-11-17T00:15+00:00"
+   "built": "2026-11-19T22:03+00:00"
   },
   "sacrt": {
    "name": "SacRT",
@@ -1374,6 +1374,6 @@
    "built": "2026-11-17T00:16+00:00"
   }
  },
- "generated": "2026-11-18T22:06+00:00",
+ "generated": "2026-11-19T22:03+00:00",
  "note": "Built by pipelines/blink/static.py from each agency's open GTFS. bbox = [west, south, east, north]."
 }

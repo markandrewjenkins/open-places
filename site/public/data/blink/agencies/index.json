@@ -6,8 +6,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611190/20261118 21:00:00/20261119 04:00:00",
-   "feed_start": "20261117",
+   "version": "202611200/20261119 21:00:00/20261120 04:00:00",
+   "feed_start": "20261118",
    "feed_end": "20270103",
    "bbox": [
     -123.75,
@@ -26,11 +26,11 @@
     "sun": "2026-11-22"
    },
    "bytes": {
-    "network": 85527,
-    "stops": 481588
+    "network": 85448,
+    "stops": 481590
    },
    "static_only": false,
-   "built": "2026-11-19T22:02+00:00"
+   "built": "2026-11-20T22:06+00:00"
   },
   "nanaimo": {
    "name": "BC Transit · Nanaimo",
@@ -1344,7 +1344,7 @@
    "credit": "Route and arrival data used in this product or service is provided by permission of TransLink. TransLink assumes no responsibility for the accuracy or currency of the Data used in this product or service.",
    "terms": "https://www.translink.ca/about-us/doing-business-with-translink/app-developer-resources/gtfs/gtfs-data",
    "tz": "America/Vancouver",
-   "version": "26SEP_20261113",
+   "version": "26SEP_20261120",
    "feed_start": "20260907",
    "feed_end": "20270103",
    "bbox": [
@@ -1354,7 +1354,7 @@
     49.37
    ],
    "routes": 238,
-   "stops": 8743,
+   "stops": 8747,
    "modes": [
     "bus",
     "ferry",
@@ -1367,13 +1367,13 @@
     "sun": "2026-11-22"
    },
    "bytes": {
-    "network": 201866,
-    "stops": 1691191
+    "network": 201814,
+    "stops": 1691964
    },
    "static_only": true,
-   "built": "2026-11-17T00:16+00:00"
+   "built": "2026-11-20T22:07+00:00"
   }
  },
- "generated": "2026-11-19T22:03+00:00",
+ "generated": "2026-11-20T22:07+00:00",
  "note": "Built by pipelines/blink/static.py from each agency's open GTFS. bbox = [west, south, east, north]."
 }

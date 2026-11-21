@@ -6,8 +6,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611200/20261119 21:00:00/20261120 04:00:00",
-   "feed_start": "20261118",
+   "version": "202611210/20261120 21:00:00/20261121 04:00:00",
+   "feed_start": "20261119",
    "feed_end": "20270103",
    "bbox": [
     -123.75,
@@ -21,7 +21,7 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
+    "weekday": "2026-11-27",
     "sat": "2026-11-21",
     "sun": "2026-11-22"
    },
@@ -30,7 +30,7 @@
     "stops": 481590
    },
    "static_only": false,
-   "built": "2026-11-20T22:06+00:00"
+   "built": "2026-11-21T20:45+00:00"
   },
   "nanaimo": {
    "name": "BC Transit · Nanaimo",
@@ -1374,6 +1374,6 @@
    "built": "2026-11-20T22:07+00:00"
   }
  },
- "generated": "2026-11-20T22:07+00:00",
+ "generated": "2026-11-21T20:45+00:00",
  "note": "Built by pipelines/blink/static.py from each agency's open GTFS. bbox = [west, south, east, north]."
 }

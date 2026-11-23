@@ -1,0 +1,14 @@
+/* civic-follow.js: the "Follow" toggle on a vehicle card and the "Following <name> · Stop" pill on the map */
+.civ-follow-btn { flex: none; height: 22px; padding: 0 9px; border: 1px solid var(--border, var(--line)); border-radius: var(--pill, 999px); background: transparent;
+  color: var(--ink); font: 600 11.5px/1 var(--font, inherit); cursor: pointer; white-space: nowrap; }
+.civ-follow-btn:hover, .civ-follow-btn:focus-visible { border-color: var(--sc, var(--accent)); }
+.civ-follow-btn[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.civ-follow-pill { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 5; display: inline-flex; align-items: center; gap: 8px;
+  height: 32px; padding: 0 6px 0 12px; border-radius: var(--pill, 999px); border: 1px solid var(--border, var(--line));
+  background: color-mix(in oklab, var(--surface) 90%, transparent); backdrop-filter: blur(8px); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  color: var(--ink); font: 600 12.5px/1 var(--font, inherit); white-space: nowrap; pointer-events: auto; }
+.civ-follow-pill i { width: 8px; height: 8px; border-radius: 50%; background: #ffffff; box-shadow: 0 0 0 2px rgba(10, 14, 20, 0.55); }
+.civ-follow-pill b { color: var(--muted); font-weight: 400; }
+.civ-follow-pill button { height: 22px; padding: 0 10px; border: 1px solid var(--border, var(--line)); border-radius: var(--pill, 999px); background: transparent;
+  color: var(--ink); font: inherit; cursor: pointer; }
+.civ-follow-pill button:hover, .civ-follow-pill button:focus-visible { background: var(--ink); color: var(--surface); }

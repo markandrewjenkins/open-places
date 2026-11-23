@@ -12,3 +12,25 @@
 .ps-note { margin: 0 0 6px; font-size: 11.5px; line-height: 1.4; color: var(--muted); }
 .ln-meet .civ-row, .ps-src .civ-row { justify-content: space-between; }
 .ln-meet .civ-row-v, .ps-src .civ-row-v { text-align: right; }
+
+/* notices on the map (civic-map-notices.js): the list beside the markers. --nm: the page's colour */
+.nm-list { --nm: var(--accent); display: flex; flex-direction: column; gap: 1px; max-height: min(60vh, 740px); overflow: auto; margin: 0 -4px 6px; }
+.nm-list.ps { --nm: var(--m-crime, var(--accent)); }
+.nm-list.ln { --nm: var(--m-lnotices, var(--accent)); }
+.nm-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px; margin-bottom: 2px;
+  border-radius: 6px; background: color-mix(in oklab, var(--nm) 14%, var(--surface)); font-size: 12px; }
+.nm-head-t { display: flex; align-items: center; gap: 5px; min-width: 0; color: var(--ink); }
+.nm-head-t span { color: var(--muted); white-space: nowrap; }
+.nm-head-t .civ-ic { color: var(--nm); flex: none; }
+.nm-all { flex: none; padding: 2px 8px; border: 1px solid var(--grid); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: 600 11px/1.4 var(--fig); cursor: pointer; }
+.nm-all:hover { border-color: var(--nm); color: var(--ink); }
+.nm-row { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 5px 22px 5px 4px; border-radius: 6px; border-bottom: 1px solid var(--grid); cursor: pointer; }
+.nm-row:last-child { border-bottom: 0; }
+.nm-row:hover, .nm-row:focus-visible { background: color-mix(in oklab, var(--nm) 10%, transparent); outline: none; }
+.nm-row.on { background: color-mix(in oklab, var(--nm) 18%, transparent); box-shadow: inset 3px 0 0 var(--nm); }
+.nm-t { font-size: 12.5px; line-height: 1.35; color: var(--ink-2); }
+.nm-row.new .nm-t, .nm-row.on .nm-t { color: var(--ink); font-weight: 600; }
+.nm-m { display: flex; align-items: center; gap: 5px; font: 500 10.5px/1.3 var(--fig); color: var(--muted); font-variant-numeric: tabular-nums; }
+.nm-pin { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--nm); box-shadow: 0 0 0 1.5px var(--surface); }
+.nm-open { position: absolute; top: 4px; right: 4px; padding: 0 4px; border-radius: 4px; color: var(--muted); text-decoration: none; font-size: 12px; line-height: 18px; cursor: pointer; }
+.nm-open:hover { color: var(--ink); background: color-mix(in oklab, var(--nm) 16%, transparent); }

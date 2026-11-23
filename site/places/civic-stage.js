@@ -462,5 +462,7 @@ export function createStage({ ctx, isDark }) {
     /** the coverage drawn now: { feature, label } | null */
     get coverage() { return cov; },
     /** true once the user has moved the map since this page showed (see "home" in the header) */
-    get moved() { return userMoved; }, home: goHome };
+    get moved() { return userMoved; }, home: goHome,
+    /** the page's own starting view: { center, zoom, bounds } */
+    get view() { return cur.view; } };
 }

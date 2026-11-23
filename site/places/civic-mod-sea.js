@@ -13,6 +13,11 @@
 // src/ships/vesselinfo.js), else the class's drawn side profile (src/ships/profiles.js), a one-line plain explanation
 // of the class, and its operator / owner when known.
 //
+// The selected ship gets a white ring, a "Follow" toggle on its card (civic-follow.js: the map recentres on it at each
+// update until the user drags the map) and its wake: a fading line along where it has been (this session's positions and
+// the relay's last 90 min, civic-trail.js) with a dashed "probable route" ahead: a ferry's route line, else a great circle
+// to the port its AIS destination names (src/ships/destination.js), else 15 minutes along its course.
+//
 // Exports: seaStage (the module's `stage`), shipCard(v, ctx) (DOM, the "Vapor Trails" aircraft card's look for ships).
 import maplibregl from "maplibre-gl";
 import { el } from "../src/shared/ui.js";
@@ -25,6 +30,9 @@ import { vesselFigure, operatorRows, loadVesselInfo, useWhaleFleet } from "../sr
 import { FLEET as WHALE_FLEET } from "./civic-whaleboats.js";
 import { PORTS, PORT, addPoiLayer, portCard } from "./civic-poi.js";   // harbours and terminals
 import { destination } from "../src/ships/destination.js";   // AIS destination text → "Vancouver, BC (CAVAN)" (UN/LOCODE)
+import { followButton, followTick, stopFollow, addRing, setRing, removeRing } from "./civic-follow.js";   // Follow + the white ring
+import { addTrail, remember, historyOf, relayTrack, mergeTracks, greatCircle, ahead } from "./civic-trail.js";   // the wake + probable route
+import { hubSetFor } from "../src/shared/livehub.js";
 import "./civic-mod-sea.css";
 
 const LEAF = "#getting-around/waterways";
@@ -35,7 +43,7 @@ const VIEWS = { crd: [[-123.95, 48.16], [-122.98, 48.76]], metrovan: [[-123.62, 
 const FERRY_VIEWS = { crd: FERRY_TRIANGLE, metrovan: FERRY_TRIANGLE, seattle: [[-122.75, 47.45], [-122.2, 48.0]] };
 const regionOf = (ctx) => chainOf(ctx.place).find((n) => VIEWS[n.id])?.id || null;
 const opOf = (ctx) => (regionOf(ctx) === "seattle" ? { op: "wa", name: "WSF", long: "Washington State Ferries", hash: "#getting-around/wsferries" } : { op: "bc", name: "BC Ferries", long: "BC Ferries", hash: "#getting-around/ferries" });
-const S = { sel: null, poi: null, route: undefined, focus: false, h: null, ctx: null, fly: false };
+const S = { sel: null, poi: null, route: undefined, focus: false, h: null, ctx: null, fly: false, relay: null };
 useWhaleFleet(WHALE_FLEET);
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const compass = (d) => COMPASS[Math.round(((d % 360) + 360) % 360 / 45) % 8];
@@ -60,7 +68,9 @@ function setHash() {
   try { history.replaceState(null, "", item ? `${LEAF}/${encodeURIComponent(item)}` : LEAF); } catch { /* ignore */ }
 }
 function pick(id, { fly = false } = {}) {
+  const was = S.sel;
   S.sel = id && id !== S.sel ? String(id) : null;
+  if (was && was !== S.sel) stopFollow(`ship:${was}`);
   if (S.sel) S.poi = null;
   setHash();
   S.fly = !!(fly && S.sel);
@@ -70,7 +80,7 @@ function pick(id, { fly = false } = {}) {
 /** pick a harbour / terminal (or clear it: the same one again) */
 function pickPort(id) {
   S.poi = id && id !== S.poi && PORT[id] ? id : null;
-  if (S.poi) S.sel = null;
+  if (S.poi) { if (S.sel) stopFollow(`ship:${S.sel}`); S.sel = null; }
   setHash(); S.fly = false;
   S.h?.paint();
   S.ctx?.refresh?.();
@@ -83,7 +93,9 @@ function syncRoute() {
   if (item !== S.route) {
     S.route = item;
     const port = item && /^port-/.test(item) ? item.slice(5) : null;
-    S.poi = port && PORT[port] ? port : null; S.sel = port ? null : item; S.fly = !!S.sel; S.h?.paint();
+    const next = port ? null : item;
+    if (S.sel && S.sel !== next) stopFollow(`ship:${S.sel}`);
+    S.poi = port && PORT[port] ? port : null; S.sel = next; S.fly = !!S.sel; S.h?.paint();
   }
 }
 
@@ -101,11 +113,10 @@ function seaLayer(map, ctx) {
     try { await addClassImages(map, (S.ctx?.theme || ctx.theme) === "dark"); } catch { /* icons optional */ }
     if (!alive || map.getSource(ids.ships)) return;
     const css = (v, fb) => getComputedStyle(document.body).getPropertyValue(v).trim() || fb;
-    const ink = css("--ink", "#222"), surf = css("--surface", "#fff"), acc = css("--m-waterways", "") || css("--accent", "#2a63d6");
+    const ink = css("--ink", "#222"), surf = css("--surface", "#fff");
     const B = map.getLayer("st-place-p") ? "st-place-p" : undefined;
     map.addSource(ids.ships, { type: "geojson", data: geo() });
-    map.addLayer({ id: ids.halo, type: "circle", source: ids.ships, filter: ["==", ["get", "id"], S.sel || ""],
-      paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 13, 12, 22], "circle-color": acc, "circle-opacity": 0.16, "circle-stroke-color": ink, "circle-stroke-width": 2 } }, B);
+    addRing(map, { id: ids.halo, source: ids.ships, filter: ["==", ["get", "id"], S.sel || ""], beforeId: B, radius: ["interpolate", ["linear"], ["zoom"], 8, 13, 12, 22] });
     map.addLayer({ id: ids.ships, type: "symbol", source: ids.ships, layout: { "icon-image": ["get", "img"], "icon-rotate": ["get", "rot"], "icon-rotation-alignment": "map",
       "icon-allow-overlap": true, "icon-ignore-placement": true, "symbol-sort-key": ["-", 0, ["get", "sz"]],
       "icon-size": ["interpolate", ["linear"], ["zoom"], 7, ["*", 0.5, ["get", "sz"]], 9, ["*", 0.72, ["get", "sz"]], 11, ["*", 0.95, ["get", "sz"]], 14, ["*", 1.3, ["get", "sz"]]] },
@@ -117,17 +128,33 @@ function seaLayer(map, ctx) {
   // the harbours and terminals, under the ships (a click on a ship over a marker is the ship's)
   const ports = addPoiLayer(map, { prefix: "sea-port", features: () => PORTS, sel: () => S.poi, onPick: pickPort, above: [ids.ships],
     color: () => getComputedStyle(document.body).getPropertyValue("--m-waterways").trim() || "#2a63d6", beforeId: [ids.halo, "st-place-p"], labelZoom: 10 });
+  // the selected ship's wake and probable route, under the ships
+  const trail = addTrail(map, "sea-trail", { beforeId: () => (map.getLayer(`${ids.halo}`) ? ids.halo : "st-place-p") });
+  const set = hubSetFor(ctx.place);
+  function wake() {
+    const v = S.sel && vessels(ctx).find((x) => x.id === S.sel);
+    if (!v) { trail.clear(); return; }
+    if (S.relay?.id !== v.id) { S.relay = { id: v.id, pts: [] }; relayTrack(set, "ais", v.id).then((pts) => { if (S.relay?.id === v.id) { S.relay.pts = pts; wake(); } }); }
+    const past = mergeTracks(S.relay.pts, historyOf(`ship:${v.id}`));
+    past.push([...v.pos, Date.now() / 1000]);
+    const next = probable(v);
+    trail.set({ past, ahead: next?.line, label: next?.label });
+  }
   function paint() {
     ports.paint();
     if (!alive || !map.getLayer(ids.ships)) return;
     map.getSource(ids.ships).setData(geo());
-    map.setFilter(ids.halo, ["==", ["get", "id"], S.sel || ""]);
+    setRing(map, ids.halo, ["==", ["get", "id"], S.sel || ""]);
     map.setFilter(ids.lbl, lblFilter());
+    wake();
     if (S.fly && S.sel) {
       const v = vessels(ctx).find((x) => x.id === S.sel);
       if (v) { S.fly = false; map.easeTo({ center: v.pos, zoom: Math.max(map.getZoom(), 11.5), duration: 900 }); }
-    }
+    } else followTick();
   }
+  // every ship's reported positions, for the wake of whichever is selected next
+  const note = () => { for (const s of aisShips()) if (s.lat != null && s.lon != null) remember(`ship:${s.mmsi}`, s.lon, s.lat, Date.now() / 1000 - aisAge(s)); };
+  note();
   /** the BC Ferries focus: the region's ferry waters (the BC Ferries tab's view), else the ferries near the place */
   function fitFerries() {
     const box = FERRY_VIEWS[regionOf(ctx)];
@@ -143,16 +170,34 @@ function seaLayer(map, ctx) {
   map.on("click", ids.ships, onClick); map.on("mousemove", ids.ships, onMove); map.on("mouseleave", ids.ships, onLeave);
   map.on("style.load", add);
   if (map.getStyle()?.layers?.length) add(); else map.once("load", add);
-  const off = onAIS(paint);
+  const off = onAIS(() => { note(); paint(); });
   const tick = setInterval(() => { if (!document.hidden) paint(); }, 5000);
-  S.h = { paint, fitFerries };
+  S.h = { paint, fitFerries, map };
   return () => {
-    alive = false; off(); clearInterval(tick); ports.destroy();
+    alive = false; off(); clearInterval(tick); ports.destroy(); trail.remove(); stopFollow("ship:");
     map.off("click", ids.ships, onClick); map.off("mousemove", ids.ships, onMove); map.off("mouseleave", ids.ships, onLeave); map.off("style.load", add);
-    for (const l of [ids.lbl, ids.ships, ids.halo]) if (map.getLayer(l)) map.removeLayer(l);
+    for (const l of [ids.lbl, ids.ships]) if (map.getLayer(l)) map.removeLayer(l);
+    removeRing(map, ids.halo);
     if (map.getSource(ids.ships)) map.removeSource(ids.ships);
     if (S.h?.paint === paint) S.h = null;
   };
+}
+
+// ------------------------------------------------------------------ the probable route ahead
+const kmTo = (a, b) => km(a, b);
+/** { line, label, text } or null: the ferry's route, a great circle to the AIS destination's port, or 15 min along its course */
+function probable(v) {
+  const s = v.s, f = ferryOf(s);
+  const path = f?.trip?.path;
+  if (path?.length >= 2) return { line: [v.pos, ...path], label: "probable route", text: `${f.trip.to?.name ? `to ${f.trip.to.name}, ` : ""}along its usual route` };
+  const d = destination(s.dest);
+  if (d?.ll && kmTo(v.pos, d.ll) > 1.5) {
+    const where = d.kind === "voyage" ? d.text.split(/ [→↔] /).pop() : d.text;
+    return { line: greatCircle(v.pos, d.ll, 40), label: "probable route", text: `straight to ${where.replace(/ \([A-Z0-9]{5}\)$/, "")} (its AIS destination)` };
+  }
+  const c = s.cog ?? hdgOf(s);
+  if (v.moving && c != null && s.sog >= 1) return { line: ahead(v.pos, c, s.sog * 1.852 * 0.25), label: "probable course", text: "15 minutes along its course" };
+  return null;
 }
 
 // ------------------------------------------------------------------ DOM: the ship card (the aircraft card's look)
@@ -160,13 +205,14 @@ const kn = (v) => (v == null ? "–" : v < 0.5 ? "stopped" : `${v.toFixed(1)} kn
 export function shipCard(v, ctx) {
   const s = v.s, c = CLASS[v.cls] || CLASS.other, len = s.len || s.known?.[1], dark = ctx.theme === "dark";
   const h = hdgOf(s), f = ferryOf(s), o = opOf(ctx);
-  const type = aisTypeText(s.type), flag = flagOf(s.mmsi), d = km(v.pos, ctx.place.ll), dest = destination(s.dest);
+  const type = aisTypeText(s.type), flag = flagOf(s.mmsi), d = km(v.pos, ctx.place.ll), dest = destination(s.dest), pr = probable(v);
   const row = (k, val) => (val ? [el("dt", {}, k), el("dd", {}, val)] : []);
   return el("div", { class: "air-card sea-card", style: `--sc: ${c.color}` },
     el("div", { class: "air-card-h sea-card-h" },
       el("img", { src: classURI(v.cls, dark), alt: "", height: 26, style: { transform: `rotate(${Math.round(h ?? 0)}deg)` } }),
       el("b", {}, titleCase(s.name) || "Unnamed vessel"), el("span", {}, c.name),
-      el("button", { type: "button", class: "sea-x", title: "Clear the selection", "aria-label": "Clear the selection", onclick: () => pick(null) }, "×")),
+      S.h?.map ? followButton({ map: S.h.map, key: `ship:${v.id}`, name: titleCase(s.name) || `MMSI ${v.id}`, where: () => vessels(S.ctx || ctx).find((x) => x.id === v.id)?.pos || null }) : null,
+      el("button", { type: "button", class: "sea-x", title: "Clear the selection", "aria-label": "Clear the selection", onclick: () => pick(v.id) }, "×")),
     vesselFigure(s, { drawing: vesselProfileURI(c.id, { dark }), label: c.name }),   // that very vessel, or the class drawing
     el("p", { class: "sea-about" }, c.about),
     el("dl", {},
@@ -177,6 +223,7 @@ export function shipCard(v, ctx) {
       ...(f ? row("Ferry", statusLine(f)) : row("Destination", dest ? el("span", { title: `As broadcast: ${s.dest}` }, dest.text) : "not broadcast")),
       ...row("Flag", flag || "unknown"),
       ...operatorRows(s),
+      ...row("Probable route", pr ? `${pr.text} (inferred)` : null),
       ...row("Status", NAV[s.nav] || "not given"),
       ...row("Where", `${d < 10 ? d.toFixed(1) : Math.round(d)} km ${compass(bearing(ctx.place.ll, v.pos))} of ${ctx.place.short}`),
       ...row("Last report", `${ago(v.age)}${v.moving && v.age > 60 ? " (position estimated since)" : ""}`)),

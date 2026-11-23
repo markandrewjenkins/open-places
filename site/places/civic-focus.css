@@ -43,3 +43,22 @@ a[data-alert] { cursor: pointer; }
 .civ-stage .civ-satctl .civ-satbtn { width: auto; min-width: 29px; padding: 0 9px; font: 600 11px/29px var(--font, inherit); letter-spacing: .02em; color: var(--ink); cursor: pointer; white-space: nowrap; }
 .civ-stage .civ-satctl .civ-satbtn:hover { color: var(--accent); }
 .civ-stage .civ-satctl .civ-satbtn[aria-pressed="true"] { color: var(--accent); }
+
+/* ------------------------------------------------------------ feed states: live (green, pulsing) · stale (amber, still) · down (red, still) */
+.civ-tag[data-kind="stale"] { color: var(--warn); }
+.civ-tag[data-kind="down"] { color: var(--bad); }
+.civ-leaf[data-kind="stale"] .civ-ldot { background: var(--warn); }
+.civ-leaf[data-kind="down"] .civ-ldot { background: var(--bad); }
+.civic .cx-tile-live[data-kind="stale"] { color: var(--warn); }
+.civic .cx-tile-live[data-kind="stale"]::before { background: var(--warn); box-shadow: none; animation: none; }
+.civic .cx-tile-live[data-kind="down"] { color: var(--bad); }
+.civic .cx-tile-live[data-kind="down"]::before { background: var(--bad); box-shadow: none; animation: none; }
+.civic .cx-group.civ-stale .cx-label::after, .civic .cx-group.civ-down .cx-label::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 6px;
+  border-radius: 50%; vertical-align: 0.15em; background: var(--warn); box-shadow: none; }
+.civic .cx-group.civ-down .cx-label::after { background: var(--bad); }
+
+/* "Recentre on <place>" in the place prompt (civic.js farFromHome): after a long pan only */
+.civ-swp-home { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border: 1px solid var(--border); border-radius: var(--pill, 999px);
+  background: color-mix(in oklab, var(--ink) 6%, transparent); color: var(--ink); font: 600 12px/1.3 var(--font, inherit); cursor: pointer; white-space: nowrap; }
+.civ-swp-home:hover, .civ-swp-home:focus-visible { background: color-mix(in oklab, var(--ink) 14%, transparent); outline: none; }
+.civ-swp-home > svg { color: var(--accent); }

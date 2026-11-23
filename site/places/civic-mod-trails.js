@@ -418,9 +418,12 @@ function advPanel(ctx) {
   const d = PANE.d, b = PANE.els.adv;
   if (PANE.err) { b.replaceChildren(el("p", { class: "note civ-empty" }, `Couldn't load BC Parks advisories (${PANE.err.message || PANE.err}).`)); return; }
   if (!d) { b.replaceChildren(el("p", { class: "note civ-empty" }, "Loading BC Parks advisories…")); return; }
-  const n = (id) => d.rows.filter((r) => r.type.id === id).length, s = PANE.sel;
+  // a selected park narrows the list to its own advisories; clearing the park brings the full list back
+  const s = PANE.sel, only = s?.k === "park" ? s.id : null, onlyName = only ? parkOf(only)?.name || d.parks.find((p) => canon(p.pid, PANE.P) === only)?.name || "this park" : null;
+  const parks = only ? d.parks.filter((p) => canon(p.pid, PANE.P) === only) : d.parks, rows = parks.flatMap((p) => p.rows);
+  const n = (id) => rows.filter((r) => r.type.id === id).length;
   const head = el("div", { class: "trl-legend trx-leg", "aria-label": "Marker colours" }, ...TYPES.filter((t) => n(t.id)).map((t) => el("span", {}, el("i", { class: "trl-sw", "data-t": t.id }), `${t.label} ${n(t.id)}`)));
-  const list = d.parks.length ? el("div", { class: "trx-list flt-scroll" }, ...d.parks.map((p) => {
+  const list = parks.length ? el("div", { class: "trx-list flt-scroll" }, ...parks.map((p) => {
     const pid = canon(p.pid, PANE.P), on = s?.k === "park" && s.id === pid;
     return el("div", { class: "trx-pk" },
       el("button", { type: "button", class: "trx-pk-h" + (on ? " on" : ""), "aria-pressed": String(on), title: on ? "Click again to clear" : "Show the park", onclick: () => setSel({ k: "park", id: pid }) },
@@ -428,12 +431,13 @@ function advPanel(ctx) {
       ...p.rows.map((r) => { const a = s?.k === "adv" && s.id === r.id;
         return el("button", { type: "button", class: "trx-ad" + (a ? " on" : ""), "aria-pressed": String(a), title: a ? "Click again to close" : "Read the advisory", onclick: () => setSel({ k: "adv", id: r.id }) },
           kind(r.type), el("span", { class: "trx-ad-t" }, r.title), el("small", {}, r.date ? fDay(r.date) : r.src)); }));
-  })) : el("p", { class: "note civ-empty" }, d.planned ? "No US feed yet: NPS alerts need the owner's free API key." : `Nothing posted for parks within ${RADIUS} km.`);
+  })) : el("p", { class: "note civ-empty" }, only ? `No advisories posted for ${onlyName}.` : d.planned ? "No US feed yet: NPS alerts need the owner's free API key." : `Nothing posted for parks within ${RADIUS} km.`);
+  const scope = only ? el("p", { class: "trx-hint trx-only" }, `${onlyName} only. Click the park again for every advisory within ${RADIUS} km.`) : null;
   const links = otherSources(ctx);
   const more = links.length ? el("details", { class: "trx-more" }, el("summary", {}, `Other sources (${links.length}, linked)`),
     el("div", { class: "trl-links" }, ...links.map(([nm, u, t]) => el("div", {}, el("a", { href: u, target: "_blank", rel: "noopener" }, `${nm} ↗`), el("span", {}, t))))) : null;
   const was = b.querySelector(".trx-more")?.open;
-  b.replaceChildren(head, list, more, el("div", { class: "civ-fp-foot" }, el("span", {}, d.bc ? `BC Parks · OGL-BC · ${d.at ? `checked ${d3.timeFormat("%-I:%M %p")(new Date(d.at)).toLowerCase()}` : ""}` : d.us ? "NPS alerts" : ""),
+  b.replaceChildren(...[head, scope, list, only ? null : more].filter(Boolean), el("div", { class: "civ-fp-foot" }, el("span", {}, d.bc ? `BC Parks · OGL-BC · ${d.at ? `checked ${d3.timeFormat("%-I:%M %p")(new Date(d.at)).toLowerCase()}` : ""}` : d.us ? "NPS alerts" : ""),
     el("a", { class: "civ-open", href: "https://bcparks.ca/active-advisories/", target: "_blank", rel: "noopener" }, "All advisories ↗")));
   if (was && more) more.open = true;
 }

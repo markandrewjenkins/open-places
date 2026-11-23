@@ -10,6 +10,7 @@ import { el } from "../src/shared/ui.js";
 import { file, get, MONTHS } from "./civic-data.js";
 import { color, circleFeature } from "./civic-stage.js";
 import { mount, whenFile, live, NT } from "./civic-stage-nature.js";
+import { photo, photoStrip, thumb, planPanel, planAttach } from "./civic-plan.js";
 import "./civic-stage-wild.css";
 
 const { fc, pt, f0, ago, card, meta, tag, lead, sub, rows, cred, foot, body, wait, surf, ink, focus, floated, treeKind, treeSource } = NT;
@@ -39,6 +40,14 @@ const PHASES = {
 };
 const OK = { sp: "all", meadows: true, left: null, right: null, ctx: null };
 const oaksModel = (ctx) => file("oaks/oaks.json", ctx).data;
+// example photos (oaks/photos.json, from pipelines/common/tree_photos.py): each phase row's thumbnail, and the card's strip
+const OPH = (ctx) => file("oaks/photos.json", ctx || {}).data?.photos || {};
+const PH_OF = { "Leaf-out": "oak-leaves", Acorns: "oak-acorns", "Leaf-fall": "oak-fall", Flowers: "arb-flowers", "Bark peels": "arb-bark", "Red berries": "arb-berries" };
+function cardPhotos(sp, m) {
+  const P = OPH(OK.ctx), get = (k, label) => ({ ph: photo(P[k]), label });
+  return sp === "oak" ? photoStrip([m >= 9.5 && m < 11.5 ? get("oak-fall", "Fall leaves") : get("oak-leaves", "Leaves"), get("oak-bark", "Bark"), get("oak-acorns", "Acorns")])
+    : photoStrip([get("arb-leaves", "Leaves"), get("arb-bark", "Bark"), m >= 2.5 && m < 5.5 ? get("arb-flowers", "Flowers") : get("arb-berries", "Berries")]);
+}
 const wkMonth = (w) => { const d = new Date(2026, 0, 1 + (w - 1) * 7 + 3); return monthNow(d); };
 const camasPhase = (d) => d?.camas?.n ? ["Camas in flower", [[wkMonth(d.camas.p10), wkMonth(d.camas.p90) + 0.25]], "camas in flower", "camas in flower in the meadows", "Camas"] : null;
 const inSpan = (m, spans) => spans.some(([a, b]) => (m >= a && m < b) || (m + 12 >= a && m + 12 < b));
@@ -56,8 +65,9 @@ function strip(spans, m, c, on) {
 }
 function oaksLeft(d, ctx) {
   const m = monthNow(ctx.date || new Date()), act = activeNow(d, m), n = (sp) => d3.sum(Object.values(d.counts[sp]));
-  const row = (kind, [label, spans], c) => { const on = inSpan(m, spans);
-    return el("div", { class: "ow-ph" + (on ? " on" : "") }, el("span", {}, label, on ? el("em", {}, "now") : null), strip(spans, m, c, on)); };
+  const P = OPH(ctx);
+  const row = (kind, [label, spans], c) => { const on = inSpan(m, spans), ph = photo(P[PH_OF[label]]);
+    return el("div", { class: "ow-ph ph" + (on ? " on" : "") }, thumb(ph, `${kind === "oak" ? "Garry oak" : kind === "arbutus" ? "arbutus" : "camas"}: ${label.toLowerCase()}`), el("span", {}, label, on ? el("em", {}, "now") : null), strip(spans, m, c, on)); };
   const setSp = (sp) => { OK.sp = OK.sp === sp || sp === "all" ? "all" : sp; live.oaks?.redraw(); paintOaks(); };
   const cm = camasPhase(d);
   return [
@@ -71,8 +81,8 @@ function oaksLeft(d, ctx) {
     sub("Garry Oak"), ...PHASES.oak.map((p) => row("oak", p, "var(--ow-oak)")),
     cm ? sub("Oak Meadows") : null, cm ? row("meadow", cm, "var(--ow-mead)") : null,
     sub("Arbutus"), ...PHASES.arbutus.map((p) => row("arbutus", p, "var(--ow-arb)")),
-    el("div", { class: "ow-months" }, ...MONTHS.map((x) => el("span", {}, x[0]))),
-    cred(`Typical timing in Greater Victoria.${cm ? ` Camas: weeks ${d.camas.p10}–${d.camas.p90} hold 80% of ${f0(d.camas.n)} flowering records on iNaturalist (all years), peak week ${d.camas.p50}.` : ""}`
+    el("div", { class: "ow-months ph" }, ...MONTHS.map((x) => el("span", {}, x[0]))),
+    cred(`Typical timing in Greater Victoria. Thumbnails: example photos (iNaturalist; author and licence on hover).${cm ? ` Camas: weeks ${d.camas.p10}–${d.camas.p90} hold 80% of ${f0(d.camas.n)} flowering records on iNaturalist (all years), peak week ${d.camas.p50}.` : ""}`
       + ` Meadows: BC Sensitive Ecosystems Inventory woodland and herbaceous polygons (${f0(d.meadows.ha.WD + d.meadows.ha.HT)} ha; OGL-BC), the classes that hold Garry oak woodland and meadow; not every polygon has oaks.`),
   ];
 }
@@ -124,8 +134,8 @@ const treeProps = (d, i) => { const r = d.rows[i]; return { id: i, sp: d.species
 const oaksStage = {
   layout: "map",
   view: () => ({ center: [-123.39, 48.47], zoom: 11.2 }),
-  layers: (map, ctx) => mount("oaks", map, ctx, {
-    load: async (c) => { const [d, m] = await Promise.all([whenFile("oaks/oaks.json", c), whenFile("oaks/meadows.json", c)]); return { d, m }; },
+  layers: (map, ctx) => { const off = mount("oaks", map, ctx, {
+    load: async (c) => { const [d, m] = await Promise.all([whenFile("oaks/oaks.json", c), whenFile("oaks/meadows.json", c), whenFile("oaks/photos.json", c).catch(() => null)]); return { d, m }; },
     sources: ({ d, m }) => {
       addOakIcons(map);
       return {
@@ -160,14 +170,40 @@ const oaksStage = {
       const where = (p.h && p.st && p.h.includes(p.st) ? p.h : [p.h, p.st].filter(Boolean).join(" ")) || `${p.city === "inat" ? "Reported" : "Mapped"} at ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
       const [srcLine, href, link] = treeSource(p.city, p.ref, [lon, lat], src[0], src[1]);
       return card("oaks", treeKind(p.city, p.ref), s[0], [nowLine(p.sp, m), p.sp === "oak" ? "Quercus garryana, BC's only native oak." : "Arbutus menziesii, BC's only broad-leaved evergreen tree.",
-        meta(`${where}${p.dbh ? ` · ${p.dbh} cm trunk` : ""}`), srcLine], href, link);
+        meta(`${where}${p.dbh ? ` · ${p.dbh} cm trunk` : ""}`), cardPhotos(p.sp, m), srcLine], href, link);
     },
-  }),
+  }); const offPlan = planAttach("oaks", map); return () => { offPlan(); off(); }; },
   panels: (ctx) => {
     OK.ctx = ctx; paintOaks();
-    return [{ id: "ow-now", title: "Now", place: "left", el: OK.left }, { id: "ow-best", title: "Best Places", place: "right", el: OK.right }];
+    const d = oaksModel(ctx);
+    return [{ id: "ow-now", title: "Now", place: "left", el: OK.left }, ...(d ? [{ id: "ow-plan", title: "Plan a Route", place: "left", el: planPanel("oaks", oaksPlan(ctx, d)) }] : []),
+      { id: "ow-best", title: "Best Places", place: "right", el: OK.right }];
   },
 };
+
+// ---- Plan a Route on the oak map: every tree counts, more when it's doing something now (berries, flowers, acorns),
+// and Saanich's notable trees count extra; stops are named after the park they're in, else the main street.
+const inBox = ([x, y], b) => b && x >= b[0][0] && x <= b[1][0] && y >= b[0][1] && y <= b[1][1];
+function oaksPlan(ctx, d) {
+  const m = monthNow(ctx.date || new Date()), act = (sp) => PHASES[sp].find((x) => inSpan(m, x[1]));
+  const big = new Set(d.notable.map((t) => `${t.ll[0]},${t.ll[1]}`));
+  const parks = d.places.filter((o) => o.bounds).sort((a, b) => (a.bounds[1][0] - a.bounds[0][0]) * (a.bounds[1][1] - a.bounds[0][1]) - (b.bounds[1][0] - b.bounds[0][0]) * (b.bounds[1][1] - b.bounds[0][1]));
+  const most = (items, f) => [...d3.rollup(items.filter(f), (v) => v.length, f)].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+  const nowTxt = ["oak", "arbutus"].filter((sp) => act(sp)).map((sp) => act(sp)[3]);
+  return {
+    ctx, noun: OK.sp === "all" ? "Garry oaks or arbutus" : OK.sp === "oak" ? "Garry oaks" : "arbutus", net: () => "gvic", home: () => ctx.place.ll, homeName: () => ctx.place.short || ctx.place.name,
+    points: () => d.rows.filter((r) => OK.sp === "all" || d.species[r[2]] === OK.sp).map((r) => { const sp = d.species[r[2]], nb = big.has(`${r[0]},${r[1]}`);
+      return { ll: [r[0], r[1]], w: (act(sp) ? 1.5 : 1) + (nb ? 6 : 0), kind: sp === "oak" ? "Garry oaks" : "arbutus", sp, nb, dbh: r[4], st: r[6] || "" }; }),
+    describe: (c) => {
+      const park = parks.find((o) => inBox(c.ll, o.bounds)), nb = c.items.filter((x) => x.nb).sort((a, b) => (b.dbh || 0) - (a.dbh || 0))[0];
+      const sps = [...new Set(c.items.map((x) => x.sp))].filter((sp) => act(sp));
+      return { title: park?.name || most(c.items, (x) => x.st) || "",
+        text: `${c.kinds.map(([k, n]) => `${f0(n)} ${n === 1 && k === "Garry oaks" ? "Garry oak" : k}`).join(", ")}${nb ? ` · notable ${nb.dbh ? `${nb.dbh} cm ` : ""}${nb.sp === "oak" ? "oak" : "arbutus"}` : ""}${sps.length ? ` · ${act(sps[0])[2]}` : ""}` };
+    },
+    thin: "Outside Victoria, Esquimalt and Saanich's inventories, trees are crowd-reported only.",
+    how: `Stops: the spots with the most ${OK.sp === "all" ? "Garry oaks and arbutus" : OK.sp === "oak" ? "Garry oaks" : "arbutus"} (the map's tree filter applies); Saanich's notable trees count extra${nowTxt.length ? `, and trees in season count more now (${nowTxt.join("; ")})` : ""}.`,
+  };
+}
 
 /** the Garry Oaks & Arbutus leaf (wrapped by mod() in civic-modules.js); h: { DATA, rowsList, bump } */
 export function oaksDef(h) {

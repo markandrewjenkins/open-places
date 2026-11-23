@@ -4,9 +4,10 @@
 //   - Farmers' markets and culture venues (theatres, music venues, cinemas, museums, galleries, arts centres, libraries)
 //     from OpenStreetMap (ODbL), events/culture_<region>.json (pipelines/events/build.py). Market days come from each
 //     market's opening_hours tag, read here for the next 7 days.
-//   - Event calendars (City of Victoria CityVibe, Langford, Saanich, the library, the Royal BC Museum, the Art Gallery,
-//     Tourism Victoria): PLANNED. Each is published under "all rights reserved" terms, so the page links to them and shows
-//     no dates from them until one is published under an open licence.
+//   - Event calendars: removed from the page (2026-11-23). Every Greater Victoria calendar we found (City of Victoria
+//     CityVibe, Langford, Saanich, the library, the Royal BC Museum, the Art Gallery, Tourism Victoria) is "all rights
+//     reserved", so the page could only list links with no dates: a thin, link-only feed. It comes back when one is
+//     published under an open licence.
 import * as d3 from "d3";
 import maplibregl from "maplibre-gl";
 import { el } from "../src/shared/ui.js";
@@ -117,16 +118,6 @@ const KINDS = [
   { id: "library", label: "Libraries", c: "var(--ev-library)" },
 ];
 const KIND = Object.fromEntries(KINDS.map((k) => [k.id, k]));
-// event calendars we found, none openly licensed (2026-11-16)
-const CALENDARS = [
-  ["City of Victoria · CityVibe", "https://www.victoria.ca/", "City site terms: no re-use without written permission"],
-  ["City of Langford", "https://langford.ca/calendar/", "© City of Langford, all rights reserved"],
-  ["District of Saanich", "https://www.saanich.ca/EN/main/news-events/events-list.html", "website copyright"],
-  ["Greater Victoria Public Library", "https://events.gvpl.ca/", "© GVPL, all rights reserved"],
-  ["Royal BC Museum", "https://royalbcmuseum.bc.ca/", "no open licence"],
-  ["Art Gallery of Greater Victoria", "https://aggv.ca/calendar-events/", "© AGGV, all rights reserved"],
-  ["Tourism Victoria", "https://www.tourismvictoria.com/events", "© Destination Greater Victoria, all rights reserved"],
-];
 
 const EV = { hide: new Set(), sel: null, map: null, layer: null, els: null, ctx: null };
 const dataOf = (ctx) => { const r = regionOf(ctx); return r ? file(`events/culture_${r}.json`, ctx).data || null : null; };
@@ -213,10 +204,7 @@ function paint() {
       return el("button", { type: "button", class: "ev-kc", "aria-pressed": String(!off), title: `${off ? "Show" : "Hide"} ${k.label.toLowerCase()}`, style: `--kc: ${k.c}`,
         onclick: () => { off ? EV.hide.delete(k.id) : EV.hide.add(k.id); EV.layer?.update(); paint(); } }, el("i", {}), el("span", {}, k.label), el("em", {}, `${counts[k.id]}`)); })),
     el("p", { class: "ev-hint" }, "Ringed markets are open today. Click a place for its hours and website."),
-    el("h4", { class: "nt-h" }, "Event Calendars"),
-    el("div", { class: "ev-list" }, ...CALENDARS.map(([n, u, why]) => el("a", { class: "ev-row ev-cal", href: u, target: "_blank", rel: "noopener", title: `${n}: ${why}` },
-      el("em", { class: "civ-tag", "data-kind": "planned" }, "Planned"), el("span", { class: "ev-n" }, `${n} ↗`), el("small", {}, why)))),
-    el("p", { class: "nt-cred" }, "Event dates are planned: none of these calendars is published under an open licence yet, so we link to them instead of copying them. Venues and markets: OpenStreetMap (ODbL)."),
+    el("p", { class: "nt-cred" }, "Venues and markets: OpenStreetMap (ODbL)."),
   ]);
 }
 
@@ -249,7 +237,7 @@ export function eventsDef(h) {
     need: (ctx) => { const c = regionOf(ctx) ? file(`events/culture_${regionOf(ctx)}.json`, ctx) : null; if (c?.err) return { err: c.err };
       const up = upcoming(ctx.date || new Date()), d = c?.data; return { up, next: up.find((x) => x.long), hol: up.find((x) => x.stat), mk: d ? marketDays(d.places, ctx.date || new Date()) : [], d }; },
     season: () => 0.8, seasonal: false,
-    status: () => ({ kind: h.DATA, text: "Data", long: "Statutory holidays and long weekends computed from the BC Employment Standards Act rules; farmers' markets and culture venues from OpenStreetMap (ODbL, pipelines/events). Event calendars: planned (none openly licensed yet)." }),
+    status: () => ({ kind: h.DATA, text: "Data", long: "Statutory holidays and long weekends computed from the BC Employment Standards Act rules; farmers' markets and culture venues from OpenStreetMap (ODbL, pipelines/events)." }),
     source: () => "BC holiday rules + OpenStreetMap",
     badge: (d) => (d.hol ? (d.hol.days === 0 ? "today" : `${d.hol.days} d`) : ""),
     tileKpis: (d) => [[d.next ? d.next.name : "—", d.next ? `long weekend · ${fDay(d.next.from)}` : ""], [`${d.mk.length}`, "market days this week"]],

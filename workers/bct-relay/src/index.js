@@ -19,6 +19,7 @@
 //   /tsunami/latest.json                 latest NTWC / PTWC tsunami messages for Open Places (tsunami.gov Atom): see tsunami.js
 //   /drivebc/events.json?bbox=w,s,e,n   DriveBC road events for Open Places (Roads & Cameras, Malahat): see cams.js
 //   /live?set=<place>[&parts=…][&fast=air]   every live part for one Open Places place in one answer, from the hub: see hub.js
+//   /track.json?set=<place>&part=air|ais&id=<hex|mmsi>   where one aircraft / ship has been (90 min), from the hub: see hub.js
 //
 // Data: each agency's open data under its own terms (agencies.js has the credit line each asks for; BC Transit's:
 // credit BC Transit, don't imply endorsement, don't use its marks). Every JSON response carries its agency's credit.

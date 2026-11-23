@@ -1,0 +1,43 @@
+/* Example photos and the Plan a Route panel (civic-plan.js), on the blossom, foliage and Garry oak pages */
+.pl-fig img { height: 150px; max-height: none; }
+.pl-fig figcaption a, .pl-strip figcaption a { color: inherit; }
+.pl-strip > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 4px; }
+.pl-strip > div span { position: relative; display: block; min-width: 0; }
+.pl-strip img { height: 92px; }
+.pl-strip > div b { position: absolute; left: 4px; bottom: 4px; padding: 1px 5px; border-radius: 4px; font: 600 10px/1.4 var(--fig); color: #fff; background: rgba(0, 0, 0, .55); }
+.pl-th { width: 26px; height: 26px; border-radius: 5px; object-fit: cover; display: block; background: var(--grid); box-shadow: 0 0 0 1px var(--border); }
+.pl-th0 { background: none; box-shadow: none; }
+/* legend rows with a thumbnail */
+.nt-k.ph { grid-template-columns: 10px 26px minmax(0, 1fr) auto; }
+.nt-k.ph span:nth-child(3) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nt-row.ph { grid-template-columns: 16px 26px minmax(0, 1fr) auto; padding: 3px 4px; }
+.ow-ph.ph { grid-template-columns: 26px minmax(0, 0.9fr) minmax(0, 1.1fr); }
+.ow-months.ph { padding-left: calc(45% + 23px); }
+
+/* Plan a Route */
+.pl-body { gap: 7px; }
+.pl-line { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.pl-start { margin: 0; display: flex; flex-wrap: wrap; gap: 5px 8px; align-items: center; justify-content: space-between; font-size: 12px; color: var(--ink-2); }
+.pl-start b { color: var(--ink); font-weight: 600; }
+.pl-btns { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.pl-b { padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); background: none; color: var(--ink-2); font: 500 11.5px/1.3 var(--sans, inherit); cursor: pointer; }
+.pl-b:hover, .pl-b:focus-visible { color: var(--ink); border-color: color-mix(in oklab, var(--tc, var(--accent)) 60%, var(--border)); outline: none; }
+.pl-b[aria-pressed="true"] { color: var(--ink); background: color-mix(in oklab, var(--tc, var(--accent)) 18%, transparent); border-color: color-mix(in oklab, var(--tc, var(--accent)) 60%, transparent); }
+.pl-go { display: flex; gap: 6px; align-items: center; }
+.pl-plan { padding: 5px 14px; border-radius: 7px; border: 1px solid color-mix(in oklab, var(--tc, var(--accent)) 70%, transparent); background: color-mix(in oklab, var(--tc, var(--accent)) 22%, transparent);
+  color: var(--ink); font: 600 12px/1.3 var(--sans, inherit); cursor: pointer; }
+.pl-plan:hover, .pl-plan:focus-visible { background: color-mix(in oklab, var(--tc, var(--accent)) 34%, transparent); outline: none; }
+.pl-plan[disabled] { opacity: .55; cursor: progress; }
+.pl-msg { margin: 0; font-size: 12px; }
+.pl-sum { margin: 0; font-size: 12px; color: var(--ink-2); }
+.pl-sum b { color: var(--ink); font: 650 13px/1.2 var(--fig); font-variant-numeric: tabular-nums; }
+.pl-stops { display: flex; flex-direction: column; max-height: 236px; overflow-y: auto; overscroll-behavior: contain; }
+.pl-stop { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: center; width: 100%; padding: 5px 4px; border: 0; border-bottom: 1px solid var(--grid);
+  background: none; color: inherit; text-align: left; cursor: pointer; font: inherit; }
+.pl-stop:hover, .pl-stop:focus-visible { background: color-mix(in oklab, var(--tc, var(--accent)) 9%, transparent); outline: none; }
+.pl-stop.on { background: color-mix(in oklab, var(--tc, var(--accent)) 16%, transparent); }
+.pl-stop > b { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--surface); font: 650 11px/1 var(--fig); }
+.pl-stop > span { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.pl-stop strong { font-size: 12px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-stop small { font-size: 11px; line-height: 1.3; color: var(--muted); }
+.pl-stop > em { font: 500 11px/1 var(--fig); font-style: normal; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }

@@ -296,7 +296,8 @@ def pick_photos(inat: pd.DataFrame):
     # prefer the community's most-favourited autumn photo of each species (fetched separately), then a local one
     path = RAW / "photos.json"
     top = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    return {**local, **top}
+    from pipelines.common.tree_photos import foliage_overrides      # CC0 / CC BY / CC BY-NC replacements and gaps
+    return {**local, **top, **foliage_overrides()}
 
 
 def trees_only():

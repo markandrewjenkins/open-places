@@ -80,11 +80,35 @@ export function airFeed({ lat, lon, every = 10000, nm = FETCH_NM, common = [], s
     // in a region the relay's live hub covers (set = an Open Places place id, see src/shared/livehub.js) the feed rides
     // the place's one shared /live poll, cut down to this circle; 10 s polling becomes the hub's fast mode
     if (set && hubAirCovers(F.center.lat, F.center.lon, nm)) {
+      // the backup: while the hub's aircraft part is stale or empty (2026-11-23: its own adsb.lol calls answered 429 for
+      // days and /live sent data: null, so the page sat on "connecting"), poll /air/point.json too: the relay then asks
+      // upstream from the viewer's own Cloudflare location. Reports merge by fix time (tracker.js), so the two never
+      // fight; the backup stops as soon as the hub is fresh again.
+      let backup = null, backupAt = 0;
+      const BACKUP_MS = Math.max(every, 30000);
+      const backupOn = (on) => {
+        if (on && !backup) backup = poller(() => fetchPoint({ lat: F.center.lat, lon: F.center.lon, r: nm }), { every: BACKUP_MS,
+          onResult: (j) => { j.raw.every_s = BACKUP_MS / 1000; ingest(F.T, j.raw); if (!j.stale) backupAt = Date.now();
+            F.err = j.stale ? Object.assign(new Error(j.raw.error || "upstreams not answering"), { code: "stale", hub: F.hubErr }) : null; emit(); },
+          onError: (e) => { if (Date.now() - backupAt > BACKUP_MS * 2.5) F.err = Object.assign(e, { hub: F.hubErr }); emit(); } });
+        else if (!on && backup) { backup.stop(); backup = null; }
+      };
+      const backupGood = () => Date.now() - backupAt <= BACKUP_MS * 2.5;
       const h = livePart(set, "air", { fast: every <= 10000,
-        onData: (d, m) => { const j = fromHub(d, m, { lat: F.center.lat, lon: F.center.lon, r: nm }); ingest(F.T, j.raw); F.err = j.stale ? Object.assign(new Error(m.error || "upstreams not answering"), { code: "stale" }) : null; emit(); },
-        onError: (e) => { F.err = e; emit(); },
-        fallback: () => { set = null; start(); return null; } });
-      F.poll = { stop: h.stop, setFast: h.setFast, info: () => ({ nextAt: 0 }) };
+        onData: (d, m) => {
+          F.hubErr = m.error || null;
+          if (m.stale) {   // the hub's copy is old: keep it (older fixes never replace newer ones) and let the backup carry on
+            backupOn(true);
+            ingest(F.T, { ...fromHub(d, m, { lat: F.center.lat, lon: F.center.lon, r: nm }).raw, every_s: backupGood() ? BACKUP_MS / 1000 : m.every_s });
+            if (!backupGood()) F.err = Object.assign(new Error(m.error || "upstreams not answering"), { code: "stale", retry: m.retry_s });
+            emit(); return;
+          }
+          backupOn(false);
+          ingest(F.T, fromHub(d, m, { lat: F.center.lat, lon: F.center.lon, r: nm }).raw); F.err = null; emit();
+        },
+        onError: (e, m) => { F.hubErr = m?.error || e.message; backupOn(true); if (!backupGood()) { F.err = Object.assign(e, { retry: m?.retry_s }); emit(); } },
+        fallback: () => { backupOn(false); set = null; start(); return null; } });
+      F.poll = { stop: () => { backupOn(false); h.stop(); }, setFast: h.setFast, info: () => ({ nextAt: 0 }) };
       return;
     }
     F.poll = poller(() => fetchPoint({ lat: F.center.lat, lon: F.center.lon, r: nm }), { every,
@@ -93,7 +117,7 @@ export function airFeed({ lat, lon, every = 10000, nm = FETCH_NM, common = [], s
   };
   const api = {
     list: () => aircraftOf(F.T).map((a) => (a.kind ? position(a, F.center) : enrich(a, F.center, common))),
-    state: () => ({ ...feedState(F.T), source: F.T.source, credit: F.T.credit, err: F.err, nextAt: F.poll?.info().nextAt || 0 }),
+    state: () => ({ ...feedState(F.T), source: F.T.source, credit: F.T.credit, err: F.err, nextAt: F.poll?.info().nextAt || 0, count: F.T.reports ? F.T.lastCount : null, asOf: F.T.asOf || null }),
     track: () => F.T,
     on: (f) => fns.add(f), off: (f) => fns.delete(f),
     // the poll interval can change while the feed runs (Open Places: 30 s as a side layer, 10 s on the Air Traffic page)
@@ -184,7 +208,9 @@ export function addAirLayers(map, opts = {}) {
     L({ id: `${P}-parked`, type: "circle", source: `${P}-ac`, filter: ["==", ["get", "park"], 1], paint: { "circle-radius": 3, "circle-color": ink2, "circle-stroke-color": surf, "circle-stroke-width": 1, "circle-opacity": ["get", "op"], "circle-stroke-opacity": ["get", "op"] } });
     L({ id: `${P}-rare`, type: "symbol", source: `${P}-ac`, filter: ["==", ["get", "rare"], 1], layout: { "icon-image": `${P}-rare-ring`, "icon-rotate": ["get", "spin"], "icon-allow-overlap": true, "icon-ignore-placement": true,
       "icon-size": ["interpolate", ["linear"], ["zoom"], 7, ["*", 0.5, ["get", "sz"]], 12, ["*", 0.8, ["get", "sz"]]] }, paint: { "icon-opacity": ["get", "op"] } });
-    L({ id: `${P}-sel`, type: "circle", source: `${P}-ac`, filter: ["==", ["get", "id"], sel], paint: { "circle-radius": 19, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": ink, "circle-stroke-width": 2 } });
+    // the selection ring: white over a soft dark edge, so it reads on both basemaps (as civic-follow.js addRing draws for ships and buses)
+    L({ id: `${P}-sele`, type: "circle", source: `${P}-ac`, filter: ["==", ["get", "id"], sel], paint: { "circle-radius": 19, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "rgba(10,14,20,0.55)", "circle-stroke-width": 4.5 } });
+    L({ id: `${P}-sel`, type: "circle", source: `${P}-ac`, filter: ["==", ["get", "id"], sel], paint: { "circle-radius": 19, "circle-color": "rgba(255,255,255,0.08)", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2.2 } });
     L({ id: `${P}-ac`, type: "symbol", source: `${P}-ac`, filter: ["==", ["get", "park"], 0], layout: { "icon-image": ["get", "img"], "icon-rotate": ["get", "rot"], "icon-rotation-alignment": "map",
       "icon-allow-overlap": true, "icon-ignore-placement": true, "icon-size": ["interpolate", ["linear"], ["zoom"], 7, ["*", 0.72, ["get", "sz"]], 10, ["*", 0.88, ["get", "sz"]], 12, ["*", 0.98, ["get", "sz"]]], "symbol-sort-key": ["get", "alt"] },
       paint: { "icon-opacity": ["get", "op"] } });
@@ -206,7 +232,7 @@ export function addAirLayers(map, opts = {}) {
   if (opts.tick !== 0) timer = setInterval(() => { if (!document.hidden) update(); }, opts.tick || 1000);
   return {
     update,
-    select(id) { sel = id || ""; if (map.getLayer(`${P}-sel`)) map.setFilter(`${P}-sel`, ["==", ["get", "id"], sel]); },
+    select(id) { sel = id || ""; for (const l of [`${P}-sel`, `${P}-sele`]) if (map.getLayer(l)) map.setFilter(l, ["==", ["get", "id"], sel]); },
     /** where an aircraft is drawn now ([lon, lat]) or null */
     where(id) { const a = list().find((x) => idOf(x) === id); return a ? [a.nlon ?? a.lon, a.nlat ?? a.lat] : null; },
     aircraft: () => list().filter(filter),
@@ -216,7 +242,7 @@ export function addAirLayers(map, opts = {}) {
       map.off("style.load", add);
       if (opts.onSelect) { map.off("click", click); map.off("mousemove", `${P}-ac`, enter); map.off("mouseleave", `${P}-ac`, leave); }
       if (feed) { feed.off(update); if (own) feed.stop(); }
-      for (const l of ["lbl", "ac", "sel", "rare", "parked", "hear", "vt", "vte"]) if (map.getLayer(`${P}-${l}`)) map.removeLayer(`${P}-${l}`);
+      for (const l of ["lbl", "ac", "sel", "sele", "rare", "parked", "hear", "vt", "vte"]) if (map.getLayer(`${P}-${l}`)) map.removeLayer(`${P}-${l}`);
       for (const s of ["ac", "vt"]) if (map.getSource(`${P}-${s}`)) map.removeSource(`${P}-${s}`);
     },
   };
@@ -231,6 +257,21 @@ export function feedText(s) {
   if (s.level === "live") return `Live from ${src}, updated ${agoS(s.age)}.${pace}`;
   const why = s.err?.code === "stale" ? "the relay couldn't reach adsb.lol or adsb.fi" : s.err ? `the feed isn't answering (${s.err.message})` : "no new report yet";
   return `${s.level === "down" ? "Feed down" : "Feed delayed"}: newest report ${agoS(s.age)} because ${why}; retrying. Aircraft fade where they were heading.`;
+}
+/** why the feed is behind, in a few words for a status line ("adsb.lol rate-limited (HTTP 429), retrying in 30 s"), or "" */
+export function feedReason(s) {
+  const e = s?.err;
+  if (!e && s?.level === "live") return "";
+  const msg = `${e?.message || ""} ${e?.hub || ""}`, nextS = s?.nextAt ? Math.max(1, Math.round((s.nextAt - Date.now()) / 1000)) : 0;
+  const wait = e?.retry || e?.retryAfter || nextS;
+  if (e?.code === "429" || /\b429\b|rate limit/i.test(msg)) return `adsb.lol rate-limited (HTTP 429)${wait ? `, retrying in ${wait} s` : ""}`;
+  if (/budget/i.test(msg)) return "adsb.lol daily allowance used up; more after 00:00 UTC";
+  if (/\b403\b/.test(msg)) return "adsb.fi refused the relay (HTTP 403)";
+  if (/failed to fetch|networkerror|load failed|nohub/i.test(msg)) return "relay unreachable";
+  const st = /relay (\d{3})/.exec(msg); if (st) return `relay returned HTTP ${st[1]}`;
+  if (/timed out|abort/i.test(msg)) return "adsb.lol timed out";
+  if (s?.level !== "live" && s?.count === 0) return "upstream returned no aircraft";
+  return e ? String(e.message || e).slice(0, 80) : "no new report yet";
 }
 export function feedStrip(s) {
   const lv = s?.level || "connecting";

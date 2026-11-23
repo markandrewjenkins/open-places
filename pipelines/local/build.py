@@ -67,6 +67,31 @@ WEST_SHORE = {"Langford", "Colwood", "View Royal", "Metchosin", "Highlands"}
 LOCAL_RCMP = ("/bc/west-shore/", "/bc/sooke/", "/bc/sidney-north-saanich/")
 RAW = ROOT / "data" / "local" / "raw"
 LANGFORD_LL = (-123.505, 48.449)
+# municipality centres (site/places/civic-data.js): the gazetteer looks for a named place within 12 km of the one a release is about
+MUNI_LL = {"Victoria": (-123.365, 48.428), "Saanich": (-123.372, 48.484), "Oak Bay": (-123.317, 48.437), "Esquimalt": (-123.414, 48.432),
+           "View Royal": (-123.44, 48.455), "Colwood": (-123.495, 48.424), "Langford": LANGFORD_LL, "Metchosin": (-123.54, 48.382),
+           "Sooke": (-123.726, 48.374), "Highlands": (-123.5, 48.52), "Central Saanich": (-123.41, 48.565), "North Saanich": (-123.42, 48.64),
+           "Sidney": (-123.399, 48.65)}
+# the municipality whose streets a local agency's undatelined release is most likely about (geocoding locality)
+AGENCY_HOME = {"westshore": "Langford", "vicpd": "Victoria", "saanich": "Saanich", "oakbay": "Oak Bay", "sooke": "Sooke", "sidney": "Sidney"}
+SCAN_V = 2   # bump to scan every cached release again
+# round-ups of many incidents ("Weekly Media Release", "file outcomes"): no single place to map
+DIGEST = re.compile(r"\bweekly\b|\bweek of\b|file outcomes|busy month|year in review", re.I)
+
+
+def mention_re(m: str) -> re.Pattern:
+    """a municipality named as a place: not "North/Central Saanich" for Saanich, not "Greater Victoria", and not an agency or
+    institution that carries the name ("Saanich Police", "Victoria General")"""
+    return re.compile(rf"(?<!North )(?<!Central )(?<!Greater )(?<!Royal )\b{m}\b(?!\s+(?:Police|RCMP|General|Crime Stoppers|Grizzlies|Marathon|Airport|Chamber))")
+
+
+MENTION = {m: mention_re(m) for m in CRD_MUNIS}
+
+
+def dateline(where: str | None) -> str | None:
+    """"Sidney BC", "Langford" → the CRD municipality a release is datelined in (None for "West Shore" and the like)"""
+    w = (where or "").strip().lower()
+    return next((m for m in sorted(CRD_MUNIS, key=len, reverse=True) if w == m.lower() or w.startswith(m.lower() + " ") or w.startswith(m.lower() + ",")), None)
 # StatCan 35-10-0063-01 geography members: key → (member id, label)
 CSI_PID = 35100063
 CSI_GEO = {
@@ -91,10 +116,37 @@ def local_iso(s: str | None) -> str | None:
     return s.replace("/", "-").replace(" ", "T") if s else None
 
 
+CITY_HALL_LL = (-123.50458, 48.44992)   # Langford City Hall, 877 Goldstream Ave (OSM node 3376742045; data/local/buildings.json)
+
+
 def langford_news() -> list[dict]:
-    r = S.get(f"{LANGFORD_WP}/posts", params={"per_page": 20, "_fields": "id,date,link,title"}, timeout=60)
+    """City news headlines; `loc` where a post names an intersection, a hundred-block or an address (a street closure, a
+    project). The post text is read for that only and never stored. A place at City Hall itself is left off (the post
+    sits at City Hall anyway)."""
+    r = S.get(f"{LANGFORD_WP}/posts", params={"per_page": 20, "_fields": "id,date,link,title,content"}, timeout=60)
     r.raise_for_status()
-    return [{"id": p["id"], "title": clean(p["title"]["rendered"]), "date": p["date"][:10], "link": p["link"]} for p in r.json()]
+    RAW.mkdir(parents=True, exist_ok=True)
+    f = RAW / "news_scan.json"
+    cache = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    out = []
+    for p in r.json():
+        x = {"id": p["id"], "title": clean(p["title"]["rendered"]), "date": p["date"][:10], "link": p["link"]}
+        k = str(p["id"])
+        if k not in cache:
+            try:
+                g = place_in(f"{x['title']}. {clean(p.get('content', {}).get('rendered'))[:1500]}", "Langford")
+                if g and (g["kind"] == "area" or km_from(*g["ll"], CITY_HALL_LL) < 0.15):   # a named lake or hill is too loose for a notice
+                    g = None
+                cache[k] = {"loc": g}
+            except Exception as e:   # tried again next run
+                print(f"  news scan {x['link']}: {e}")
+                cache[k] = None
+        if cache.get(k) and cache[k].get("loc") and cache[k]["loc"]["kind"] != "area":
+            x["loc"] = cache[k]["loc"]
+            print(f"    news at {x['loc']['name']}: {x['title'][:60]}")
+        out.append(x)
+    f.write_text(json.dumps({k: v for k, v in cache.items() if v is not None and k in {str(x["id"]) for x in out}}, ensure_ascii=False, indent=0), encoding="utf-8")
+    return out
 
 
 def langford_pages() -> list[dict]:
@@ -172,8 +224,8 @@ def release_text(link: str) -> str:
     return clean(body)
 
 
-def km_from_langford(lon: float, lat: float) -> float:
-    return (((lon - LANGFORD_LL[0]) * 73.9) ** 2 + ((lat - LANGFORD_LL[1]) * 111.2) ** 2) ** 0.5
+def km_from(lon: float, lat: float, centre: tuple[float, float] = LANGFORD_LL) -> float:
+    return (((lon - centre[0]) * 73.9) ** 2 + ((lat - centre[1]) * 111.2) ** 2) ** 0.5
 
 
 def geocode(address: str, locality: str) -> dict | None:
@@ -193,14 +245,15 @@ def geocode(address: str, locality: str) -> dict | None:
     return {"ll": [round(lon, 4), round(lat, 4)], "name": name, "kind": kind}
 
 
-def gazetteer(name: str) -> dict | None:
-    """BC Geographical Names (OGL-BC): an official lake, river, park or mountain of that exact name within 12 km of Langford."""
+def gazetteer(name: str, locality: str = "Langford") -> dict | None:
+    """BC Geographical Names (OGL-BC): an official lake, river, park or mountain of that exact name within 12 km of the
+    municipality's centre."""
     r = polite_get("https://apps.gov.bc.ca/pub/bcgnws/names/search", params={"outputFormat": "json", "name": name, "outputSRS": 4326, "itemsPerPage": 10})
     if not r.ok:
         return None
     for f in r.json().get("features", []):
         lon, lat = f["geometry"]["coordinates"][:2]
-        if f["properties"]["name"].lower() == name.lower() and km_from_langford(lon, lat) <= 12:
+        if f["properties"]["name"].lower() == name.lower() and km_from(lon, lat, MUNI_LL.get(locality, LANGFORD_LL)) <= 12:
             return {"ll": [round(lon, 4), round(lat, 4)], "name": f["properties"]["name"], "kind": "area"}
     return None
 
@@ -215,9 +268,9 @@ def place_in(text: str, locality: str) -> dict | None:
         if g:
             return g
     for name in dict.fromkeys(m.group(1).replace("Mt.", "Mount") for m in AREA.finditer(text)):
-        if name.split()[0] in ("The", "This", "That", "West", "Langford", "Saanich", "Victoria") and name != "Langford Lake":
+        if name.split()[0] in ("The", "This", "That", "West", "Langford", "Saanich", "Victoria", "Greater") and name != "Langford Lake":
             continue
-        g = gazetteer(name)
+        g = gazetteer(name, locality)
         if g:
             return g
     return None
@@ -232,25 +285,27 @@ def scan(items: list[dict]) -> None:
     for x in items:
         if x["date"] < since:
             continue
-        if x["link"] not in cache:
+        if cache.get(x["link"], {}).get("v") != SCAN_V:
             try:
                 text = release_text(x["link"])
-                mentions = [m for m in CRD_MUNIS if re.search(rf"\b{m}\b", text)]
-                where = (x.get("where") or "").strip()
-                loc = None
-                if x["agency"] == "westshore" or "Langford" in mentions or "langford" in where.lower():
-                    loc = place_in(text, where if where in WEST_SHORE else "Langford")
-                cache[x["link"]] = {"mentions": mentions, "loc": loc}
+                mentions = [m for m in CRD_MUNIS if MENTION[m].search(f"{x['title']} {text}")]
+                # geocode in the municipality the release is datelined in, else the agency's own (BC RCMP: the one it names)
+                locality = dateline(x.get("where")) or AGENCY_HOME.get(x["agency"]) or (mentions[0] if len(mentions) == 1 else None)
+                loc = place_in(f"{x['title']}. {text}", locality) if locality else None
+                cache[x["link"]] = {"v": SCAN_V, "mentions": mentions, "loc": loc}
             except Exception as e:   # one page must not sink the rest; it is tried again next run
                 print(f"  scan {x['link']}: {e}")
                 continue
         c = cache[x["link"]]
         x["mentions"] = c["mentions"]
-        if c.get("loc"):
+        if c.get("loc") and not DIGEST.search(x["title"]):
             x["loc"] = c["loc"]
     keep = {x["link"] for x in items}
     f.write_text(json.dumps({k: v for k, v in cache.items() if k in keep}, ensure_ascii=False, indent=0), encoding="utf-8")
     print(f"  scan: {sum(1 for x in items if 'Langford' in x.get('mentions', []))} name Langford, {sum(1 for x in items if x.get('loc'))} mapped")
+    for x in items:
+        if x.get("loc"):
+            print(f"    {x['agency']:10} {x['loc']['kind']:12} {x['loc']['name']}")
 
 
 def redact_titles(titles: list[str]) -> list[str]:
@@ -314,14 +369,18 @@ def csi() -> dict:
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     out = {"generated": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    try:   # a section that fails today keeps yesterday's (a StatCan outage must not blank the Crime Severity Index)
+        prev = json.loads((OUT / "local.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        prev = {}
     for key, fn in (("news", langford_news), ("pages", langford_pages), ("meetings", meetings), ("police", police), ("csi", csi)):
         try:
             out[key] = fn()
             v = out[key]
             print(f"{key}: {len(v) if isinstance(v, list) else len(v.get('items', v.get('series', [])))}")
         except Exception as e:
-            print(f"{key}: FAILED {e}")
-            out[key] = None
+            print(f"{key}: FAILED {e}" + (" (keeping the previous one)" if prev.get(key) else ""))
+            out[key] = prev.get(key)
     (OUT / "local.json").write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"wrote {OUT / 'local.json'}")
 

@@ -109,10 +109,11 @@ function paint() {
 
 const stage = {
   layout: "map", pane: "none",
-  // the breaks within a day trip (or all of them), with the place
+  // Greater Victoria (Vancouver Island): every break, the south island (Jordan River, Sombrio…) and Tofino / Ucluelet;
+  // elsewhere the breaks within a day trip (or all of them), with the place
   view: (ctx) => {
     const m = surfModel(ctx); if (!m) return null;
-    const near = m.spots.filter((s) => s.km < 130), pts = [ctx.place.ll, ...(near.length >= 2 ? near : m.spots).map((s) => s.ll)];
+    const near = m.spots.filter((s) => s.km < 130), pts = [ctx.place.ll, ...(inCRD(ctx) || near.length < 2 ? m.spots : near).map((s) => s.ll)];
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), b = [[d3.min(xs) - 0.08, d3.min(ys) - 0.06], [d3.max(xs) + 0.08, d3.max(ys) + 0.06]];
     return { center: [(b[0][0] + b[1][0]) / 2, (b[0][1] + b[1][1]) / 2], zoom: 9, bounds: b };
   },

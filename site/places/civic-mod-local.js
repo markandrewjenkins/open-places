@@ -1,7 +1,11 @@
 // Open Places: local civic feeds for Greater Victoria. Data, lists, charts and op-alert detectors for
-//   * Municipal Notices (Langford): City news + pages updated in place + council/committee meetings
-//   * Public Safety (Langford): West Shore RCMP news releases plus other agencies' releases that concern Langford,
-//     incidents on the map where a release names a street, block or place, and the annual Crime Severity Index
+//   * City Notices (Langford): City news + pages updated in place + council/committee meetings; on the map each news
+//     post sits at the street it names (a closure, a project), else over City Hall
+//   * Public Safety (each Greater Victoria municipality): releases from the police that serve the place plus other
+//     agencies' releases that concern it, on the map at the street a release names, else over the police station, and
+//     the annual Crime Severity Index
+//   Markers, counts and the click-to-list selection: civic-map-notices.js. Town halls and police stations:
+//   data/local/buildings.json (OpenStreetMap, ODbL; pipelines/local/buildings.py).
 //   * Nearby Earthquakes: USGS merged with Natural Resources Canada's catalogue (de-duplicated)
 // The module definitions sit in civic-modules.js (blocks `lnotices`, `crime`, `quakes`); they spread the parts built
 // here and pass in the shared chart kit (rowsList, lineChart, colChart), which is private to that file.
@@ -30,6 +34,7 @@ import { file, get, km, quakesWeek, countryOf, parseDay } from "./civic-data.js"
 import * as C from "./civic-charts.js";
 import { relayURL } from "../src/shared/relay.js";
 import { float } from "./civic-float.js";
+import { noticeMap, groupNotices } from "./civic-map-notices.js";
 import "./civic-mod-local.css";
 import { redactHeadline, NAMES_NOTE } from "../src/shared/redact-names.js";
 
@@ -99,7 +104,8 @@ export function noticesNeed(ctx) {
   // the same in both (WordPress post ids, release links), so the swap never reads as new alerts.
   if (!done(snap) && ![news, meet, pages].every(done)) return null;
   const S = snap.data || {};
-  const newsList = news.data || S.news, meetList = meet.data?.meetings || S.meetings, pageList = pages.data || S.pages || [];
+  const locs = new Map((S.news || []).filter((x) => x.loc).map((x) => [x.id, x.loc]));
+  const newsList = (news.data || S.news)?.map((x) => ({ ...x, loc: x.loc || locs.get(x.id) || null })), meetList = meet.data?.meetings || S.meetings, pageList = pages.data || S.pages || [];
   if (!newsList && !meetList) return [news, meet].every(done) ? { err: news.err || meet.err || snap.err || new Error("no data") } : null;
   const now = new Date(), wk0 = new Date(+now - 7 * DAY), wk1 = new Date(+now + 7 * DAY);
   const N = (newsList || []).map((x) => ({ ...x, t: parseDay(x.date) })).sort((a, b) => b.t - a.t);
@@ -157,10 +163,46 @@ export function meetingsPanel(ctx) {
     host, foot), "ln:meet");
 }
 
+// ------------------------------------------------------------------ City Notices' map: Langford, City Hall and the posts that name a street
+const LN_COLOR = "var(--m-lnotices, var(--accent))";
+const LF_SGC = "5917044";
+const lfShape = (ctx) => file("langford/crd_csd.json", ctx).data?.features.find((f) => f.properties.id === LF_SGC) || null;
+const LN_BOUNDARY = { id: "ln-city", title: "City of Langford", kind: "fill", passive: true, color: LN_COLOR,
+  data: (ctx) => { const f = lfShape(ctx); return f ? { type: "FeatureCollection", features: [{ ...f, properties: { title: "City of Langford", fop: 0.06 } }] } : null; } };
+const lnMap = noticeMap({ id: "ln", color: LN_COLOR, glyph: "landmark" });
+function lnGroups(d, ctx) {
+  const hall = file("local/buildings.json", ctx).data?.townhalls?.langford;
+  return groupNotices(d.N.map((x) => ({ ...x, id: `n:${x.id || x.link}` })), {
+    spot: (x) => (x.loc?.ll ? { ll: x.loc.ll, name: x.loc.name } : null),
+    building: () => (hall ? { key: "hall:langford", ll: hall.ll, name: hall.name, sub: hall.addr || "" } : null),
+  });
+}
+function lnNewsPanel(d, ctx) {
+  lnMap.sync(ctx, lnGroups(d, ctx));
+  const wk = d3.timeDay.offset(d3.timeDay.floor(new Date()), -7);
+  const list = lnMap.list({ cls: "ln", empty: "No City news found.",
+    row: (x) => ({ title: x.title, href: x.link, pin: !!x.loc, fresh: x.t >= wk, meta: `${fD(x.t)} · ${ago(x.t)}${x.loc ? ` · ${x.loc.name.replace(/, Langford$/, "")}` : ""}`,
+      tip: `${x.title}\nCity of Langford news, ${fDow(x.t)}${x.loc ? ` · at ${x.loc.name} (named in the post)` : " · no place named, so it sits at City Hall"}` }) });
+  const foot = "City of Langford (headlines and links only, no open licence) · City Hall © OpenStreetMap contributors · streets: BC Address Geocoder (OGL-BC)";
+  return float(el("div", { class: "civ-fp-body" },
+    el("p", { class: "civ-fp-lede" }, "City of Langford news, newest first. A post that names a street (a closure, a project) sits there on the map; the rest sit over City Hall. Click a marker for its posts, a post for its marker; ↗ opens the City's page."),
+    list, el("div", { class: "civ-fp-foot" }, el("span", { title: foot }, foot))), "ln:news");
+}
+const lnStage = {
+  layout: "map", pane: "none", layers: [LN_BOUNDARY, lnMap.layer],
+  view: (ctx) => { const f = lfShape(ctx); if (!f) return { center: ctx.place.ll, zoom: 12.6 };
+    let w = 180, s = 90, e = -180, n = -90; const walk = (c) => { if (typeof c[0] === "number") { w = Math.min(w, c[0]); e = Math.max(e, c[0]); s = Math.min(s, c[1]); n = Math.max(n, c[1]); } else c.forEach(walk); };
+    walk(f.geometry.coordinates); return { center: ctx.place.ll, zoom: 13, bounds: [[w, s], [e, n]] }; },
+  panels: (ctx) => { const d = noticesNeed(ctx);
+    const meet = { id: "ln-meet", title: "Council & Committee Meetings", place: "left", el: meetingsPanel(ctx) };
+    if (!d || d.err) return [meet, { id: "ln-news", title: "City News", place: "right", el: el("div", { class: "civ-fp-body" }, el("p", { class: "note civ-empty" }, d?.err ? "Couldn't load the City news." : "Loading…")) }];
+    return [meet, { id: "ln-news", title: "City News", place: "right", el: lnNewsPanel(d, ctx) }]; },
+};
+
 /** the parts of the lnotices module (civic-modules.js spreads these into mod()) */
 export function notices(K) {
   return {
-    need: noticesNeed, status: noticesStatus,
+    need: noticesNeed, status: noticesStatus, stage: lnStage,
     source: (ctx) => { const d = noticesNeed(ctx); return `City of Langford · eSCRIBE${d && !d.err && !d.liveMeet ? " (snapshot)" : ""}`; },
     badge: (d) => `${d.count}`,
     tileKpis: (d) => [[`${d.count}`, d.count === 1 ? "notice this week" : "notices this week"], [d.council ? inDays(d.council.t).replace(/^in /, "") : "—", d.council ? `to council, ${fDow(d.council.t)}` : "no council date posted"]],
@@ -190,36 +232,56 @@ export function notices(K) {
   };
 }
 
-// ================================================================== PUBLIC SAFETY (Langford)
-// Langford is policed by the West Shore RCMP detachment: every West Shore RCMP release is shown, plus releases from the
-// other agencies (BC RCMP provincial units, Sooke and Sidney/North Saanich RCMP, Victoria, Saanich and Oak Bay police)
-// only when they concern Langford: datelined Langford, "Langford" in the headline, or the release text names Langford
-// (the daily snapshot's `mentions`, pipelines/local/build.py). Incidents go on the map only where the snapshot found an
-// intersection, a hundred-block or an official place name it could geocode (`loc`); the rest stay off the map.
+// ================================================================== PUBLIC SAFETY (each Greater Victoria municipality)
+// A municipality's page shows every release from the police that serve it (West Shore RCMP for Langford, Colwood, View
+// Royal, Highlands and Metchosin; Victoria Police for Victoria and Esquimalt; Saanich, Oak Bay and Central Saanich police;
+// Sidney/North Saanich RCMP; Sooke RCMP), plus other agencies' releases that concern it: datelined there, or naming it in
+// the headline or the text (the daily snapshot's `mentions`, pipelines/local/build.py).
+// On the map each release sits at the intersection, hundred-block or official place it names (the snapshot's `loc`), or
+// else over the station of the police that serve the place it's datelined in, else its own agency's station, else this
+// place's (data/local/buildings.json from OpenStreetMap; pipelines/local/buildings.py). Generic shield markers, no crests.
 const POLICE_TERMS = "Headlines and links only, credited by agency: RCMP newsrooms (rcmp.ca, non-commercial reproduction with attribution); Victoria, Saanich and Oak Bay police (© each department). No crests, no endorsement. Names of missing people, suspects, accused and victims are taken out of the headlines";
 const CSI_CREDIT = "Statistics Canada, Table 35-10-0063-01, Statistics Canada Open Licence";
-const LOC_CREDIT = "Locations: BC Address Geocoder and BC Geographical Names (OGL-BC), from the street or place a release names";
-const AG_SHORT = { westshore: "West Shore RCMP", bcrcmp: "BC RCMP", sooke: "Sooke RCMP", sidney: "Sidney/NS RCMP", vicpd: "VicPD", saanich: "Saanich PD", oakbay: "Oak Bay PD" };
-const LF = /\bLangford\b/i;
+const LOC_CREDIT = "Locations: BC Address Geocoder and BC Geographical Names (OGL-BC), from the street or place a release names; stations and halls © OpenStreetMap contributors (ODbL)";
+const AG_SHORT = { westshore: "West Shore RCMP", bcrcmp: "BC RCMP", sooke: "Sooke RCMP", sidney: "Sidney/NS RCMP", vicpd: "VicPD", saanich: "Saanich PD", oakbay: "Oak Bay PD", centralsaanich: "Central Saanich PD" };
 const WINDOW = 30;   // days of releases shown
 const PS_COLOR = "var(--m-crime, var(--accent))";
+const BLD = "local/buildings.json";
+// the CRD's municipalities: name → place id (site/places/civic-data.js)
+const CRD = ["Langford", "Colwood", "View Royal", "Metchosin", "Highlands", "Sooke", "Victoria", "Esquimalt", "Saanich", "Oak Bay", "Central Saanich", "North Saanich", "Sidney"];
+const PLACE_ID = Object.fromEntries(CRD.map((n) => [n, n === "Victoria" ? "victoria-city" : n.toLowerCase().replace(/ /g, "-")]));
+export const PS_PLACES = Object.values(PLACE_ID);
+/** a municipality named as a place (not "North Saanich" for Saanich, "Greater Victoria", "Saanich Police", "Victoria General") */
+const nameRe = (n) => new RegExp(`(?<!North )(?<!Central )(?<!Greater )(?<!Royal )\\b${n}\\b(?!\\s+(?:Police|RCMP|General|Crime Stoppers|Grizzlies|Marathon|Airport|Chamber))`);
+const NAME_RE = Object.fromEntries(CRD.map((n) => [n, nameRe(n)]));
+/** "Sidney BC", "Langford" → the CRD municipality a release is datelined in (null for "West Shore" and the like) */
+const dateline = (w) => { const s = String(w || "").trim().toLowerCase(); return [...CRD].sort((a, b) => b.length - a.length).find((m) => s === m.toLowerCase() || s.startsWith(`${m.toLowerCase()} `) || s.startsWith(`${m.toLowerCase()},`)) || null; };
+// round-ups of many incidents: no single place to map
+const DIGEST = /\bweekly\b|\bweek of\b|file outcomes|busy month|year in review/i;
 
-/** why a release is on Langford's page (null = it isn't) */
-function aboutLangford(x) {
-  if (x.agency === "westshore") return LF.test(x.where || "") ? "Langford" : x.where && !/west shore/i.test(x.where) ? x.where : "West Shore";
-  if (LF.test(x.where || "")) return "Langford";
-  if (LF.test(x.title) || x.mentions?.includes("Langford")) return "names Langford";
+/** the place this page is about: { id, name, jur (agency id), station } */
+function psPlace(ctx, B) {
+  const name = CRD.find((n) => PLACE_ID[n] === ctx.place.id) || ctx.place.name;
+  const jur = B?.jurisdiction?.[ctx.place.id] || null;
+  return { id: ctx.place.id, name, jur, station: jur ? B.police[jur] : null };
+}
+/** why a release is on this place's page (null = it isn't) */
+function about(x, P) {
+  const dl = dateline(x.where);
+  if (x.agency === P.jur) return dl || (x.where ? x.where.replace(/\s+BC$/, "") : P.name);
+  if (dl === P.name) return P.name;
+  if (NAME_RE[P.name]?.test(x.title) || x.mentions?.includes(P.name)) return `names ${P.name}`;
   return null;
 }
 
 const redacted = new WeakMap();   // feed items → the same items with names taken out (once per feed answer)
 export function policeNeed(ctx) {
-  const snap = snapshot(ctx);
+  const snap = snapshot(ctx), bld = file(BLD, ctx);
   const live = ttlGet("police", 15 * MIN, () => relay("/local/police.json"), ctx);
-  if (!done(live) && !done(snap)) return null;
+  if ((!done(live) && !done(snap)) || !done(bld)) return null;
   const src = live.data || snap.data?.police;
   if (!src) return done(live) ? { err: live.err || snap.err || new Error("no police data") } : null;
-  const here = ctx.place.ll;
+  const B = bld.data, P = psPlace(ctx, B), here = ctx.place.ll;
   const ag = new Map(src.agencies.map((a) => [a.id, { ...a, km: km(a.ll, here) }]));
   for (const a of snap.data?.police?.agencies || []) if (!ag.has(a.id)) ag.set(a.id, { ...a, km: km(a.ll, here), snapOnly: true });
   // the snapshot's scan (which municipalities a release names, a mappable place) joins the live list by link
@@ -228,110 +290,129 @@ export function policeNeed(ctx) {
   if (!redacted.has(src.items)) redacted.set(src.items, src.items.map((x) => ({ ...x, title: redactHeadline(x.title) })));
   const cut = d3.timeDay.offset(d3.timeDay.floor(new Date()), -WINDOW);
   const all = redacted.get(src.items).map((x) => { const s = scan.get(x.link);
-    return { ...x, mentions: x.mentions || s?.mentions || null, loc: x.loc || s?.loc || null, t: parseDay(x.date), a: ag.get(x.agency) }; })
+    const loc = DIGEST.test(x.title) ? null : x.loc || s?.loc || null;
+    return { ...x, id: x.link, mentions: x.mentions || s?.mentions || null, loc, t: parseDay(x.date), a: ag.get(x.agency) }; })
     .filter((x) => x.a && x.t >= cut);
-  const items = all.map((x) => ({ ...x, why: aboutLangford(x) })).filter((x) => x.why).sort((p, q) => q.t - p.t);
+  const items = all.map((x) => ({ ...x, why: about(x, P) })).filter((x) => x.why).sort((p, q) => q.t - p.t);
   const wk = d3.timeDay.offset(d3.timeDay.floor(new Date()), -7);
   const near = [...ag.values()].sort((a, b) => a.km - b.km);
-  return { items, near, wk7: items.filter((x) => x.t >= wk), nearest: ag.get("westshore") || near[0], mapped: items.filter((x) => x.loc?.ll),
-    ws: items.filter((x) => x.agency === "westshore"), others: items.filter((x) => x.agency !== "westshore"),
+  // where each release sits: its own spot, else a station (see the section header)
+  const station = (id) => (id && B?.police?.[id] ? { key: `b:${id}`, ll: B.police[id].ll, name: B.police[id].name, sub: B.police[id].addr || "" } : null);
+  const groups = groupNotices(items, {
+    spot: (x) => (x.loc?.ll ? { ll: x.loc.ll, name: x.loc.name } : null),
+    building: (x) => { const dl = dateline(x.where); return station(dl && B?.jurisdiction?.[PLACE_ID[dl]]) || station(x.agency) || station(P.jur); },
+  });
+  const mine = items.filter((x) => x.agency === P.jur);
+  return { P, items, near, groups, wk7: items.filter((x) => x.t >= wk), police: P.jur ? ag.get(P.jur) || null : null, mapped: items.filter((x) => x.loc?.ll),
+    mine, others: items.filter((x) => x.agency !== P.jur),
     live: !!live.data, snapAt: snap.data?.generated || null, csi: snap.data?.csi || null };
 }
 
+const jurName = (d) => d.police?.name || d.P.station?.name || "its police";
 export function policeStatus(ctx) {
   const d = policeNeed(ctx);
-  const long = (w) => `West Shore RCMP news releases (Langford's police), plus releases from BC RCMP, Sooke and Sidney/North Saanich RCMP, Victoria, Saanich and Oak Bay police that concern Langford${w}. ${POLICE_TERMS}. ${LOC_CREDIT}. Crime Severity Index: ${CSI_CREDIT}.`;
+  const who = d && !d.err ? `${jurName(d)} news releases (${d.P.name}'s police), plus releases from the other Greater Victoria agencies that concern ${d.P.name}` : "News releases from the police that serve the place, plus other agencies' releases that concern it";
+  const long = (w) => `${who}${w}. ${POLICE_TERMS}. ${LOC_CREDIT}. Crime Severity Index: ${CSI_CREDIT}.`;
   if (!d || d.err) return { kind: LIVE, text: "Live", long: long(" via the Open Places relay") };
   if (d.live) return { kind: LIVE, text: "Live", long: long(" via the Open Places relay (cached 15 min); street locations from the daily snapshot") };
   return { kind: DATA, text: `Data · ${d.snapAt ? fD(new Date(d.snapAt)) : ""}`, long: long(`, from the snapshot of ${d.snapAt ? fD(new Date(d.snapAt)) : "…"} (data/local/local.json)`) };
 }
 
-/** CSI rows for Langford: Langford RCMP (municipal) bold, the other West Shore services grey, BC dashed */
-const CSI_KEYS = ["langford", "colwood", "view-royal", "westshore"];
+/** CSI rows: this place's police service bold, the services that share its police grey, BC dashed */
+const CSI_KEY = (id) => (id === "highlands" ? "westshore" : id);
+const CSI_PEERS = { westshore: ["langford", "colwood", "view-royal", "metchosin", "westshore"], vicpd: ["victoria-city", "esquimalt"], sidney: ["sidney", "north-saanich"] };
+function csiKeys(d) {
+  const main = CSI_KEY(d.P.id), csi = d.csi;
+  const has = (k) => k !== main && csi?.series?.[k];
+  let peers = (CSI_PEERS[d.P.jur] || []).filter(has);
+  if (!peers.length) peers = ["victoria-city", "saanich", "langford"].filter(has);   // no service shares its police: the three largest for context
+  return [main, ...peers].filter((k) => csi?.series?.[k]);
+}
 function csiChart(host, d, K) {
   const csi = d.csi; if (!csi) return host.replaceChildren(el("p", { class: "note civ-empty" }, "Crime Severity Index not loaded."));
-  const keys = CSI_KEYS.filter((k) => csi.series[k]), yr = csi.years.map((y) => new Date(y, 0, 1));
+  const keys = csiKeys(d), yr = csi.years.map((y) => new Date(y, 0, 1)), main = CSI_KEY(d.P.id);
   const vals = (k) => csi.series[k].csi.map((v, i) => ({ x: yr[i], y: v })).filter((p) => p.y != null);
   const series = [
-    ...keys.map((k, i) => ({ values: vals(k), name: csi.series[k].label, color: i === 0 ? "var(--s1)" : "var(--s3)", width: i === 0 ? 2.4 : 1.1, cssVar: i === 0 ? "--s1" : "--s3" })),
+    ...keys.map((k) => ({ values: vals(k), name: csi.series[k].label, color: k === main ? "var(--s1)" : "var(--s3)", width: k === main ? 2.4 : 1.1, cssVar: k === main ? "--s1" : "--s3" })),
     { values: vals("bc"), name: "British Columbia", color: "var(--ink)", dash: "4 3", width: 1.4, cssVar: "--ink" },
   ].sort((a, b) => b.values.length - a.values.length);
   K.lineChart(host, series, { time: true, tipX: d3.timeFormat("%Y"), xFmt: d3.timeFormat("%Y"), unit: "CSI", yZero: true });
 }
-const csiNow = (d) => { const s = d.csi?.series?.langford; if (!s) return null; const i = s.csi.length - 1; return { v: s.csi[i], y: d.csi.years[i], bc: d.csi.series.bc?.csi[i] }; };
+const csiNow = (d) => { const k = CSI_KEY(d.P.id), s = d.csi?.series?.[k]; if (!s) return null; const i = s.csi.length - 1; return { v: s.csi[i], y: d.csi.years[i], bc: d.csi.series.bc?.csi[i], label: s.label }; };
 
-// ------------------------------------------------------------------ the map stage: Langford's boundary and the mapped incidents
-const CSD_FILE = "langford/crd_csd.json", LANGFORD_SGC = "5917044";
-const lfShape = (ctx) => file(CSD_FILE, ctx).data?.features.find((f) => f.properties.id === LANGFORD_SGC) || null;
+// ------------------------------------------------------------------ the map stage: the municipality, its releases on the map
+const CSD_FILE = "langford/crd_csd.json";
+const muniShape = (ctx, name) => file(CSD_FILE, ctx).data?.features.find((f) => f.properties.name === name) || null;
 const fc = (features) => ({ type: "FeatureCollection", features });
-const PS_BOUNDARY = { id: "ps-city", title: "City of Langford", kind: "fill", passive: true, color: PS_COLOR,
-  data: (ctx) => { const f = lfShape(ctx); return f ? fc([{ ...f, properties: { title: "City of Langford", fop: 0.05 } }]) : null; } };
-const PS_POINTS = { id: "ps-inc", title: "Incidents", icon: "shield", color: PS_COLOR, kind: "circle",
-  data: (ctx) => { const d = policeNeed(ctx); if (!d || d.err) return null;
-    return fc(d.mapped.map((x) => ({ type: "Feature", geometry: { type: "Point", coordinates: x.loc.ll },
-      properties: { id: x.link, title: x.title, r: Date.now() - x.t < 7 * DAY ? 7 : 5.5, op: Date.now() - x.t < 7 * DAY ? 0.95 : 0.7, sev: x.agency === "westshore" ? 0 : 1 } }))); },
-  select: (f, ctx) => { const d = policeNeed(ctx), x = d?.mapped.find((y) => y.link === f.properties.id); if (!x) return null;
-    return el("div", { class: "civ-popc", style: `--lc: ${PS_COLOR}` },
-      el("div", { class: "civ-popk" }, `${AG_SHORT[x.agency] || x.a.name} · ${fDow(x.t)}`),
-      el("b", { class: "civ-popt" }, x.title),
-      el("p", { class: "civ-popm" }, `${x.loc.name} · ${x.loc.kind === "area" ? "named place" : x.loc.kind === "block" ? "hundred-block" : "intersection"} named in the release`),
-      el("a", { class: "civ-popa", href: x.link, target: "_blank", rel: "noopener" }, "Open the release ↗")); } };
-const psView = (ctx) => { const f = lfShape(ctx); if (!f) return { center: ctx.place.ll, zoom: 12.4 };
-  let w = 180, s = 90, e = -180, n = -90; const walk = (c) => { if (typeof c[0] === "number") { w = Math.min(w, c[0]); e = Math.max(e, c[0]); s = Math.min(s, c[1]); n = Math.max(n, c[1]); } else c.forEach(walk); };
-  walk(f.geometry.coordinates); return { center: ctx.place.ll, zoom: 12.6, bounds: [[w, s], [e, n]] }; };
+const bboxOfCoords = (coords, pts = []) => { let w = 180, s = 90, e = -180, n = -90;
+  const add = (c) => { w = Math.min(w, c[0]); e = Math.max(e, c[0]); s = Math.min(s, c[1]); n = Math.max(n, c[1]); };
+  const walk = (c) => { if (typeof c[0] === "number") add(c); else c.forEach(walk); };
+  if (coords) walk(coords); pts.forEach(add); return w > e ? null : [[w, s], [e, n]]; };
+const PS_BOUNDARY = { id: "ps-city", title: "Municipality", kind: "fill", passive: true, color: PS_COLOR,
+  data: (ctx) => { const f = muniShape(ctx, psPlace(ctx, file(BLD, ctx).data).name); return f ? fc([{ ...f, properties: { title: f.properties.name, fop: 0.05 } }]) : null; } };
+const psMap = noticeMap({ id: "ps", color: PS_COLOR, glyph: "shield" });
+const psView = (ctx) => { const d = policeNeed(ctx), f = muniShape(ctx, d && !d.err ? d.P.name : ctx.place.name);
+  const pts = d && !d.err ? d.groups.map((g) => g.ll).filter((ll) => km(ll, ctx.place.ll) < 30) : [];
+  const b = bboxOfCoords(f?.geometry.coordinates, pts); return b ? { center: ctx.place.ll, zoom: 13, bounds: b } : { center: ctx.place.ll, zoom: 12.4 }; };
 
 const psFoot = (text) => el("div", { class: "civ-fp-foot" }, el("span", { title: text }, text));
-function newsPanel(d) {
-  const rows = d.items.map((x) => el("a", { class: `ps-row${Date.now() - x.t < 7 * DAY ? " new" : ""}`, href: x.link, target: "_blank", rel: "noopener", title: `${x.title}\n${x.a.name} · ${fDow(x.t)}${x.loc ? ` · on the map: ${x.loc.name}` : ""}` },
-    el("span", { class: "ps-t" }, x.title),
-    el("span", { class: "ps-m" }, x.loc ? el("i", { class: "ps-pin", title: "On the map" }) : null, `${AG_SHORT[x.agency] || x.a.name} · ${fD(x.t)} · ${x.why}`)));
+function newsPanel(d, ctx) {
+  psMap.sync(ctx, d.groups);
+  const list = psMap.list({ cls: "ps", empty: `No releases in the past ${WINDOW} days.`,
+    row: (x) => ({ title: x.title, href: x.link, pin: !!x.loc, fresh: Date.now() - x.t < 7 * DAY,
+      meta: `${AG_SHORT[x.agency] || x.a.name} · ${fD(x.t)} · ${x.why}`,
+      tip: `${x.title}\n${x.a.name} · ${fDow(x.t)}${x.loc ? ` · at ${x.loc.name} (named in the release)` : ""}` }) });
+  const shared = d.P.jur === "westshore" ? "the West Shore RCMP" : jurName(d);
   return float(el("div", { class: "civ-fp-body" },
-    el("p", { class: "civ-fp-lede" }, `Langford is policed by the West Shore RCMP. Its releases from the past ${WINDOW} days, newest first, with other agencies' releases that concern Langford. Each opens the original. ${NAMES_NOTE}`),
-    el("div", { class: "civ-fpl ps-list" }, ...(rows.length ? rows : [el("p", { class: "note civ-empty" }, `No releases in the past ${WINDOW} days.`)])),
+    el("p", { class: "civ-fp-lede" }, `${d.P.name} is policed by ${shared}. Its releases from the past ${WINDOW} days, newest first, with other agencies' releases that concern ${d.P.name}. On the map a release sits at the street it names, else over the station; click a marker for its releases. ${NAMES_NOTE}`),
+    list,
     psFoot("RCMP newsrooms (non-commercial reproduction with attribution) · VicPD, Saanich, Oak Bay police (© each) · headlines and links only")), "ps:news");
 }
 function csiPanel(d, K) {
   const host = el("div", { class: "civ-fpc", style: "height:150px" });
   requestAnimationFrame(() => { if (host.isConnected) try { csiChart(host, d, K); } catch (e) { console.warn("[police] csi:", e?.message || e); } });
-  const c = csiNow(d);
+  const c = csiNow(d), peers = csiKeys(d).slice(1).map((k) => d.csi.series[k].label.replace(/ \((municipal|rural)\)$/, "")).join(", ");
   return float(el("div", { class: "civ-fp-body" },
-    el("p", { class: "civ-fp-lede" }, `Police-reported crime weighted by seriousness, yearly (Canada 2006 = 100). Bold: Langford RCMP (municipal)${c ? `, ${c.v.toFixed(0)} in ${c.y}` : ""}; grey: Colwood, View Royal and West Shore rural; dashed: BC${c?.bc ? ` (${c.bc.toFixed(0)})` : ""}.`),
+    el("p", { class: "civ-fp-lede" }, `Police-reported crime weighted by seriousness, yearly (Canada 2006 = 100). Bold: ${c ? `${c.label}, ${c.v.toFixed(0)} in ${c.y}` : d.P.name}${peers ? `; grey: ${peers}` : ""}; dashed: BC${c?.bc ? ` (${c.bc.toFixed(0)})` : ""}.`),
     host, psFoot(CSI_CREDIT)), "ps:csi");
 }
 function sourcesPanel(d) {
   const n = (id) => d.items.filter((x) => x.agency === id).length;
-  const rows = d.near.filter((a) => a.id !== "westshore").map((a) => [a.name, `${n(a.id)} on Langford`, a]);
+  const rows = d.near.filter((a) => a.id !== d.P.jur).map((a) => [a.name, `${n(a.id)} on ${d.P.name}`, a]);
+  const top = d.police
+    ? el("a", { class: "civ-row hl", href: d.police.page || null, target: "_blank", rel: "noopener", title: `${d.P.name}'s police: every release is shown` },
+      el("span", { class: "civ-row-l" }, d.police.name), el("b", { class: "civ-row-v" }, `${d.mine.length} in ${WINDOW} d · all`))
+    : el("div", { class: "civ-row hl", title: "This service publishes no news feed Open Places can read" },
+      el("span", { class: "civ-row-l" }, d.P.station?.name || "Local police"), el("b", { class: "civ-row-v" }, "no news feed"));
   return float(el("div", { class: "civ-fp-body" },
-    el("div", { class: "civ-fpl ps-src" },
-      el("a", { class: "civ-row hl", href: d.nearest?.page || null, target: "_blank", rel: "noopener", title: "Langford's police: every release is shown" },
-        el("span", { class: "civ-row-l" }, "West Shore RCMP"), el("b", { class: "civ-row-v" }, `${d.ws.length} in ${WINDOW} d · all`)),
-      ...rows.map(([name, v, a]) => el("a", { class: "civ-row", href: a.page || null, target: "_blank", rel: "noopener", title: `${a.covers ? `Covers ${a.covers}. ` : ""}Shown only when a release concerns Langford.${a.ok === false ? " Feed not answering." : ""}` },
+    el("div", { class: "civ-fpl ps-src" }, top,
+      ...rows.map(([name, v, a]) => el("a", { class: "civ-row", href: a.page || null, target: "_blank", rel: "noopener", title: `${a.covers ? `Covers ${a.covers}. ` : ""}Shown only when a release concerns ${d.P.name}.${a.ok === false ? " Feed not answering." : ""}` },
         el("span", { class: "civ-row-l" }, a.ok === false ? el("i", { class: "civ-sev", "data-sev": 1 }) : null, name), el("b", { class: "civ-row-v" }, a.ok === false ? "feed down" : v)))),
-    el("p", { class: "ps-note" }, `${d.mapped.length} of ${d.items.length} releases name a street, block or place precise enough to map; the rest stay off the map.`),
+    el("p", { class: "ps-note" }, `${d.mapped.length} of ${d.items.length} releases name a street, block or place precise enough to map; the rest sit over the police station.`),
     psFoot(LOC_CREDIT)), "ps:src");
 }
 
 export function police(K) {
   return {
     need: policeNeed, status: policeStatus,
-    source: (ctx) => { const d = policeNeed(ctx); return `West Shore RCMP · other agencies on Langford${d && !d.err && !d.live ? " (snapshot)" : ""} · StatCan CSI`; },
+    source: (ctx) => { const d = policeNeed(ctx); return `${d && !d.err ? jurName(d) : "Local police"} · other agencies${d && !d.err && !d.live ? " (snapshot)" : ""} · StatCan CSI`; },
     badge: (d) => `${d.wk7.length}`,
     stage: {
-      layout: "map", pane: "none", layers: [PS_BOUNDARY, PS_POINTS], view: psView,
+      layout: "map", pane: "none", layers: [PS_BOUNDARY, psMap.layer], view: psView,
       panels: (ctx) => { const d = policeNeed(ctx);
         if (!d || d.err) return [{ id: "ps-wait", title: "Police News", place: "left", el: el("div", { class: "civ-fp-body" }, el("p", { class: "note civ-empty" }, d?.err ? "Couldn't load the police news." : "Loading…")) }];
-        return [{ id: "ps-news", title: "Police News", place: "left", el: newsPanel(d) },
+        return [{ id: "ps-news", title: "Police News", place: "left", el: newsPanel(d, ctx) },
           { id: "ps-csi", title: "Crime Severity Index", place: "right", el: csiPanel(d, K) },
           { id: "ps-src", title: "Agencies", place: "right", el: sourcesPanel(d) }]; },
     },
-    tileKpis: (d) => [[`${d.wk7.length}`, "releases on Langford, 7 d"], [`${d.ws.length}`, `West Shore RCMP, ${WINDOW} d`]],
+    tileKpis: (d) => [[`${d.wk7.length}`, `releases on ${d.P.name}, 7 d`], [`${d.mine.length}`, `${AG_SHORT[d.P.jur] || "local police"}, ${WINDOW} d`]],
     kpis: (d) => { const c = csiNow(d);
-      return [["Releases, 7 days", `${d.wk7.length}`, "West Shore RCMP + others on Langford"], ["West Shore RCMP", `${d.ws.length}`, `releases in ${WINDOW} days`],
-        ["Other agencies", `${d.others.length}`, "releases that concern Langford"], ["On the map", `${d.mapped.length}`, "name a street, block or place"],
-        ["Crime severity", c ? c.v.toFixed(0) : "—", c ? `Langford RCMP, ${c.y} (BC ${c.bc?.toFixed(0) ?? "—"})` : ""]]; },
+      return [["Releases, 7 days", `${d.wk7.length}`, `${AG_SHORT[d.P.jur] || "Local police"} + others on ${d.P.name}`], [AG_SHORT[d.P.jur] || "Local police", d.police ? `${d.mine.length}` : "—", d.police ? `releases in ${WINDOW} days` : "no news feed"],
+        ["Other agencies", `${d.others.length}`, `releases that concern ${d.P.name}`], ["At a street", `${d.mapped.length}`, "name a street, block or place"],
+        ["Crime severity", c ? c.v.toFixed(0) : "—", c ? `${c.label.replace(/ \((municipal|rural)\)$/, "")}, ${c.y} (BC ${c.bc?.toFixed(0) ?? "—"})` : ""]]; },
     // tile: the newest headlines
     mini: (host, d) => linkRows(host, d.items.slice(0, 8).map((x) => ({ label: x.title, value: `${fD(x.t)}`, href: x.link, title: `${x.title} (${x.a.name}, ${fD(x.t)})` })), { fit: true, empty: "No releases in the past 30 days." }),
-    // alerts: a release about Langford published in the past 2 days
+    // alerts: a release about the place published in the past 2 days
     detect: (d) => ({
       items: d.items.filter((x) => Date.now() - x.t < 2 * DAY).map((x) => ({ id: x.link, level: "notice", href: "#civic/crime",
         title: x.title.length > 70 ? `${x.title.slice(0, 68)}…` : x.title, body: `${x.a.name} news release, ${fD(x.t)}.` })),

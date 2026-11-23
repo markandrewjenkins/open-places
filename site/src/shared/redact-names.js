@@ -230,12 +230,15 @@ function redact(s) {
       A[i] = true; let j = i + 1; while (j < T.length && j <= i + 3 && T[j].k === "w" && isCap(T[j].t) && joined(j)) A[j++] = true;
     }
     // "Sooke Road", "West Saanich Road", "Lawn Bowling Club" (up to 3 capitalised words before the suffix)
-    if (SUFFIX.has(base(T[i].t)) && isCap(T[i].t)) {
+    // an abbreviated suffix keeps its full stop ("Lansdowne Rd.", "Douglas St. and Yates"), but not before another
+    // capitalised word ("Jane St. Clair" stays a name)
+    const sfx = base(T[i].t).replace(/\.$/, "");
+    if (SUFFIX.has(sfx) && isCap(T[i].t) && !(T[i].t.endsWith(".") && T[i + 1]?.k === "w" && isCap(T[i + 1].t) && joined(i + 1))) {
       let j = i; const before = [];
       while (j > 0 && i - j < 3 && T[j - 1].k === "w" && (isCap(T[j - 1].t) || PARTICLE.has(norm(T[j - 1].t))) && joined(j) && !rank(j - 1)) { j--; before.push(j); }
       if (!before.length) { A[i] = true; continue; }
       const nameLike = before.some((x) => !A[x] && !known(base(T[x].t)));
-      if (AMBIG_SUFFIX.has(base(T[i].t)) && nameLike) continue;   // "Jane Hill": leave to the name check
+      if (AMBIG_SUFFIX.has(sfx) && nameLike) continue;   // "Jane Hill": leave to the name check
       for (let x = j; x <= i; x++) A[x] = true;
     }
   }

@@ -16,11 +16,14 @@ import {
   WMO, MONTHS, bump, monthly, doyToDate, fDate, dayDiff, f0, parseDay, inYear, km, inGeom, dataKey, inherit, countryOf, provinceOf, chainOf,
 } from "./civic-data.js";
 import { get as cached } from "./civic-data.js";
+import { withFreshness } from "./civic-sources.js";   // live / stale / down from each feed's age
 import { hubSetFor, hubAirCovers } from "../src/shared/livehub.js";   // which places the relay's live hub serves
 import { REGIONS, UNCOVERED, SPOTLIGHT_PLACES, regionForPlace, regionAt } from "../src/blink/regions.js";
 import * as TR from "../src/blink/transit.js";
-import { fetchPoint, nearestAirports, typeInfo, airborne, callsign, fAlt, distKm as airKm, glyphPath, kindOf, kindColor, sizeOf, rareOf, closestApproach, compass as airCompass } from "../src/air/feed.js";
-import { airFeed, feedText as airFeedText, addAirLayers, feedStrip as airStrip, overheadList as airList, aircraftCard as airCard, idOf as airId } from "../src/air/layer.js";   // Air traffic: shared feed + map layer
+import { fetchPoint, nearestAirports, typeInfo, airborne, callsign, fAlt, distKm as airKm, glyphPath, kindOf, kindColor, sizeOf, rareOf, closestApproach, compass as airCompass, lookupRoute, routeFits } from "../src/air/feed.js";
+import { followButton, followTick, stopFollow } from "./civic-follow.js";   // Follow the selected aircraft (Air Traffic page)
+import { addTrail, remember, historyOf, relayTrack, mergeTracks, greatCircle, ahead as aheadOf } from "./civic-trail.js";   // its wake + probable route
+import { airFeed, feedText as airFeedText, feedReason as airFeedReason, addAirLayers, feedStrip as airStrip, overheadList as airList, aircraftCard as airCard, idOf as airId } from "../src/air/layer.js";   // Air traffic: shared feed + map layer
 import * as R from "./civic-mod-roads.js";   // Traffic (events, cameras) + Malahat (DriveBC)
 import { busSummary, crdWide, inCRDBox, crdCams, NEAR_KM } from "./civic-mod-traffic.js";   // Traffic: bus speeds, Greater Victoria-wide events and cameras
 import * as RS from "./civic-mod-roadsigns.js";   // road-event signs (Vehicle Traffic: map, strip, list)
@@ -32,6 +35,7 @@ import { hotDef } from "./civic-mod-hot.js";   // What's Hot Now (seasonal pick,
 import { surfDef } from "./civic-mod-surf.js";   // Surf (Nature: the breaks and their live wave forecast)
 import { oaksDef, wildDef } from "./civic-stage-wild.js";   // Garry Oaks & Arbutus, Wildlife Sightings (Nature, their own maps)
 import { eventsDef } from "./civic-mod-events.js";   // Events (Lifestyle: holidays, markets, culture venues)
+import { golfDef } from "./civic-mod-golf.js";   // Golfing (Things to Do): a live Good / Fair / Poor verdict per course
 import * as CL from "./civic-mod-climate.js";   // tsunami, ENSO, seasonal outlook, ocean snapshots
 import * as HZ from "./civic-mod-hazards.js";   // Wildfires, the Earthquakes map stage, Weather Patterns (live)
 import * as FER from "./civic-mod-ferries.js";   // BC Ferries / Washington State Ferries (live AIS, Sea Traffic)
@@ -321,7 +325,9 @@ function mod(def) {
       v.list($(`${def.id}-list`));
     }),
   };
-  m.status = def.status || (() => ({ kind: DATA, text: "Data" }));
+  // the frame's colours: a live status turns stale (amber) or down (red) from its feeds' age (civic-sources.js withFreshness)
+  const st0 = def.status || (() => ({ kind: DATA, text: "Data" }));
+  m.status = (ctx) => withFreshness(def.id, st0(ctx), def.interval);
   m.season = def.season || (() => 0.5);
   m.seasonal = !!def.season && def.seasonal !== false;
   m.applies = applies;
@@ -810,7 +816,7 @@ export const lnotices = mod({
   ...L.notices({ rowsList, lineChart, colChart }),
 });
 export const crime = mod({
-  id: "crime", xBig: true, title: "Public Safety", tileTitle: "Public Safety", scale: "muni", at: ["langford"], reach: 2, tag: "Langford", eyebrow: "Langford", heading: "Public Safety",
+  id: "crime", xBig: true, title: "Public Safety", tileTitle: "Public Safety", scale: "muni", at: L.PS_PLACES, reach: 2, eyebrow: "Municipality", heading: "Public Safety",
   ...L.police({ rowsList, lineChart, colChart }),
 });
 
@@ -948,23 +954,8 @@ export const salish = mod({
   }),
 });
 
-const golfNeed = (ctx) => { const c = file("golf/playability.json", ctx); if (c.err) return { err: c.err }; if (!c.data) return null; const k = dataKey(ctx.place, "golf"); const r = c.data.regions[k];
-  // the forecast starts on the day it was fetched: drop the days already past, so days[0] is today (the map stage agrees)
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: c.data.tz || "America/Vancouver" }).format(ctx.date), di = r ? Math.max(0, r.days.findIndex((x) => x.date === today)) : 0;
-  return r ? { days: r.days.slice(di), k, gen: c.data.generated } : { err: new Error("no region") }; };
-export const golf = mod({
-  id: "golf", title: "Golfing", tileTitle: "Golfing", scale: "region", at: ["crd", "metrovan"], reach: 1, eyebrow: "Region", heading: "Golfing", need: golfNeed,
-  season: (m) => 0.3 + 0.6 * bump(m, 7, 2.3),
-  status: (ctx) => { const c = file("golf/playability.json", ctx).data; return { kind: DATA, text: c ? asOf(c.generated) : "Data", long: "Published forecast (golf/playability.json): playable hours per course from the weather forecast" }; },
-  source: () => "Course list + weather forecast",
-  badge: (d) => `${d.days[0].median_playable_h.toFixed(0)} h`,
-  tileKpis: (d) => { const best = d.days.slice().sort((a, b) => b.median_playable_h - a.median_playable_h)[0]; return [[`${d.days[0].median_playable_h.toFixed(1)} h`, "playable today (median course)"], [d3.timeFormat("%a")(parseDay(best.date)), `best day · ${best.median_playable_h.toFixed(1)} h`]]; },
-  kpis: (d) => [["Today", `${d.days[0].median_playable_h.toFixed(1)} h`, "median course"], ["Best course today", `${d.days[0].max_playable_h.toFixed(1)} h`], ["Week", `${d3.sum(d.days, (x) => x.median_playable_h).toFixed(0)} h`, "playable, median course"]],
-  mini: (host, d) => colChart(host, d.days.map((x, i) => ({ label: d3.timeFormat("%a")(parseDay(x.date))[0], v: x.median_playable_h, hl: i === 0, title: d3.timeFormat("%a %b %-d")(parseDay(x.date)) })), { mini: true, labels: true, color: "var(--s1)", unit: "playable hours", fmt: (v) => v.toFixed(1) }),
-  main: (d) => ({ title: "Playable hours by day", sub: "Median course (bars) and the best course (dots in the list): dry, light wind, warm enough, in daylight.",
-    draw: (host) => colChart(host, d.days.map((x) => ({ label: d3.timeFormat("%a %-d")(parseDay(x.date)), v: x.median_playable_h })), { color: "var(--s1)", unit: "playable hours", yFmt: (v) => `${v} h`, fmt: (v) => v.toFixed(1) }),
-    listTitle: "Day by day", list: (host) => rowsList(host, d.days.map((x) => [d3.timeFormat("%a %b %-d")(parseDay(x.date)), `${x.median_playable_h.toFixed(1)} h · best ${x.max_playable_h.toFixed(1)} h`])) }),
-});
+// Golfing (Things to Do): "should I play, and where, right now?" (civic-mod-golf.js)
+export const golf = mod(golfDef({ LIVE, DATA, PLANNED, rowsList }));
 
 // Parks & Trails (Nature): civic-mod-trails.js
 export const trails = mod(trailsDef({ LIVE, DATA, PLANNED, rowsList }));
@@ -1055,7 +1046,7 @@ const airSrc = (d) => (d?.fs?.source === "adsb_fi" ? "adsb.fi" : "adsb.lol");
 // eases to it, rings it and shows its card; clicking it again (map, list or alert) clears it.
 const AIR_LEAF = "#getting-around/airtraffic";
 // an airport (outline click) is selected the same way, as apt-<ICAO or IATA> (#getting-around/airtraffic/apt-CYYJ)
-const airStage = { layer: null, apt: null, map: null, sel: "", poi: "", route: undefined, fly: false };
+const airStage = { layer: null, apt: null, map: null, sel: "", poi: "", route: undefined, fly: false, relay: null, rt: null };
 function airHash() {
   const item = airStage.sel || (airStage.poi ? `apt-${airStage.poi}` : "");
   airStage.route = item || null;
@@ -1063,7 +1054,10 @@ function airHash() {
   airStage.apt?.select(airStage.poi);
 }
 function airPick(id, ctx, { fly = false } = {}) {
+  const was = airStage.sel;
   airStage.sel = id && id !== airStage.sel ? id : "";
+  if (was && was !== airStage.sel) stopFollow(`air:${was}`);
+  airStage.wake?.();
   if (airStage.sel) airStage.poi = "";
   airHash();
   airStage.layer?.select(airStage.sel); airStage.fly = fly && !!airStage.sel; airFly();
@@ -1072,7 +1066,7 @@ function airPick(id, ctx, { fly = false } = {}) {
 /** pick an airport by its code (or clear it: the same airport again) */
 function airPickApt(code, ctx) {
   airStage.poi = code && code !== airStage.poi ? code : "";
-  if (airStage.poi) airStage.sel = "";
+  if (airStage.poi) { if (airStage.sel) stopFollow(`air:${airStage.sel}`); airStage.sel = ""; airStage.wake?.(); }
   airHash(); airStage.layer?.select("");
   ctx.refresh?.();
 }
@@ -1083,7 +1077,9 @@ function airSyncRoute() {
   if (item !== airStage.route) {
     airStage.route = item;
     const apt = item && /^apt-/.test(item) ? item.slice(4) : "";
-    airStage.poi = apt; airStage.sel = apt ? "" : item || ""; airStage.fly = !!airStage.sel;
+    const next = apt ? "" : item || "";
+    if (airStage.sel && airStage.sel !== next) stopFollow(`air:${airStage.sel}`);
+    airStage.poi = apt; airStage.sel = next; airStage.fly = !!airStage.sel;
     airStage.layer?.select(airStage.sel); airStage.apt?.select(airStage.poi); airFly();
   }
 }
@@ -1091,6 +1087,29 @@ function airFly() {
   const m = airStage.map; if (!airStage.fly || !airStage.sel || !airStage.layer || !m) return;
   const ll = airStage.layer.where(airStage.sel); if (!ll) return;
   airStage.fly = false; m.easeTo({ center: ll, zoom: Math.max(m.getZoom(), 11), duration: 900 });
+}
+/** { line, label, text } or null: the selected aircraft's probable route: a great circle to the destination its callsign's
+ *  usual route names (adsbdb.com, looked up for the selected aircraft only and never stored; trusted only when the aircraft
+ *  is near that route, routeFits), else 5 minutes along its track */
+function airProbable(a) {
+  if (!a || !airborne(a)) return null;
+  const lat = a.nlat ?? a.lat, lon = a.nlon ?? a.lon, id = airId(a);
+  if (a.flight && airStage.rt?.id !== id) {
+    airStage.rt = { id, rt: null };
+    lookupRoute(a.flight).then((rt) => { if (airStage.rt?.id === id) { airStage.rt.rt = rt; airStage.wake?.(); } }, () => {});
+  }
+  const rt = airStage.rt?.id === id ? airStage.rt.rt : null, fit = rt && routeFits(rt, lat, lon);
+  // near the route's origin and heading back towards it: an arrival on a reused callsign (or the return flight), not this route
+  const brg = (la1, lo1, la2, lo2) => (Math.atan2((lo2 - lo1) * Math.cos((la1 * Math.PI) / 180), la2 - la1) * 180) / Math.PI;
+  const back = rt?.from?.lat != null && a.track != null && airKm(lat, lon, rt.from.lat, rt.from.lon) < 30
+    && Math.abs(((brg(lat, lon, rt.from.lat, rt.from.lon) - a.track + 540) % 360) - 180) < 90;
+  if (fit?.ok && !back && rt.to?.lat != null && airKm(lat, lon, rt.to.lat, rt.to.lon) > 3) {
+    const code = rt.to.iata || rt.to.icao || "";
+    return { line: greatCircle([lon, lat], [rt.to.lon, rt.to.lat], 48), label: `probable route${code ? ` to ${code}` : ""}`,
+      text: `to ${rt.to.city || rt.to.name || code}${code ? ` (${code})` : ""}, from the callsign's usual route (adsbdb.com)` };
+  }
+  if (a.track != null && (a.gs ?? 0) >= 60) return { line: aheadOf([lon, lat], a.track, (a.gs * 1.852 * 5) / 60), label: "probable course", text: "5 minutes along its track" };
+  return null;
 }
 function airStageLayer(map, ctx) {
   const [lon, lat] = ctx.place.ll, R = airMapKm(ctx.place), feed = airWatch(lat, lon, airIsCRD(ctx.place), ctx);
@@ -1102,10 +1121,26 @@ function airStageLayer(map, ctx) {
   airStage.layer = addAirLayers(map, { feed, rangeKm: AIR_KM, filter: (a) => a.km == null || a.km <= R, beforeId: map.getLayer("st-place-p") ? "st-place-p" : undefined,
     onSelect: (a) => airPick(airId(a), ctx) });
   airStage.layer.select(airStage.sel);
-  const fly = () => airFly(); feed.on(fly); setTimeout(fly, 800);
+  // the selected aircraft's wake (this session's fixes and the relay's last 90 min) and its probable route, under the aircraft
+  const trail = addTrail(map, "air-trail", { beforeId: () => (map.getLayer("air-sele") ? "air-sele" : "st-place-p") }), set = hubSetFor(ctx.place);
+  const note = () => { for (const a of feed.list()) if (a.hex) remember(`air:${a.hex}`, a.lon, a.lat, a.fix); };
+  const wake = () => {
+    const a = airStage.sel && feed.list().find((x) => airId(x) === airStage.sel);
+    if (!a || !airborne(a)) { trail.clear(); return; }
+    if (a.hex && airStage.relay?.id !== a.hex) { airStage.relay = { id: a.hex, pts: [] }; relayTrack(set, "air", a.hex).then((pts) => { if (airStage.relay?.id === a.hex) { airStage.relay.pts = pts; wake(); } }); }
+    const past = mergeTracks(a.hex && airStage.relay?.id === a.hex ? airStage.relay.pts : [], historyOf(`air:${a.hex}`));
+    past.push([a.nlon ?? a.lon, a.nlat ?? a.lat, Date.now() / 1000]);
+    const next = airProbable(a);
+    trail.set({ past, ahead: next?.line, label: next?.label });
+  };
+  airStage.wake = wake;
+  const fly = () => { const flying = airStage.fly; airFly(); note(); wake(); if (!flying) followTick(); };
+  feed.on(fly); setTimeout(fly, 800);
+  const tick = setInterval(() => { if (!document.hidden && airStage.sel) wake(); }, 2000);   // the wake keeps up with the moving aircraft
   // the hub paces adsb.lol to its daily allowance whatever the page asks; 10 s only while this page is open
   feed.setEvery(10000);
-  return () => { feed.off(fly); feed.setEvery(30000); airStage.layer?.destroy(); airStage.layer = null; airStage.apt?.destroy(); airStage.apt = null; airStage.map = null; };
+  return () => { feed.off(fly); clearInterval(tick); trail.remove(); stopFollow("air:"); if (airStage.wake === wake) airStage.wake = null;
+    feed.setEvery(30000); airStage.layer?.destroy(); airStage.layer = null; airStage.apt?.destroy(); airStage.apt = null; airStage.map = null; };
 }
 function airStagePanel(ctx) {
   airSyncRoute(ctx);
@@ -1118,7 +1153,10 @@ function airStagePanel(ctx) {
   const apt = airStage.poi && (local || world) ? airportFacts({ icao: /^[A-Z]{4}$/.test(airStage.poi) ? airStage.poi : "", iata: /^[A-Z0-9]{3}$/.test(airStage.poi) ? airStage.poi : "", name: airStage.poi }, local, world) : null;
   return el("div", { class: "civ-fp-body" },
     d.fs ? airStrip(d.fs) : el("p", { class: "note" }, d.kind === DATA ? `Last logged poll, ${hhmm(d.asOf)}: the live feed is connecting or retrying.` : "Live aircraft need the relay; retrying."),
-    sel ? el("div", { class: "air-selcard" }, airCard(sel, { place: ctx.place.short }), el("button", { type: "button", class: "air-selx", title: "Clear the selection", "aria-label": "Clear the selection", onclick: () => airPick(null, ctx) }, "×"))
+    sel ? el("div", { class: "air-selcard" }, airCard(sel, { place: ctx.place.short }),
+      airStage.map ? el("div", { class: "air-selfollow" }, followButton({ map: airStage.map, key: `air:${airId(sel)}`, name: callsign(sel), where: () => airStage.layer?.where(airId(sel)) || null })) : null,
+      (() => { const pr = airProbable(sel); return pr ? el("p", { class: "air-next" }, el("b", {}, "Probable route "), `${pr.text} (inferred)`) : null; })(),
+      el("button", { type: "button", class: "air-selx", title: "Clear the selection", "aria-label": "Clear the selection", onclick: () => airPick(null, ctx) }, "×"))
       : airStage.sel ? el("p", { class: "note" }, `Aircraft ${airStage.sel} isn't in the live feed right now.`) : null,
     apt ? el("div", { class: "air-selcard" }, airportCard(apt, wide, { onClose: () => airPickApt(null, ctx), onPick: (a) => airPick(airId(a), ctx, { fly: true }), idOf: airId, sel: airStage.sel, color: (a) => kindColor(a.kind || "other") }))
       : airStage.poi && (local || world) ? el("p", { class: "note" }, `Airport ${airStage.poi} isn't in the airport list.`) : null,
@@ -1186,6 +1224,13 @@ export const airtraffic = mod({
       const [lon, lat] = ctx.place.ll, R = airMapKm(ctx.place), dy = (0.62 * R) / 110.57, dx = (0.95 * R) / (111.32 * Math.cos((lat * Math.PI) / 180));
       return { center: [lon, lat], zoom: 9, bounds: [[lon - dx, lat - dy], [lon + dx, lat + dy]] }; } },
   status: (ctx) => { const d = airNeed(ctx); const k = d?.kind || LIVE, lv = d?.fs?.level;
+    // behind or down: say since when and why (civic-sources.js shows "Delayed · 4 min ago · adsb.lol rate-limited …")
+    const fs = airWatch(ctx.place.ll[1], ctx.place.ll[0], airIsCRD(ctx.place), ctx).state(), why = airFeedReason(fs);
+    if (d && (k !== LIVE || lv === "delayed" || lv === "down") && (fs.err || lv !== "live")) {
+      const since = fs.asOf ? fs.asOf * 1000 : d.asOf ? +d.asOf : undefined, down = k !== LIVE || lv === "down";
+      return { kind: down ? "down" : "stale", text: down ? "Feed down" : "Delayed", since, reason: why,
+        long: `${k === DATA ? "Showing the last logged poll (air/air.json). " : "Aircraft are moved on along their track and fade. "}adsb.lol positions (ODbL) through the relay; it retries on its own.` };
+    }
     return { kind: k, text: k === LIVE ? (lv === "down" ? "Feed down" : lv === "delayed" ? "Delayed" : "Live") : k === DATA ? "Logged" : "No feed",
       long: k === LIVE ? `${airFeedText(d?.fs)} ${airSrc(d)} aircraft positions (${airSrc(d) === "adsb.fi" ? "adsb.fi open data, non-commercial" : "ODbL"}) through the relay every 30 s, moved on along their track between reports; airports from OurAirports (public domain)`
         : k === DATA ? "Last logged poll (air/air.json) while the live feed connects or retries; adsb.lol data (ODbL)"
@@ -1256,6 +1301,13 @@ export const waterways = mod({
   tag: "Salish Sea",   // the tab names the water the map shows (civic.js scaleTag), not the place's region
   need: wwNeed, season: (m) => 0.35 + 0.55 * bump(m, 7.3, 1.9), seasonal: false,
   status: (ctx) => { const c = file("ships/typical.json", ctx).data, ais = FER.aisState();
+    // the live list behind (older than 5 min, the relay polls every minute) or gone: say since when and why
+    if (ais.n && Date.now() - ais.asOf >= 5 * 60e3 || (!ais.n && ais.err)) {
+      const why = /AISSTREAM_API_KEY|needs_key/i.test(ais.why || ais.err?.message || "") ? "live ships not set up on the relay" : /failed to fetch|networkerror/i.test(ais.err?.message || ais.why || "") ? "relay unreachable"
+        : /aisstream/i.test(ais.why || "") ? ais.why.slice(0, 80) : ais.why || (ais.err ? String(ais.err.message || ais.err).slice(0, 80) : "no new ship reports");
+      return { kind: ais.n ? "stale" : "down", text: ais.n ? "Delayed" : "Feed down", since: ais.asOf || undefined, reason: why,
+        long: `${ais.n ? `${ais.n} ships from the last good AIS snapshot (aisstream.io through the relay), drawn faded where old` : "No live ships yet"}; not for navigation. The typical week is US Coast Guard AIS (NOAA / BOEM Marine Cadastre, public domain).` };
+    }
     if (ais.n && Date.now() - ais.asOf < 15 * 60e3) return { kind: LIVE, text: "Live", long: `${ais.n} ships live from aisstream.io through the relay (not for navigation); the typical week is US Coast Guard AIS (NOAA / BOEM Marine Cadastre, public domain).` };
     return { kind: DATA, text: "Typical week", long: `Published data (ships/typical.json): one week of US Coast Guard AIS${c ? `, ${wwDays(c)}` : ""} (NOAA / BOEM Marine Cadastre, public domain). Live ships (aisstream.io, through the relay) appear on the map when the relay answers.` }; },
   source: (ctx) => { const c = file("ships/typical.json", ctx).data; return c ? `NOAA AIS · week of ${d3.timeFormat("%b %-d")(parseDay(c.days[0]))}` : "NOAA AIS"; },

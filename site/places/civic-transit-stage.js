@@ -16,8 +16,9 @@ import { addTransitLayers, rKey, vKey, placeOf, headOf, speedOf, vivid } from ".
 import { vehicleCard, vehicleTitle } from "../src/blink/tcards.js";
 import { speedCard } from "../src/blink/speed.js";
 import { departuresList } from "../src/blink/tnext.js";
+import { followButton, followTick, stopFollow, addRing, setRing, removeRing } from "./civic-follow.js";   // the white ring + Follow on a picked bus
 
-const S = { core: null, L: null, mode: "", drawer: null, deps: null, r95: null, ag: null, pk: "", title: "", open: false, item: null, speed: null };
+const S = { core: null, L: null, mode: "", drawer: null, deps: null, r95: null, ag: null, pk: "", title: "", open: false, item: null, speed: null, map: null };
 const isDark = () => (document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches);
 
 /** first use: point the shared transit state at this place, load the network, start the vehicle poll */
@@ -50,17 +51,34 @@ function frame() {
   // the shell re-measures the free map area on resize: let it now, so a selection is fitted beside the open drawer
   if (was !== panel.hidden) requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
 }
+// the picked bus's white ring (civic-follow.js), on the fleet's own source (tlayers.js "tr-veh", feature property key)
+const RING = "trs-ring";
+const ringFilter = () => ["==", ["get", "key"], S.item?.startsWith("v:") ? S.item : ""];
+function ring() {
+  const m = S.map; if (!m || !m.getSource("tr-veh")) return;
+  if (!m.getLayer(RING)) addRing(m, { id: RING, source: "tr-veh", filter: ringFilter(), beforeId: "tr-veh", radius: ["interpolate", ["linear"], ["zoom"], 10, 11, 13, 15, 16, 21] });
+  else setRing(m, RING, ringFilter());
+}
+const busAt = (item) => { const v = allVehicles().find((x) => vKey(x) === item); return v && v.lat != null ? [v.lon, v.lat] : null; };
 function pick(item) {
+  if (S.item && S.item !== item) stopFollow(`bus:${S.item}`);
   S.item = item; S.speed = null;
+  ring();
   // the spotlight keeps Route 95 lit when nothing else is picked
   S.L?.select(item || (S.mode === "route95" ? r95Key() : null)); S.L?.corridor(null);
   paintR95();
   if (!item) { setDrawer(null, null); return; }
-  if (item.startsWith("v:")) { const t = vehicleTitle(item); setDrawer(t?.title || "Vehicle", vehicleCard(item, { links: false })); }
+  if (item.startsWith("v:")) {
+    const t = vehicleTitle(item);
+    setDrawer(t?.title || "Vehicle", el("div", { class: "civ-trveh" },
+      S.map ? el("div", { class: "civ-trfollow" }, followButton({ map: S.map, key: `bus:${item}`, name: t?.title || "the bus", where: () => busAt(item) })) : null,
+      vehicleCard(item, { links: false })));
+  }
   else { const r = routes().find((x) => rKey(x) === item); setDrawer(r ? `Route ${r.name}${r.l && r.l !== r.name ? ` · ${r.l}` : ""}` : "Route", el("p", { class: "note" }, "This route is drawn bright on the map; its buses are the ones still in full colour.")); }
 }
 function speed(rowId) {
-  S.item = null; S.speed = rowId;
+  if (S.item) stopFollow(`bus:${S.item}`);
+  S.item = null; S.speed = rowId; ring();
   S.L?.select(null); S.L?.corridor(rowId);
   setDrawer("Road Speed", speedCard(rowId, { onPick: (it) => pick(it) }));
 }
@@ -73,18 +91,26 @@ export function transitLayer(mode) {
     prime(ctx);
     S.mode = mode;
     const L = addTransitLayers(map, { onPick: (item) => pick(item), dark: isDark, follow: true });
-    S.L = L;
+    S.L = L; S.map = map;
+    // the ring follows the fleet's layers (re-added after a style change) and each refresh; a followed bus is recentred
+    const onLive = () => { ring(); followTick(); }, onStyle = () => setTimeout(ring, 0);
+    addEventListener("transit-live", onLive); map.on("style.load", onStyle); map.on("idle", ring);
     const onHash = () => { const s = speedFromHash(); if (s && s !== S.speed) speed(s); };
     S.core?.then(() => {
       if (S.L !== L) return;
       L.update();
       if (S.item) L.select(S.item);
       else if (mode === "route95") { const k = r95Key(); if (k) L.select(k); }
+      ring();
       onHash();
       paintR95();
     });
     addEventListener("hashchange", onHash);
-    return () => { removeEventListener("hashchange", onHash); try { L.destroy(); } catch { /* gone with the style */ } if (S.L === L) S.L = null; };
+    return () => {
+      removeEventListener("hashchange", onHash); removeEventListener("transit-live", onLive); map.off("style.load", onStyle); map.off("idle", ring);
+      stopFollow("bus:"); removeRing(map, RING);
+      try { L.destroy(); } catch { /* gone with the style */ } if (S.L === L) { S.L = null; S.map = null; }
+    };
   };
 }
 

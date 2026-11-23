@@ -1,5 +1,5 @@
 /* Open Places: road-event signs (civic-mod-roadsigns.js). Sign colours stay the same in light and dark, like real signs. */
-:root { --sev-minor: #f2c12e; --sev-moderate: #f08a24; --sev-major: #d8352a; --sev-off: #9aa1ab; }
+:root { --sev-minor: #f2c12e; --sev-moderate: #f08a24; --sev-major: #d8352a; --sev-off: #9aa1ab; --sev-works: #f27a1a; }
 .civ-sign { display: inline-flex; flex: none; line-height: 0; vertical-align: -3px; }
 .civ-sign svg { overflow: visible; }
 

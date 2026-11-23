@@ -134,12 +134,10 @@ export function camImage() {
 }
 /** button size by zoom: legible at region zoom, a little larger close in */
 export const CAM_SIZE = ["interpolate", ["linear"], ["zoom"], 7, 0.62, 10, 0.8, 13, 1];
-/** the camera popup (a live thumbnail and the larger view), for any site from civic-mod-roads.js */
+/** the camera panel on the map: every angle at the site as a thumbnail (direction, age); a thumbnail opens the viewer */
 export function camPopup(site) {
-  const host = el("div", { class: "civ-popcam" });
-  const n = el("div", { class: "civ-popc" }, el("div", { class: "civ-popk" }, icon("camera", { size: 13 }), "DriveBC camera"), el("b", { class: "civ-popt" }, site.name), host,
-    el("button", { type: "button", class: "civ-popa", onclick: () => R.camDialog(site) }, site.cams.length > 1 ? `All ${site.cams.length} views →` : "Larger view →"));
-  requestAnimationFrame(() => { host.style.height = "120px"; R.camStrip(host, [site]); });
+  const n = R.camSitePanel(site);
+  n.querySelector(".civ-popk")?.prepend(icon("camera", { size: 13 }));
   return n;
 }
 

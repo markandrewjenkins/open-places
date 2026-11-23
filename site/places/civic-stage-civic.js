@@ -16,9 +16,8 @@ import * as d3 from "d3";
 import { el } from "../src/shared/ui.js";
 import { file, get as cached, ecccAlerts, nwsCount, km, provinceOf, countryOf, f0, parseDay } from "./civic-data.js";
 import { color } from "./civic-stage.js";
-import { lnotices, water, grid, enso, outlook, unusual, ar, arSeries, tsunami, hazards, bigquakes, natalerts, wx, aq, ferry, bike, ttc, waterwaysNext } from "./civic-modules.js";
+import { water, grid, enso, outlook, unusual, ar, arSeries, tsunami, hazards, bigquakes, natalerts, wx, aq, ferry, bike, ttc, waterwaysNext } from "./civic-modules.js";
 import { radarLayer, radarPanel } from "./civic-mod-weather.js";
-import { meetingsPanel } from "./civic-mod-local.js";   // City Notices: Langford's council and committee meetings
 import { parentView, arNowPanel, ensoNowPanel } from "./civic-mod-hazards.js";
 import * as TR from "../src/blink/transit.js";
 import "./civic-stage-civic.css";
@@ -74,13 +73,7 @@ function modPanel(m, ctx, { id, title, part = "main", list = part === "list", h,
 const swatches = (title, items) => el("div", { class: "civ-leg" }, title ? el("span", { class: "civ-leg-t" }, title) : null,
   ...items.map(([c, l]) => el("span", { class: "civ-leg-i" }, el("i", { style: `background:${c}` }), l)));
 
-// ================================================================== City Notices (Langford)
-// Growth & Building (all of Greater Victoria) has its own stage in civic-mod-growth.js.
-const CSD = (ctx) => file("langford/crd_csd.json", ctx);
-
-// Municipal Notices: the notices carry no locations, so the map shows the City's boundary and the list floats over it
-const LF_OUTLINE = { id: "lf-outline", title: "City of Langford", kind: "fill", passive: true, color: "var(--m-lnotices, var(--accent))",
-  data: (ctx) => { const g = CSD(ctx).data; const f = g?.features.find((x) => x.properties.id === "5917044"); return f ? fc([{ ...f, properties: { title: "City of Langford", fop: 0.08 } }]) : null; } };
+// City Notices, Public Safety (civic-mod-local.js) and Growth & Building (civic-mod-growth.js) have their own stages.
 
 // ================================================================== Water & power
 const WMAP = (ctx) => file("water/map.json", ctx);
@@ -317,12 +310,6 @@ const TTC_ST = { id: "ttc-st", title: "Delays by station", icon: "train", color:
 // ================================================================== the stage entries
 const view = (center, zoom, bounds = null) => () => ({ center, zoom, bounds });
 export const CIVIC_STAGES = {
-  lnotices: { layout: "map", pane: "none", layers: [LF_OUTLINE],
-    view: (ctx) => { const f = CSD(ctx).data?.features.find((x) => x.properties.id === "5917044"); return f ? { center: ctx.place.ll, zoom: 13, bounds: bboxOf([f.geometry]) } : { center: ctx.place.ll, zoom: 12.2 }; },
-    panels: (ctx) => [{ id: "ln-meet", title: "Council & Committee Meetings", place: "left", el: meetingsPanel(ctx) },
-      modPanel(lnotices, ctx, { id: "ln", title: "City News", list: true, lede: "City of Langford news from langford.ca, newest first; each opens the City's page. Notices carry no locations, so the map shows the City's boundary.",
-      credit: "City of Langford (headlines and links only, no open licence) · boundary: Statistics Canada Open Licence" })] },
-
   water: { layout: "map", pane: "none", layers: W_LAYERS, view: view([-114.5, 37.5], 6, [[-124.6, 31.4], [-104.6, 43.6]]),
     panels: (ctx) => [modPanel(water, ctx, { id: "w", title: "Lake Mead", h: 200, credit: W_CREDIT, lede: "Elevation, last 15 years. The line is the Tier 1 shortage trigger (1,075 ft). Map: reservoirs by storage against the average for the date." ,
       legend: swatches(null, [["var(--live, var(--good))", "80%+ of average"], ["var(--warn)", "50–80%"], ["var(--bad)", "under 50%"]]) }), waterOddsPanel(ctx)] },

@@ -17,10 +17,10 @@ const SOURCES = [
   ["nws", "NWS alerts", "Public domain", /api\.weather\.gov/, 30, "live"],
   ["drivebc", "DriveBC Open511 road events", "Open Government Licence – BC", /open511\.gov\.bc\.ca|\/drivebc\//, 15, "live"],
   ["drivebc-cams", "DriveBC highway cameras", "Open Government Licence – BC", /drivebc\.ca\/images|data\/roads\/cams\.json/, 30, "live"],
-  ["bct", "Transit GTFS-Realtime (relay)", "BC Transit open data licence; agency open data", /\/rt\//, 5, "live"],
+  ["bct", "Transit GTFS-Realtime (relay)", "BC Transit open data licence; agency open data", /\/rt\/|\/live\?.*parts=[^&]*transit/, 5, "live"],
   ["gtfs", "Transit timetables (GTFS)", "BC Transit open data licence; agency open data", /data\/blink\/agencies/, 60 * 24 * 8, "data"],
-  ["adsb", "adsb.lol aircraft (relay)", "ODbL 1.0", /\/air\//, 5, "live"],
-  ["ais", "aisstream.io AIS (relay)", "No published terms; credited", /\/ais\//, 10, "live"],
+  ["adsb", "adsb.lol aircraft (relay)", "ODbL 1.0", /\/air\/|\/live\?.*parts=[^&]*air/, 5, "live"],
+  ["ais", "aisstream.io AIS (relay)", "No published terms; credited", /\/ais\/|\/live\?.*parts=[^&]*ais/, 10, "live"],
   ["bcparks", "BC Parks advisories", "Open Government Licence – BC", /bcparks\.api\.gov\.bc\.ca/, 30, "live"],
   ["langford", "City of Langford news and pages", "Display only (headlines and links)", /langford\.ca\/wp-json|\/local\/meetings/, 120, "live"],
   ["police", "Police news releases (relay)", "Headlines and links only", /\/local\/police/, 60, "live"],
@@ -35,10 +35,10 @@ const SOURCES = [
   ["data", "Open Places published data", "Each project's sources (see its page)", /\/data\/(?!roads\/cams|blink\/agencies)/, 60 * 24 * 3, "data"],
 ].map(([id, name, licence, re, fresh, kind]) => ({ id, name, licence, re, fresh, kind }));
 const byId = new Map(SOURCES.map((s) => [s.id, s]));
-const match = (url) => SOURCES.find((s) => s.re.test(url));
+const match = (url) => SOURCES.filter((s) => s.re.test(url));   // the relay's /live?parts=air,ais,transit feeds several at once
 const listeners = new Set();
-const note = (url, ok) => {
-  const s = match(url); if (!s) return;
+const note = (url, ok) => { for (const s of match(url)) note1(s, url, ok); };
+const note1 = (s, url, ok) => {
   const r = seen.get(s.id) || { ok: 0, err: null, errAt: 0, n: 0, files: new Map() };
   if (ok) { r.ok = Date.now(); r.err = null; r.n++; } else { r.errAt = Date.now(); r.err = ok === false ? "failed" : String(ok); }
   if (s.id === "data") { const f = /\/data\/([^/?]+)/.exec(url)?.[1]; if (f) r.files.set(f, ok ? Date.now() : -Date.now()); }
@@ -76,6 +76,38 @@ export function freshOf(id) {
 
 export const age = (t) => { const m = Math.round((Date.now() - t) / 6e4); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 2880 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
 export const clock = (t) => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).replace(/\s?([AP])\.?M\.?/i, (x, a) => ` ${a.toLowerCase()}m`);
+// ------------------------------------------------------------------ a live module's colour: live (green) · stale (amber) · down (red)
+// status(ctx) may say so itself: { kind: "stale", text, long, since (ms of the last data), reason } or { kind: "down", … }.
+// Otherwise a "live" status is checked against the module's live sources here: when none of them has answered within
+// its expected interval (the module's `interval` in minutes, else each source's "fresh within" above, a few polls)
+// it turns stale; when they have only ever failed, down. Older shapes that only say "Delayed" / "Feed down" in their
+// text are coloured the same way.
+export const STALE = "stale", DOWN = "down";
+const when = (t) => `last data ${age(t)}, ${clock(t)}`;
+export function withFreshness(id, st, intervalMin) {
+  if (!st) return st;
+  const k = st.kind;
+  if (k === STALE || k === DOWN) {
+    const lead = st.since && !/last data/i.test(st.long || "") ? `${when(st.since)[0].toUpperCase()}${when(st.since).slice(1)}${st.reason ? ` · ${st.reason}` : ""}. ` : st.reason && !String(st.long || "").includes(st.reason) ? `${st.reason}. ` : "";
+    return lead ? { ...st, long: `${lead}${st.long || ""}`.trim() } : st;
+  }
+  if (k !== "live" && k !== "estimate") return st;
+  if (/^(delayed|stale|late)\b/i.test(st.text || "")) return withFreshness(id, { ...st, kind: STALE, since: st.since || freshOf(id).at || undefined });
+  if (/^(feed down|down|offline|no feed|failed)\b/i.test(st.text || "")) return withFreshness(id, { ...st, kind: DOWN });
+  let at = 0, errAt = 0, err = null, any = false, limit = 0;
+  for (const s of (MODULE_SOURCES[id] || []).map((x) => byId.get(x)).filter((s) => s?.kind === "live")) {
+    const r = seen.get(s.id); if (!r) continue;   // not fetched on this view
+    any = true;
+    if (r.ok > at) { at = r.ok; limit = (intervalMin ?? (s.fresh >= 60 ? 2 * s.fresh : s.fresh)) * 6e4; }   // hourly feeds get two missed polls
+    if (r.err && r.errAt > errAt) { errAt = r.errAt; err = r.err; }
+  }
+  if (!any) return st;
+  const why = err && errAt > at ? "the feed isn't answering" : "";
+  if (!at && err) return { ...st, kind: DOWN, text: "Feed down", reason: why, long: `No data yet: the feed isn't answering. ${st.long || ""}`.trim() };
+  if (at && Date.now() - at > limit) return { ...st, kind: STALE, text: "Delayed", since: at, reason: why, long: `${when(at)[0].toUpperCase()}${when(at).slice(1)}${why ? ` · ${why}` : ""}. ${st.long || ""}`.trim() };
+  return st;
+}
+
 /** one source's state: fresh / stale / failed / waiting */
 function stateOf(s) {
   const r = seen.get(s.id);

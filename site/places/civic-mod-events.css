@@ -19,9 +19,6 @@
 .ev-btn i { width: 9px; height: 9px; border-radius: 50%; align-self: center; }
 .ev-btn:hover, .ev-btn:focus-visible { background: color-mix(in oklab, var(--m-events) 9%, transparent); outline: none; }
 .ev-btn.on { background: color-mix(in oklab, var(--m-events) 15%, transparent); box-shadow: inset 2px 0 0 var(--m-events); }
-.ev-cal { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
-.ev-cal small { grid-column: 2; white-space: normal; }
-.ev-cal:hover .ev-n { color: var(--accent); }
 .ev-key { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; }
 .ev-kc { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 7px; padding: 4px 4px; border: 0; border-radius: 5px; background: none; font: inherit; font-size: 12.5px; color: var(--ink); text-align: left; cursor: pointer; }
 .ev-kc i { width: 10px; height: 10px; border-radius: 50%; background: var(--kc); }

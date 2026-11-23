@@ -1,0 +1,155 @@
+{
+ "blossom:cherryplum": {
+  "what": "in bloom",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/356137258/small.jpg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/356137258/medium.jpg",
+  "license": "CC BY-NC",
+  "credit": "kamama",
+  "page": "https://www.inaturalist.org/observations/200649396",
+  "source": "iNaturalist"
+ },
+ "blossom:wildcherry": {
+  "what": "in bloom",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/628853065/small.jpg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/628853065/medium.jpg",
+  "license": "CC BY",
+  "credit": "Dino Babić",
+  "page": "https://www.inaturalist.org/observations/345092574",
+  "source": "iNaturalist"
+ },
+ "blossom:bittercherry": {
+  "what": "in bloom",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/296624975/small.jpg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/296624975/medium.jpg",
+  "license": "CC BY-NC",
+  "credit": "csiano",
+  "page": "https://www.inaturalist.org/observations/170973351",
+  "source": "iNaturalist"
+ },
+ "blossom:chokecherry": {
+  "what": "in bloom",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/30251624/small.jpg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/30251624/medium.jpg",
+  "license": "CC BY-NC",
+  "credit": "Heather Holm",
+  "page": "https://www.inaturalist.org/observations/19645327",
+  "source": "iNaturalist"
+ },
+ "foliage:cornus kousa": {
+  "what": "in fall colour",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/2020-11-08_15_52_15_Korean_Dogwood_leaves_in_autumn_along_Hidden_Meadow_Court_in_the_Franklin_Farm_section_of_Oak_Hill%2C_Fairfax_County%2C_Virginia.jpg/330px-2020-11-08_15_52_15_Korean_Dogwood_leaves_in_autumn_along_Hidden_Meadow_Court_in_the_Franklin_Farm_section_of_Oak_Hill%2C_Fairfax_County%2C_Virginia.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/2020-11-08_15_52_15_Korean_Dogwood_leaves_in_autumn_along_Hidden_Meadow_Court_in_the_Franklin_Farm_section_of_Oak_Hill%2C_Fairfax_County%2C_Virginia.jpg/330px-2020-11-08_15_52_15_Korean_Dogwood_leaves_in_autumn_along_Hidden_Meadow_Court_in_the_Franklin_Farm_section_of_Oak_Hill%2C_Fairfax_County%2C_Virginia.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Famartin",
+  "page": "https://commons.wikimedia.org/wiki/File:2020-11-08_15_52_15_Korean_Dogwood_leaves_in_autumn_along_Hidden_Meadow_Court_in_the_Franklin_Farm_section_of_Oak_Hill,_Fairfax_County,_Virginia.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "foliage:styrax": {
+  "what": "in autumn",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/5550029/small.jpg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/5550029/medium.jpg",
+  "license": "CC BY",
+  "credit": "Katja Schulz",
+  "page": "https://www.inaturalist.org/observations/4592520",
+  "source": "iNaturalist"
+ },
+ "foliage:eucommia": {
+  "what": "in fall colour",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/442796179/small.jpeg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/442796179/medium.jpeg",
+  "license": "CC BY-NC",
+  "credit": "ingester",
+  "page": "https://www.inaturalist.org/observations/247878619",
+  "source": "iNaturalist"
+ },
+ "foliage:halesia": {
+  "what": "in fall colour",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/168700722/small.jpeg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/168700722/medium.jpeg",
+  "license": "CC BY",
+  "credit": "Amber M. King",
+  "page": "https://www.inaturalist.org/observations/101039331",
+  "source": "iNaturalist"
+ },
+ "foliage:maackia": {
+  "what": "in fall colour",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/244639740/small.jpeg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/244639740/medium.jpeg",
+  "license": "CC BY-NC",
+  "credit": "Елена Анатольевна Журавлева",
+  "page": "https://www.inaturalist.org/observations/142670158",
+  "source": "iNaturalist"
+ },
+ "oaks:oak-leaves": {
+  "what": "Leaves",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/281101471/small.jpg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/281101471/medium.jpg",
+  "license": "CC BY-NC",
+  "credit": "Michael Stein",
+  "page": "https://www.inaturalist.org/photos/281101471",
+  "source": "iNaturalist"
+ },
+ "oaks:oak-bark": {
+  "what": "Bark",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/79248713/small.jpg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/79248713/medium.jpg",
+  "license": "CC BY-NC",
+  "credit": "bramble_buster",
+  "page": "https://www.inaturalist.org/photos/79248713",
+  "source": "iNaturalist"
+ },
+ "oaks:oak-acorns": {
+  "what": "Acorns",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/44734464/small.jpg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/44734464/medium.jpg",
+  "license": "CC BY",
+  "credit": "Ed Alverson",
+  "page": "https://www.inaturalist.org/photos/44734464",
+  "source": "iNaturalist"
+ },
+ "oaks:oak-fall": {
+  "what": "Leaves in fall",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/5647727/small.jpg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/5647727/medium.jpg",
+  "license": "CC BY-NC",
+  "credit": "Justin Garwood",
+  "page": "https://www.inaturalist.org/photos/5647727",
+  "source": "iNaturalist"
+ },
+ "oaks:arb-leaves": {
+  "what": "Leaves",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/512185168/small.jpg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/512185168/medium.jpg",
+  "license": "CC BY-NC",
+  "credit": "Jamie",
+  "page": "https://www.inaturalist.org/photos/512185168",
+  "source": "iNaturalist"
+ },
+ "oaks:arb-bark": {
+  "what": "Bark",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/414746939/small.jpeg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/414746939/medium.jpeg",
+  "license": "CC BY",
+  "credit": "J Straka",
+  "page": "https://www.inaturalist.org/photos/414746939",
+  "source": "iNaturalist"
+ },
+ "oaks:arb-flowers": {
+  "what": "Flowers",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/15009191/small.jpg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/15009191/medium.jpg",
+  "license": "CC BY",
+  "credit": "Harry Podschwit",
+  "page": "https://www.inaturalist.org/observations/10739392",
+  "source": "iNaturalist"
+ },
+ "oaks:arb-berries": {
+  "what": "Berries",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/11192647/small.jpeg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/11192647/medium.jpeg",
+  "license": "CC BY-NC",
+  "credit": "Mike",
+  "page": "https://www.inaturalist.org/observations/8410145",
+  "source": "iNaturalist"
+ }
+}

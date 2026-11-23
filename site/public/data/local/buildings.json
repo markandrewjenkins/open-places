@@ -1,0 +1,205 @@
+{
+ "generated": "2026-11-23T07:02:27+00:00",
+ "osm_base": "2026-11-23T06:59:04Z",
+ "licence": "© OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright)",
+ "townhalls": {
+  "langford": {
+   "name": "Langford City Hall",
+   "ll": [
+    -123.50458,
+    48.44992
+   ],
+   "addr": "877 Goldstream Avenue",
+   "osm": "node/3376742045"
+  },
+  "colwood": {
+   "name": "Colwood City Hall",
+   "ll": [
+    -123.49398,
+    48.42341
+   ],
+   "addr": "3300 Wishart Road",
+   "osm": "way/204484132"
+  },
+  "view-royal": {
+   "name": "View Royal Town Hall",
+   "ll": [
+    -123.43432,
+    48.45179
+   ],
+   "addr": "45 View Royal Avenue",
+   "osm": "way/145082803"
+  },
+  "highlands": {
+   "name": "District of Highlands Municipal Office",
+   "ll": [
+    -123.51237,
+    48.48129
+   ],
+   "addr": "1980 Millstream Road",
+   "osm": "way/330681575"
+  },
+  "metchosin": {
+   "name": "District of Metchosin Municipal Hall",
+   "ll": [
+    -123.53527,
+    48.3796
+   ],
+   "addr": "4450 Happy Valley Road",
+   "osm": "way/330681576"
+  },
+  "sooke": {
+   "name": "District of Sooke Municipal Hall",
+   "ll": [
+    -123.73151,
+    48.38258
+   ],
+   "addr": "2205 Otter Point Road",
+   "osm": "way/251719184"
+  },
+  "victoria-city": {
+   "name": "Victoria City Hall",
+   "name_full": "Victoria City Hall - siʔem tawen’ewtxw",
+   "ll": [
+    -123.36529,
+    48.42832
+   ],
+   "addr": "1 Centennial Square",
+   "osm": "relation/1371957"
+  },
+  "esquimalt": {
+   "name": "Township of Esquimalt Municipal Hall",
+   "ll": [
+    -123.4136,
+    48.42991
+   ],
+   "addr": "1229 Esquimalt Road",
+   "osm": "way/722105674"
+  },
+  "saanich": {
+   "name": "District of Saanich Municipal Hall",
+   "ll": [
+    -123.37646,
+    48.45947
+   ],
+   "addr": "770 Vernon Avenue",
+   "osm": "way/330669952"
+  },
+  "oak-bay": {
+   "name": "District of Oak Bay Municipal Hall",
+   "ll": [
+    -123.31703,
+    48.42611
+   ],
+   "addr": "2167 Oak Bay Avenue",
+   "osm": "way/259838678"
+  },
+  "central-saanich": {
+   "name": "Central Saanich Municipal Hall",
+   "ll": [
+    -123.42091,
+    48.59469
+   ],
+   "addr": "1903 Mount Newton Cross Road",
+   "osm": "way/133246542"
+  },
+  "north-saanich": {
+   "name": "North Saanich Municipal Hall",
+   "ll": [
+    -123.43283,
+    48.65628
+   ],
+   "addr": "1620 Mills Road",
+   "osm": "way/330681578"
+  },
+  "sidney": {
+   "name": "Town of Sidney Municipal Hall",
+   "ll": [
+    -123.39834,
+    48.65058
+   ],
+   "addr": "2440 Sidney Avenue",
+   "osm": "way/330681579"
+  }
+ },
+ "police": {
+  "westshore": {
+   "name": "West Shore RCMP",
+   "ll": [
+    -123.49471,
+    48.44801
+   ],
+   "addr": "698 Atkins Avenue",
+   "osm": "way/34364759"
+  },
+  "vicpd": {
+   "name": "Victoria Police Department",
+   "ll": [
+    -123.35922,
+    48.43112
+   ],
+   "addr": "850 Caledonia Avenue",
+   "osm": "way/330370578"
+  },
+  "saanich": {
+   "name": "Saanich Police Department",
+   "ll": [
+    -123.37723,
+    48.45997
+   ],
+   "addr": null,
+   "osm": "node/3376605169"
+  },
+  "oakbay": {
+   "name": "Oak Bay Police Department",
+   "ll": [
+    -123.31279,
+    48.42929
+   ],
+   "addr": null,
+   "osm": "node/32555845"
+  },
+  "centralsaanich": {
+   "name": "Central Saanich Police Service",
+   "ll": [
+    -123.42082,
+    48.59489
+   ],
+   "addr": null,
+   "osm": "node/3374026540"
+  },
+  "sidney": {
+   "name": "Sidney / North Saanich RCMP",
+   "ll": [
+    -123.39845,
+    48.65097
+   ],
+   "addr": "9895 Fourth Street",
+   "osm": "way/330442421"
+  },
+  "sooke": {
+   "name": "Sooke RCMP",
+   "ll": [
+    -123.71956,
+    48.38033
+   ],
+   "addr": "2076 Church Road",
+   "osm": "way/330442422"
+  }
+ },
+ "jurisdiction": {
+  "langford": "westshore",
+  "colwood": "westshore",
+  "view-royal": "westshore",
+  "highlands": "westshore",
+  "metchosin": "westshore",
+  "victoria-city": "vicpd",
+  "esquimalt": "vicpd",
+  "saanich": "saanich",
+  "oak-bay": "oakbay",
+  "central-saanich": "centralsaanich",
+  "sidney": "sidney",
+  "north-saanich": "sidney",
+  "sooke": "sooke"
+ }
+}

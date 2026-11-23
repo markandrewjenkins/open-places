@@ -164,7 +164,10 @@ function tickCams() {
 let camTimer = null;
 const watchCams = () => { if (!camTimer) { camTimer = setInterval(tickCams, 30e3); document.addEventListener("visibilitychange", tickCams); } queueMicrotask(tickCams); };
 
-const fClock = d3.timeFormat("%-I:%M %p");
+// camera times in BC's Pacific time (what DriveBC stamps on the picture), whatever the viewer's own time zone
+const PT_CLOCK = new Intl.DateTimeFormat("en-US", { timeZone: "America/Vancouver", hour: "numeric", minute: "2-digit" });
+const PT_DAY = new Intl.DateTimeFormat("en-US", { timeZone: "America/Vancouver", month: "short", day: "numeric" });
+const fClock = (d) => PT_CLOCK.format(d);
 const fAge = (ms) => { const m = Math.round(ms / 6e4); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 48 * 60 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
 /** ok | late | stale | off | wait, from the capture time and the camera's own update period */
 export function camState(cam) {
@@ -193,7 +196,7 @@ function camFig(cam, o = {}) {
     el("span", { class: "civ-cam-img" }, el("img", { alt, loading: "lazy", decoding: "async" })),
     o.caption === false ? null : el("span", { class: "civ-cam-cap" },
       el("b", {}, o.label || siteName(cam)),
-      el("span", { class: "civ-cam-m" }, [cam.ori && !o.big ? `looking ${dirName(cam.ori)}` : null, o.km != null ? `${o.km < 10 ? o.km.toFixed(1) : Math.round(o.km)} km` : null, (o.big || o.km == null) && cam.hwy ? `Hwy ${cam.hwy}` : null].filter(Boolean).join(" · ")),
+      el("span", { class: "civ-cam-m" }, [cam.ori && !o.big && o.dir !== false ? `looking ${dirName(cam.ori)}` : null, o.km != null ? `${o.km < 10 ? o.km.toFixed(1) : Math.round(o.km)} km` : null, (o.big || o.km == null) && cam.hwy ? `Hwy ${cam.hwy}` : null].filter(Boolean).join(" · ")),
       el("span", { class: "civ-cam-t" })));
   paintCam(n, cam);
   return n;
@@ -233,49 +236,138 @@ export function camStrip(host, sites) {
     })));
   watchCams();
 }
-// ------------------------------------------------------------------ the lightbox: one <dialog> over the page
-// A site with several directions opens on a grid of all its angles; a click on one enlarges it ("← All views" goes back).
-// A site with one camera (or camDialog(site, cam)) opens straight on the large picture. Esc, × or a click outside close it.
-let dlg = null;
+// ------------------------------------------------------------------ the camera panel and the viewer
+// Map click on a camera button → camSitePanel(site) in the map popup: every camera at the site as a thumbnail with its
+// direction and the picture's age. A thumbnail → the viewer, one <dialog> over the page: the picture large, a click
+// zooms in at that spot (again: back out), the wheel zooms, drag pans; ‹ › and the arrow keys step through the site's
+// other angles; the time the picture was taken; the next picture loads when DriveBC's period says it's due (60 s at the least). Esc, ×
+// or a click outside close it. Sites with several angles opened from the page's grid start on a grid of all of them.
+let dlg = null, viewTimers = [];
 const credit = () => el("p", { class: "note civ-camdlg-f" }, "Images: ", el("a", { href: "https://www.drivebc.ca/cameras", target: "_blank", rel: "noopener" }, "DriveBC"),
   ", BC Ministry of Transportation and Transit, ", el("a", { href: OGL_BC, target: "_blank", rel: "noopener" }, "Open Government Licence – BC"),
-  ". Each camera posts a new picture every few minutes; the time is when DriveBC took it.");
+  ". The time is when DriveBC took the picture.");
+const angleOf = (c) => (c.ori ? `Looking ${dirName(c.ori)}` : siteName(c));
+const sortCams = (site) => [...site.cams].sort((a, b) => (a.id === site.main.id ? -1 : b.id === site.main.id ? 1 : 0));
+const fDay = (d) => `${PT_DAY.format(d)}, ${fClock(d)}`;
+/** "Taken 11:21 PM Pacific · 3 min ago" (with the date when it isn't today there), or why there's no time */
+function takenText(cam) {
+  const s = shot.get(cam.id);
+  if (!s || (!s.ts && !s.err)) return "Checking when the picture was taken…";
+  if (s.err) return "DriveBC isn't serving this camera right now: its last picture, time unknown.";
+  if (!s.ts) return "DriveBC didn't say when this picture was taken.";
+  const d = new Date(s.ts), today = PT_DAY.format(new Date()) === PT_DAY.format(d), st = camState(cam);
+  return `Taken ${today ? fClock(d) : fDay(d)} Pacific · ${fAge(Date.now() - s.ts)}${st.k === "stale" ? " · stale" : st.k === "late" ? " · late" : ""}`;
+}
+
+/** the map popup's camera panel: the site, then one thumbnail per angle (direction and age); a click opens the viewer */
+export function camSitePanel(site) {
+  css();
+  const cams = sortCams(site);
+  const grid = el("div", { class: "civ-camsp-g", style: { gridTemplateColumns: `repeat(${cams.length === 1 ? 1 : 2}, minmax(0, 1fr))` } },
+    ...cams.map((c) => { const b = camFig(c, { button: true, dir: false, label: angleOf(c), title: `${c.caption || angleOf(c)}. Click for the large view.` });
+      b.addEventListener("click", (e) => { e.stopPropagation(); camDialog(site, c); });
+      return b; }));
+  watchCams();
+  return el("div", { class: "civ-popc civ-camsp" },
+    el("div", { class: "civ-popk" }, "DriveBC camera"),
+    el("b", { class: "civ-popt" }, site.name),
+    el("p", { class: "civ-popm" }, [`${cams.length} ${cams.length === 1 ? "view" : "views"}`, site.hwy ? `Hwy ${site.hwy}` : null, site.km != null ? `${site.km.toFixed(1)} km away` : null].filter(Boolean).join(" · ")),
+    grid,
+    el("p", { class: "civ-popm" }, "Click a picture for the large view."));
+}
+
+function stopView() { for (const t of viewTimers) { clearInterval(t); clearTimeout(t); } viewTimers = []; }
+/** the large picture with zoom and pan: { node, reset(), zoom(factor) } */
+function zoomer(fig) {
+  const box = el("div", { class: "civ-camv-box", title: "Click to zoom in · scroll to zoom · drag to move" }), img = fig.querySelector("img");
+  box.append(fig);
+  let z = 1, tx = 0, ty = 0, drag = null, moved = false;
+  const clamp = () => { const W = box.clientWidth, H = box.clientHeight; tx = Math.min(0, Math.max(W - W * z, tx)); ty = Math.min(0, Math.max(H - H * z, ty)); };
+  const paint = () => { clamp(); img.style.transform = `translate(${tx}px, ${ty}px) scale(${z})`; box.dataset.zoom = z > 1.01 ? "in" : "out"; };
+  const zoomAt = (px, py, z2) => { z2 = Math.max(1, Math.min(5, z2)); tx = px - (px - tx) * (z2 / z); ty = py - (py - ty) * (z2 / z); z = z2; if (z === 1) { tx = 0; ty = 0; } paint(); };
+  const local = (e) => { const r = box.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  box.addEventListener("wheel", (e) => { e.preventDefault(); const [x, y] = local(e); zoomAt(x, y, z * Math.exp(-e.deltaY * 0.0018)); }, { passive: false });
+  box.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY, tx, ty }; moved = false; box.setPointerCapture(e.pointerId); });
+  box.addEventListener("pointermove", (e) => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.hypot(dx, dy) > 4) moved = true; if (moved && z > 1) { tx = drag.tx + dx; ty = drag.ty + dy; paint(); } });
+  box.addEventListener("pointerup", (e) => { const was = drag; drag = null; if (!was || moved) return; const [x, y] = local(e); if (z > 1.01) zoomAt(x, y, 1); else zoomAt(x, y, 2.5); });
+  img.style.transformOrigin = "0 0";
+  return { node: box, reset: () => { z = 1; tx = 0; ty = 0; paint(); }, zoom: (f) => zoomAt(box.clientWidth / 2, box.clientHeight / 2, z * f) };
+}
+
 export function camDialog(site, one = null) {
   css();
   if (!dlg) {
-    dlg = el("dialog", { class: "civ-camdlg", "aria-label": "Highway camera" });
-    dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });   // a click on the backdrop closes it
+    dlg = el("dialog", { class: "civ-camdlg", "aria-label": "Highway camera", tabindex: "-1" });
+    // a click outside the box (on the backdrop) closes it
+    dlg.addEventListener("click", (e) => { const r = dlg.getBoundingClientRect(); if (e.target === dlg && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) dlg.close(); });
+    dlg.addEventListener("close", stopView);
+    document.addEventListener("keydown", (e) => { if (dlg.open && !e.altKey && !e.ctrlKey && !e.metaKey) dlg.onKey?.(e); });   // (focus can fall to the body when the view changes)
     document.body.append(dlg);
   }
-  const cams = [...site.cams].sort((a, b) => (a.id === site.main.id ? -1 : b.id === site.main.id ? 1 : 0));
-  const label = (c) => (c.ori ? `Looking ${dirName(c.ori)}` : siteName(c));
+  stopView(); dlg.onKey = null;
+  const cams = sortCams(site);
   const head = (sub) => el("header", { class: "civ-camdlg-h" },
     el("div", {}, el("h3", { class: "civ-camdlg-t" }, site.name), el("p", { class: "note" }, sub)),
     el("button", { type: "button", class: "civ-camdlg-x", "aria-label": "Close", title: "Close (Esc)", onclick: () => dlg.close() }, "×"));
   const where = [site.main.caption, site.km != null ? `${site.km.toFixed(1)} km from the place.` : null].filter(Boolean).join(" ");
   const grid = () => {
+    stopView(); dlg.onKey = null;
     dlg.dataset.view = "grid";
     dlg.replaceChildren(head(`${where} ${cams.length} views: click one to enlarge.`.trim()),
       el("div", { class: "civ-camdlg-g", style: { gridTemplateColumns: `repeat(${cams.length === 3 ? 3 : 2}, minmax(0, 1fr))` } },
         ...cams.map((c) => {
-          const b = camFig(c, { button: true, big: true, label: label(c), title: `${label(c)}: click to enlarge` });
-          b.addEventListener("click", () => full(c));
-          return el("div", { class: "civ-camdlg-c" }, b, el("a", { class: "civ-camdlg-a", href: CAM_PAGE(c.id), target: "_blank", rel: "noopener" }, "DriveBC camera page ↗"));
+          const b = camFig(c, { button: true, big: true, label: angleOf(c), title: `${angleOf(c)}: click to enlarge` });
+          b.addEventListener("click", () => view(c));
+          return el("div", { class: "civ-camdlg-c" }, b);
         })),
       credit());
   };
-  const full = (c) => {
+  const view = (c) => {
+    stopView();
     dlg.dataset.view = "full";
-    dlg.replaceChildren(head(where),
-      el("div", { class: "civ-camdlg-full" }, camFig(c, { big: true, label: label(c) })),
-      el("div", { class: "civ-camdlg-nav" },
-        cams.length > 1 ? el("button", { type: "button", class: "civ-camdlg-back", onclick: grid }, `← All ${cams.length} views`) : el("span"),
-        cams.length > 1 ? el("span", { class: "civ-camdlg-alts" }, ...cams.filter((x) => x !== c).map((x) => el("button", { type: "button", class: "civ-camdlg-alt", onclick: () => full(x) }, label(x)))) : null,
+    const i = cams.indexOf(c), step = (d) => view(cams[(i + d + cams.length) % cams.length]);
+    const fig = camFig(c, { big: true, caption: false }), Z = zoomer(fig);
+    const taken = el("span", { class: "civ-camv-when" }, takenText(c));
+    const nav = (d, label, sym) => el("button", { type: "button", class: `civ-camv-nav ${d < 0 ? "prev" : "next"}`, "aria-label": label, title: `${label} (${d < 0 ? "←" : "→"})`, onclick: (e) => { e.stopPropagation(); step(d); } }, sym);
+    dlg.replaceChildren(
+      head(`${angleOf(c)}${cams.length > 1 ? ` · ${i + 1} of ${cams.length}` : ""}${c.hwy ? ` · Hwy ${c.hwy}` : ""}. ${c.caption || ""}`.trim()),
+      el("div", { class: "civ-camv" }, Z.node, cams.length > 1 ? nav(-1, "Previous angle", "‹") : null, cams.length > 1 ? nav(1, "Next angle", "›") : null,
+        el("div", { class: "civ-camv-zoom" },
+          el("button", { type: "button", "aria-label": "Zoom in", title: "Zoom in (+)", onclick: () => Z.zoom(1.5) }, "+"),
+          el("button", { type: "button", "aria-label": "Zoom out", title: "Zoom out (−)", onclick: () => Z.zoom(1 / 1.5) }, "−"),
+          el("button", { type: "button", "aria-label": "Fit the picture", title: "Fit (0)", onclick: () => Z.reset() }, "Fit"))),
+      el("div", { class: "civ-camv-bar" }, taken,
+        el("span", { class: "civ-camv-every" }, `DriveBC posts a new picture about every ${Math.max(1, Math.round(c.period / 60))} min; it loads here when due (checked at most once a minute).`),
         el("a", { class: "civ-camdlg-a", href: CAM_PAGE(c.id), target: "_blank", rel: "noopener" }, "DriveBC camera page ↗")),
+      cams.length > 1 ? el("div", { class: "civ-camv-alts", role: "tablist", "aria-label": "Other angles" }, ...cams.map((x) => {
+        const t = camFig(x, { button: true, dir: false, label: angleOf(x), title: angleOf(x) });
+        if (x === c) { t.classList.add("on"); t.setAttribute("aria-selected", "true"); }
+        t.addEventListener("click", () => view(x));
+        return t;
+      })) : null,
       credit());
+    dlg.onKey = (e) => {
+      if (e.key === "ArrowRight" && cams.length > 1) { e.preventDefault(); step(1); }
+      else if (e.key === "ArrowLeft" && cams.length > 1) { e.preventDefault(); step(-1); }
+      else if (e.key === "+" || e.key === "=") Z.zoom(1.5);
+      else if (e.key === "-") Z.zoom(1 / 1.5);
+      else if (e.key === "0") Z.reset();
+    };
+    // a fresh picture while open; the age line ticks every 15 s
+    const onShot = () => { taken.textContent = takenText(c); };
+    // the next check: when DriveBC's next picture is due (its time + its period), never sooner than 60 s; a late one is
+    // looked for again each minute
+    const plan = () => {
+      const s = shot.get(c.id), now = Date.now(), at = s?.ts ? Math.max(now + 60e3, s.ts + c.period * 1000 + 20e3) : now + Math.max(60, c.period) * 1000;
+      viewTimers.push(setTimeout(async () => { if (!dlg.open) return; if (!document.hidden && !shot.get(c.id)?.busy) { await probe(c); onShot(); } plan(); }, at - now));
+    };
+    if (!shot.get(c.id)?.ts && !shot.get(c.id)?.busy) probe(c).then(() => { onShot(); plan(); }); else plan();
+    viewTimers.push(setInterval(onShot, 15e3));
+    requestAnimationFrame(() => Z.reset());
   };
-  if (one || cams.length === 1) full(one || cams[0]); else grid();
+  if (one || cams.length === 1) view(one || cams[0]); else grid();
   if (!dlg.open) dlg.showModal();
+  dlg.focus();
   watchCams();
 }
 
@@ -454,13 +546,30 @@ button.civ-cam:hover, button.civ-cam:focus-visible { border-color: var(--m-roads
 .civ-camstrip .civ-cam-img { aspect-ratio: auto; height: 100%; }
 .civ-camdlg { width: min(1040px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius, 9px); background: var(--surface); color: var(--ink); box-shadow: var(--shadow); overflow: auto; }
 .civ-camdlg[data-view="full"] { width: min(1320px, calc(100vw - 32px)); }
-.civ-camdlg-full .civ-cam-img { aspect-ratio: auto; height: min(calc(100vh - 230px), 960px); background: #000; }
-.civ-camdlg-full .civ-cam-img img { object-fit: contain; }
-.civ-camdlg-nav { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
-.civ-camdlg-nav .civ-camdlg-a { margin-left: auto; }
-.civ-camdlg-alts { display: inline-flex; gap: 6px; flex-wrap: wrap; }
-.civ-camdlg-back, .civ-camdlg-alt { all: unset; cursor: pointer; font: 600 12px/1 var(--font); padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink); background: var(--surface-2); }
-.civ-camdlg-back:hover, .civ-camdlg-alt:hover, .civ-camdlg-back:focus-visible, .civ-camdlg-alt:focus-visible { border-color: var(--m-roads, var(--accent)); }
+.civ-camv { position: relative; }
+.civ-camv-box { position: relative; overflow: hidden; border-radius: 6px; background: #000; cursor: zoom-in; touch-action: none; user-select: none; }
+.civ-camv-box[data-zoom="in"] { cursor: grab; }
+.civ-camv-box[data-zoom="in"]:active { cursor: grabbing; }
+.civ-camv-box .civ-cam { border: 0; border-radius: 0; background: #000; }
+.civ-camv-box .civ-cam-img { aspect-ratio: auto; height: min(calc(100vh - 290px), 900px); background: #000; }
+.civ-camv-box .civ-cam-img img { object-fit: contain; will-change: transform; transition: transform 0.12s ease-out; pointer-events: none; }
+.civ-camv-nav { all: unset; position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 64px; display: grid; place-items: center; cursor: pointer; font: 300 40px/1 var(--font); color: #fff; background: rgba(0, 0, 0, 0.45); border-radius: 6px; }
+.civ-camv-nav.prev { left: 10px; } .civ-camv-nav.next { right: 10px; }
+.civ-camv-nav:hover, .civ-camv-nav:focus-visible { background: rgba(0, 0, 0, 0.7); outline: 2px solid var(--m-roads, var(--accent)); }
+.civ-camv-zoom { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; }
+.civ-camv-zoom button { all: unset; cursor: pointer; min-width: 30px; height: 30px; padding: 0 8px; box-sizing: border-box; display: grid; place-items: center; font: 600 15px/1 var(--font); color: #fff; background: rgba(0, 0, 0, 0.55); border-radius: 6px; }
+.civ-camv-zoom button:hover, .civ-camv-zoom button:focus-visible { background: rgba(0, 0, 0, 0.8); outline: 2px solid var(--m-roads, var(--accent)); }
+.civ-camv-bar { display: flex; align-items: baseline; gap: 6px 14px; margin-top: 8px; flex-wrap: wrap; font: 12px/1.4 var(--font); color: var(--muted); }
+.civ-camv-when { font: 600 14px/1.3 var(--font); color: var(--ink); font-variant-numeric: tabular-nums; }
+.civ-camv-bar .civ-camdlg-a { margin-left: auto; }
+.civ-camv-alts { display: flex; gap: 8px; margin-top: 8px; overflow-x: auto; }
+.civ-camv-alts .civ-cam { flex: 0 0 150px; cursor: pointer; }
+.civ-camv-alts .civ-cam.on { border-color: var(--m-roads, var(--accent)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--m-roads, var(--accent)) 45%, transparent); }
+.civ-camsp { display: flex; flex-direction: column; gap: 4px; width: 296px; max-width: 100%; }
+.civ-camsp-g { display: grid; gap: 6px; margin: 4px 0 2px; }
+.civ-camsp-g .civ-cam { cursor: zoom-in; }
+.civ-camsp-g .civ-cam-cap { padding: 3px 5px 4px; }
+.civ-camsp-g .civ-cam-cap b { font-size: 11.5px; }
 .civ-camdlg::backdrop { background: rgba(10, 16, 24, 0.55); }
 .civ-camdlg-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .civ-camdlg-h .note { margin: 2px 0 0; }

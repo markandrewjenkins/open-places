@@ -39,6 +39,7 @@ import { classOf, classURI, addClassImages } from "../src/ships/classes.js";
 import { vesselFigure, operatorRows, loadVesselInfo } from "../src/ships/vesselinfo.js";   // exact-vessel photo, operator
 import { vesselProfileURI } from "../src/ships/profiles.js";
 import { TERMINALS, ROUTES, routeName, km as kmBetween, isFerry, isBcFerriesName, isWsfName, nameLooksFerry, ferryStatus, inFerryWaters, inWsfWaters, nearestTerminal, ferryTrip, reckon, WATCH_BOXES, inBox, PARKED_NAV } from "../src/ships/ferries.js";
+import { followButton, followTick, stopFollow, addRing, setRing } from "./civic-follow.js";   // Follow + the white selection ring
 import "./civic-mod-ferries.css";
 
 export const CREDIT = "AIS positions from aisstream.io via the Open Places relay. Not for navigation.";
@@ -81,11 +82,11 @@ function start(ctx) {
     const shown = ["ferries-main", "wsferries-main"].some((id) => document.getElementById(id)?.offsetParent);
     if (first || shown) ctx?.refresh?.(); else (ctx?.repaint || ctx?.refresh)?.();
   };
-  const onErr = (e) => { if (!L.data) { L.err = e; ctx?.refresh?.(); } };
+  const onErr = (e, m) => { L.why = m?.error || e?.message || String(e); if (!L.data) { L.err = e; ctx?.refresh?.(); } };
   const old = () => { const ok = pollRelay("/ais/salish.json", onAIS, { every: POLL_MS, onError: onErr }); if (!ok) L.err = new Error("no relay configured"); return ok; };
   // Greater Victoria: the same Salish Sea snapshot rides the place's one shared /live poll (src/shared/livehub.js)
   const set = hubSetFor(ctx?.place);
-  if (set) livePart(set, "ais", { onData: (j, m) => onAIS({ ...j, served_epoch: m.served }), onError: onErr, fallback: old });
+  if (set) livePart(set, "ais", { onData: (j, m) => { L.why = m.stale ? m.error || "the relay's ship list is old" : null; onAIS({ ...j, served_epoch: m.served }); }, onError: onErr, fallback: old });
   else old();
 }
 
@@ -93,7 +94,7 @@ function start(ctx) {
 /** start (once) the Salish Sea AIS subscription this module keeps; ctx: the shell context */
 export const startAIS = (ctx) => start(ctx);
 /** { at, err, n }: when the last snapshot arrived (this browser's clock), the error while there is none */
-export const aisState = () => ({ at: L.at, err: L.data ? null : L.err, n: L.data?.ships?.length || 0, asOf: L.data ? L.data.as_of_epoch * 1000 - L.off : 0 });
+export const aisState = () => ({ at: L.at, err: L.data ? null : L.err, n: L.data?.ships?.length || 0, asOf: L.data ? L.data.as_of_epoch * 1000 - L.off : 0, why: L.why || null });
 /** fn() after each new snapshot → off() */
 export const onAIS = (fn) => { L.subs.add(fn); return () => L.subs.delete(fn); };
 /** every vessel in the snapshot: { …AIS fields, known, rep (report time, ms on this browser's clock) } */
@@ -131,6 +132,8 @@ function ferryList(op, place) {
 }
 
 // ------------------------------------------------------------------ alerts (changes only)
+// the Washington-flagged runs that serve Victoria: Black Ball's MV Coho (Port Angeles) and FRS's Victoria Clipper (Seattle)
+const VICTORIA_FERRY = /^(M\/?V )?COHO$|^VICTORIA CLIPPER/i;
 const emit = (detail) => { if (L.alerted.has(detail.id)) return; L.alerted.add(detail.id); window.dispatchEvent(new CustomEvent("op-alert", { detail })); };
 function alerts() {
   const now = Date.now(), all = ships();
@@ -145,9 +148,13 @@ function alerts() {
     seen.add(s.mmsi);
     const since = L.stopped.get(s.mmsi) ?? now; L.stopped.set(s.mmsi, since);
     if (now - since >= STOP_ALERT_S * 1000) {
-      emit({ id: `ais:${s.mmsi}:stopped:${Math.round(since / 6e5)}`, topic: OPS[op].id, level: "notice", title: `${titleCase(s.name) || "A ferry"} stopped`,
+      // Washington waters: only the ferries that serve Victoria (Black Ball's Coho to Port Angeles, FRS's Victoria
+      // Clipper to Seattle) or anything near Sidney concern Greater Victoria; every other WSF item is a Seattle-area
+      // alert (place "seattle"), so civic-alerts.js drops it in the CRD (Right Now and the alert bar alike)
+      const vic = op === "wa" && (VICTORIA_FERRY.test(String(s.name || "").trim()) || /sidney/i.test(st.near.name || ""));
+      emit({ id: `ais:${s.mmsi}:stopped:${Math.round(since / 6e5)}`, topic: vic ? "waterways" : OPS[op].id, level: "notice", title: `${titleCase(s.name) || "A ferry"} stopped`,
         body: `${titleCase(s.name) || "A ferry"} has been stopped ${st.near.km.toFixed(1)} km from ${st.near.name} for at least ${Math.round((now - since) / 60000)} minutes (live AIS; the reason isn't published).`,
-        place: st.near.name, href: `${OPS[op].hash}/${s.mmsi}` });
+        place: op === "wa" && !vic ? "seattle" : st.near.name, href: vic ? `#getting-around/waterways/${s.mmsi}` : `${OPS[op].hash}/${s.mmsi}` });
     }
   }
   for (const id of [...L.stopped.keys()]) if (!seen.has(id)) L.stopped.delete(id);
@@ -285,7 +292,7 @@ let layerSeq = 0;
 export function addFerryLayers(map, ctx, o = {}) {
   const op = o.op || "bc", ops = OPS[op], P = `fer${++layerSeq}`;
   let d = null, sel = null, tsel = null, alive = true;
-  const ids = { routes: `${P}-routes`, trip: `${P}-trip`, tsel: `${P}-tsel`, term: `${P}-term`, termLbl: `${P}-term-lbl`, halo: `${P}-halo`, ships: `${P}-ships`, lbl: `${P}-lbl` };
+  const ids = { routes: `${P}-routes`, trip: `${P}-trip`, tsel: `${P}-tsel`, term: `${P}-term`, termLbl: `${P}-term-lbl`, halo: `${P}-halo`, haloW: `${P}-halo-w`, ships: `${P}-ships`, lbl: `${P}-lbl` };
   const shipGeo = () => fc((d?.list || []).map((x) => ({ type: "Feature", geometry: { type: "Point", coordinates: x.pos },
     properties: { id: x.id, name: titleCase(x.s.name) || "Unnamed ferry", r: Math.round(hdgOf(x.s) ?? 0), fade: x.age > 600 ? 0.45 : 1, img: `shipc-${classOf(x.s, x.s.known, { ferry: true })}` } })));
   const tripGeo = () => {
@@ -309,7 +316,7 @@ export function addFerryLayers(map, ctx, o = {}) {
     map.addLayer({ id: ids.term, type: "circle", source: ids.term, paint: { "circle-radius": ["case", ["==", ["get", "major"], 1], 5, 4], "circle-color": surface, "circle-stroke-color": ink, "circle-stroke-width": 1.6 } });
     map.addLayer({ id: ids.termLbl, type: "symbol", source: ids.term, minzoom: 7.5, filter: ["==", ["get", "major"], 1], layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Regular"], "text-size": 11,
       "text-offset": [0.7, 0], "text-anchor": "left", "text-optional": true }, paint: { "text-color": ink, "text-halo-color": surface, "text-halo-width": 1.4 } });
-    map.addLayer({ id: ids.halo, type: "circle", source: ids.ships, filter: ["==", ["get", "id"], ""], paint: { "circle-radius": 15, "circle-color": accent, "circle-opacity": 0.18, "circle-stroke-color": accent, "circle-stroke-width": 2 } });
+    addRing(map, { id: ids.halo, source: ids.ships, filter: ["==", ["get", "id"], ""], radius: 15 });   // the white ring (ids.haloW is its top layer)
     map.addLayer({ id: ids.ships, type: "symbol", source: ids.ships, layout: { "icon-image": ["get", "img"], "icon-rotate": ["get", "r"], "icon-rotation-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true,
       "icon-size": ["interpolate", ["linear"], ["zoom"], 7, 0.55, 9, 0.75, 11, 1, 14, 1.35] }, paint: { "icon-opacity": ["get", "fade"] } });
     map.addLayer({ id: ids.lbl, type: "symbol", source: ids.ships, filter: ["==", ["get", "id"], ""], layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-offset": [0, 1.6], "text-anchor": "top", "text-allow-overlap": true },
@@ -319,7 +326,7 @@ export function addFerryLayers(map, ctx, o = {}) {
   const paintSel = () => {
     if (!map.getLayer(ids.halo)) return;
     const f = ["==", ["get", "id"], sel || ""];
-    map.setFilter(ids.halo, f); map.setFilter(ids.lbl, f); map.setFilter(ids.tsel, ["==", ["get", "id"], tsel || ""]);
+    setRing(map, ids.halo, f); map.setFilter(ids.lbl, f); map.setFilter(ids.tsel, ["==", ["get", "id"], tsel || ""]);
     map.getSource(ids.trip)?.setData(tripGeo());
   };
   const onClick = (e) => { const id = e.features?.[0]?.properties?.id; if (id) o.onSelect?.(String(id)); };
@@ -334,6 +341,7 @@ export function addFerryLayers(map, ctx, o = {}) {
   if (o.restyle !== false) map.on("style.load", onStyle);
   if (map.isStyleLoaded?.() || map.getStyle()?.layers?.length) add(); else map.once("load", add);
   return {
+    map,
     update(nd) { d = nd || (ctx ? needFor(op, ctx) : d); if (!d || d.err) return; map.getSource(ids.ships)?.setData(shipGeo()); paintSel(); },
     select(id) {
       const changed = (id || null) !== sel;
@@ -375,7 +383,7 @@ export function stage(op = "bc") {
     layers: (map, ctx) => {
     const P = pane(op), h = addFerryLayers(map, ctx, { op, onSelect: (id) => setSel(op, id), onTerminal: (id) => setTerm(op, id) });
     P.stage = h; h.update(P.d || undefined); h.select(P.sel); h.selectTerminal(P.term); loadVesselInfo();
-    return () => { h.destroy(); if (P.stage === h) P.stage = null; };
+    return () => { h.destroy(); stopFollow("ferry:"); if (P.stage === h) P.stage = null; };
   } };
 }
 
@@ -396,6 +404,7 @@ export function ferryCard(x, op = "bc", o = {}) {
   return el("div", { class: "fer-card", role: "region", "aria-label": `${titleCase(s.name) || "Ferry"} details` },
     el("header", {}, el("img", { src: classURI(cls, !!o.dark), alt: "", width: 24, height: 24, style: { transform: `rotate(${Math.round(hdgOf(s) ?? 0)}deg)` } }),
       el("b", {}, titleCase(s.name) || "Unnamed ferry"),
+      o.follow ? followButton(o.follow) : null,
       o.onClose ? el("button", { type: "button", class: "fer-x", "aria-label": "Clear the selection", onclick: o.onClose }, "×") : null),
     vesselFigure(s, { drawing: vesselProfileURI(cls, { dark: !!o.dark }), label: cls === "ferry-s" ? "Small ferry" : "Large ferry" }),   // that very vessel, or the drawing
     el("dl", {}, ...rows.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, v)]), ...operatorRows(s)),
@@ -452,8 +461,9 @@ function setHash(op) {
   try { history.replaceState(null, "", item ? `${o.hash}/${encodeURIComponent(item)}` : o.hash); } catch { /* ignore */ }
 }
 function setSel(op, id) {
-  const P = pane(op);
+  const P = pane(op), was = P.sel;
   P.sel = P.sel === id ? null : id;
+  if (was && was !== P.sel) stopFollow(`ferry:${was}`);
   if (P.sel) P.term = null;
   setHash(op); paintPane(op);
 }
@@ -461,16 +471,20 @@ function setSel(op, id) {
 function setTerm(op, id) {
   const P = pane(op);
   P.term = P.term === id || !TERMINALS.some((t) => t.id === id) ? null : id;
-  if (P.term) P.sel = null;
+  if (P.term) { if (P.sel) stopFollow(`ferry:${P.sel}`); P.sel = null; }
   setHash(op); paintPane(op);
 }
 function paintPane(op) {
   const P = pane(op); if (!P.d) return;
   // a selected ferry that's no longer heard drops out
-  if (P.sel && !P.d.list.some((x) => x.id === P.sel)) P.sel = null;
+  if (P.sel && !P.d.list.some((x) => x.id === P.sel)) { stopFollow(`ferry:${P.sel}`); P.sel = null; }
   for (const h of [P.layers, P.stage]) { h?.update(P.d); h?.select(P.sel); h?.selectTerminal(P.term); }
   const x = P.sel && P.d.list.find((y) => y.id === P.sel), t = P.term && TERMINALS.find((y) => y.id === P.term);
-  const body = () => (x ? ferryCard(x, op, { onClose: () => setSel(op, P.sel), dark: P.d.dark })
+  // Follow: on the map the selected ferry is drawn on (the stage's, else the pane's own); each data arrival recentres it
+  const fmap = P.stage?.map || P.map;
+  const follow = x && fmap ? { map: fmap, key: `ferry:${x.id}`, name: titleCase(x.s.name) || "the ferry", where: () => pane(op).d?.list.find((y) => y.id === x.id)?.pos || null } : null;
+  followTick();
+  const body = () => (x ? ferryCard(x, op, { onClose: () => setSel(op, P.sel), dark: P.d.dark, follow })
     : t ? terminalCard(t, P.d, op, { onClose: () => setTerm(op, P.term), onSelect: (id) => setSel(op, id), dark: P.d.dark })
     : el("p", { class: "fer-hint" }, "Select a ferry or a terminal on the map, or a ferry in the list."));
   P.wrap?.querySelector(".fer-float")?.replaceChildren(body());

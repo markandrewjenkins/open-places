@@ -1,0 +1,49 @@
+/* Open Places: Golfing (civic-mod-golf.js). Harbour tokens only. */
+.go-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.go-seg { display: inline-flex; align-self: flex-start; border: 1px solid var(--grid); border-radius: 8px; overflow: hidden; }
+.go-seg button { font: inherit; font-size: 12px; padding: 4px 10px; border: 0; background: transparent; color: var(--ink-2); cursor: pointer; }
+.go-seg button + button { border-left: 1px solid var(--grid); }
+.go-seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--m-golf) 22%, transparent); color: var(--ink); font-weight: 600; }
+.go-head { margin: 0; font-size: 13px; color: var(--ink-2); line-height: 1.4; }
+.go-head b { color: var(--ink); }
+.go-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 760px; overflow-y: auto; }
+.go-row { width: 100%; display: grid; grid-template-columns: 18px 10px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 6px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--ink-2); font: inherit; text-align: left; cursor: pointer; }
+.go-row:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.go-row.on { background: color-mix(in srgb, var(--m-golf) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--m-golf) 55%, transparent); }
+.go-row > em { font-style: normal; font-family: var(--fig); font-size: 11px; color: var(--muted); text-align: right; }
+.go-dot { width: 10px; height: 10px; border-radius: 50%; }
+.go-n { display: flex; flex-direction: column; min-width: 0; }
+.go-n b { color: var(--ink); font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.go-n small, .go-r small { font-size: 11px; color: var(--muted); line-height: 1.3; }
+.go-n small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.go-r { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; }
+.go-pill { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 1px 7px; border-radius: 999px;
+  color: var(--v); background: color-mix(in srgb, var(--v) 16%, transparent); border: 1px solid color-mix(in srgb, var(--v) 45%, transparent); }
+.go-pill[data-v="good"] { --v: var(--live); }
+.go-pill[data-v="fair"] { --v: var(--warn); }
+.go-pill[data-v="poor"] { --v: var(--bad); }
+/* popup */
+.go-v { display: flex; align-items: center; gap: 8px; }
+.go-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; margin: 6px 0 4px; }
+.go-h { display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 10.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.go-h b { font-size: 10.5px; color: var(--muted); font-weight: 600; }
+.go-h i { display: block; width: 100%; height: 8px; border-radius: 3px; background: var(--v); }
+.go-h span { color: var(--ink); font-weight: 600; font-size: 11.5px; }
+.go-h small { font-size: 10px; color: var(--muted); }
+.go-h[data-v="good"] { --v: var(--live); }
+.go-h[data-v="fair"] { --v: var(--warn); }
+.go-h[data-v="poor"] { --v: var(--bad); }
+.go-why { margin: 4px 0 4px; padding-left: 16px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
+.go-why li[data-l="2"] { color: var(--bad); }
+.go-why li[data-l="1"] { color: var(--warn); }
+.go-why li[data-l="-1"] { color: var(--muted); list-style: circle; }
+/* conditions */
+.go-kvs { display: flex; flex-direction: column; }
+.go-kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--grid); font-size: 12.5px; color: var(--ink-2); }
+.go-kv:last-child { border-bottom: 0; }
+.go-kv b { text-align: right; color: var(--ink); font-weight: 600; }
+.go-key { display: flex; gap: 12px; font-size: 12px; color: var(--ink-2); }
+.go-key span { display: inline-flex; align-items: center; gap: 5px; }
+.go-key i { width: 10px; height: 10px; border-radius: 50%; }
+.go-rules { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--muted); }

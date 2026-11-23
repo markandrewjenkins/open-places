@@ -219,6 +219,9 @@ def choose() -> None:
             out[k] = {**out[like], "similar": like}
     OUT.write_text(json.dumps(out, indent=1, ensure_ascii=False), encoding="utf-8")
     print(f"wrote {len(out)} photos to {OUT.name}")
+    # iNat CC BY-SA picks are replaced by CC0 / CC BY / CC BY-NC ones (pipelines/common/tree_photos.py)
+    from pipelines.common import tree_photos
+    tree_photos.apply()
 
 
 if __name__ == "__main__":

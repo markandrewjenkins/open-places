@@ -58,7 +58,9 @@ if (!startPlace && (!location.hash || location.hash === "#world")) history.repla
 
 // ------------------------------------------------------------------ helpers: status, level focus
 const kindOf = (l, c = ctx) => { try { return l.status(c)?.kind || "data"; } catch { return "data"; } };
-const isLive = (l) => kindOf(l) === "live" || kindOf(l) === "estimate";
+// stale (amber) and down (red) are live feeds that are late or not answering: they keep their live place on every page
+const LIVE_KINDS = new Set(["live", "estimate", "stale", "down"]);
+const isLive = (l) => LIVE_KINDS.has(kindOf(l));
 const isUrgent = (l) => { try { return !!l.urgent?.(ctx); } catch { return false; } };
 /** steps from the place to the node a module covers: 0 = the place or around it (basics, "*" modules centred on it) */
 function distOf(l) {
@@ -341,15 +343,26 @@ function paintTabState(topicId) {
     let st = { kind: "data" }, b = "";
     try { st = l.status(ctx) || st; b = shortVal(l.badge(ctx)); } catch { /* data not in yet */ }
     a.dataset.kind = st.kind;
-    a.querySelector(".civ-ldot").title = `${st.kind}${st.long ? ` · ${st.long}` : ""}`;
-    a.querySelector(".civ-lc").textContent = st.kind === "live" ? b : "";
-    a.title = [l.tileTitle || l.title, st.kind.toUpperCase(), scaleTag(l)].filter(Boolean).join(" · ");
+    a.querySelector(".civ-ldot").title = `${st.kind === "stale" ? "delayed" : st.kind}${st.long ? ` · ${st.long}` : ""}`;
+    a.querySelector(".civ-lc").textContent = st.kind === "live" || st.kind === "stale" ? b : "";
+    a.title = [l.tileTitle || l.title, st.kind === "stale" ? "DELAYED" : st.kind === "down" ? "FEED DOWN" : st.kind.toUpperCase(), st.kind === "stale" || st.kind === "down" ? st.long : "", scaleTag(l)].filter(Boolean).join(" · ");
     all++; if (st.kind === "live") live++;
   }
   const s = tabOf.get(`${t.id}/${SUM}`);
   s.dataset.kind = live ? "live" : "data";
   s.querySelector(".civ-lc").textContent = "";
   s.title = `Summary of ${all} page${all === 1 ? "" : "s"}, ${live} live`;
+  paintRailState();
+}
+/** the rail: a topic with a delayed feed gets an amber mark, one with a feed down a red one (live stays the topic colour) */
+function paintRailState() {
+  for (const t of TOPICS) {
+    const g = byTopic.get(t.id)?.group; if (!g) continue;
+    const ks = shownLeaves(t).map((l) => kindOf(l)), down = ks.includes("down"), stale = !down && ks.includes("stale");
+    g.classList.toggle("civ-down", down); g.classList.toggle("civ-stale", stale);
+    const late = shownLeaves(t).filter((l) => /^(stale|down)$/.test(kindOf(l))).map((l) => `${l.tileTitle || l.title}: ${l.status(ctx).long || l.status(ctx).text}`);
+    g.title = late.length ? late.join("\n") : "";
+  }
 }
 function paintTabs() {
   const r = cx.route;
@@ -975,13 +988,32 @@ function checkSwitch() {
     if (nearKm(g, ll) >= Math.min(15, Math.max(2, w * 0.1))) cand = placeAt(ll, w);
   }
   if (cand && ctx.chain.some((n) => n.id === cand.id)) cand = null;   // the place itself, or a level above it
-  if (!cand) { swDismissed = null; return hideSwitch(); }
-  if (cand.id === swDismissed) return hideSwitch();
-  swDismissed = null;
-  swp.replaceChildren(icon("pin", { size: 13 }), el("span", {}, `You're looking at ${cand.name}`),
+  if (!cand) swDismissed = null;
+  else if (cand.id === swDismissed) cand = null;
+  else swDismissed = null;
+  const back = farFromHome(m, g);
+  if (!cand && !back) return hideSwitch();
+  const name = ctx.place.anywhere ? "this spot" : ctx.place.name;
+  const recentre = back ? el("button", { type: "button", class: "civ-swp-home", title: `Back to ${name}'s view on this page`, onclick: () => { hideSwitch(); stage.home(); } },
+    icon("pin", { size: 12 }), `Recentre on ${name}`) : null;
+  swp.replaceChildren(...(cand ? [icon("pin", { size: 13 }), el("span", {}, `You're looking at ${cand.name}`),
     el("button", { type: "button", class: "civ-swp-go", title: `Open ${cand.name}: every feed reloads for it`, onclick: () => { hideSwitch(); setPlace(cand, { stay: true }); } }, `Switch to ${cand.name}`),
-    el("button", { type: "button", class: "civ-swp-x", title: "Not now", "aria-label": "Dismiss", onclick: () => { swDismissed = cand.id; hideSwitch(); } }, "×"));
+    recentre,
+    el("button", { type: "button", class: "civ-swp-x", title: "Not now", "aria-label": "Dismiss", onclick: () => { swDismissed = cand.id; checkSwitch(); } }, "×")] : [recentre]).filter(Boolean));
+  swp.classList.toggle("civ-swp-only", !cand);
   swp.hidden = false;
+}
+/** "Recentre on <place>": only after a long pan. The place (its outline's box, or its centre) is wholly off the map, the
+ *  centre is more than 1.5 map-widths from it, and the map is no more than 2 zoom steps out from the page's own view
+ *  (so zooming out, or a short pan, never shows it) */
+function farFromHome(m, g) {
+  const v = stage.view; if (!v) return false;
+  if (m.getZoom() < (v.zoom ?? 10) - 2) return false;
+  const b = m.getBounds(), ctr = m.getCenter(), w = km([b.getWest(), ctr.lat], [b.getEast(), ctr.lat]);
+  let bb = null; const walk = (c) => { if (typeof c[0] === "number") { bb = bb ? [Math.min(bb[0], c[0]), Math.min(bb[1], c[1]), Math.max(bb[2], c[0]), Math.max(bb[3], c[1])] : [c[0], c[1], c[0], c[1]]; } else for (const x of c) walk(x); };
+  if (g) walk(g.coordinates); else bb = [...ctx.place.ll, ...ctx.place.ll];
+  const off = bb[2] < b.getWest() || bb[0] > b.getEast() || bb[3] < b.getSouth() || bb[1] > b.getNorth();
+  return off && km([ctr.lng, ctr.lat], ctx.place.ll) > 1.5 * w;
 }
 stage.onMove(checkSwitch);
 

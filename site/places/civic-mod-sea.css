@@ -32,7 +32,10 @@
 /* Air Traffic panel (civic-modules.js airStagePanel): the selected aircraft's card, framed like the ship card */
 .air-selcard { position: relative; margin: 6px 0; padding: 8px 10px; border: 1px solid var(--border, var(--line)); border-left: 3px solid var(--m-airtraffic, var(--accent));
   border-radius: 6px; background: color-mix(in srgb, var(--surface) 70%, transparent); }
-.air-selcard .air-card-h { padding-right: 26px; }
+.air-selcard .air-card-h { padding-right: 100px; }
+.air-selfollow { position: absolute; top: 6px; right: 34px; }
+.air-next { margin: 6px 0 0; font-size: 12px; color: var(--ink-2, var(--ink)); }
+.air-next b { font-weight: 650; color: var(--ink); }
 .air-selx { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border: 1px solid var(--border, var(--line)); border-radius: 6px; background: transparent; color: var(--ink); font: inherit; font-size: 14px; line-height: 1; cursor: pointer; }
 .air-selx:hover, .air-selx:focus-visible { border-color: var(--m-airtraffic, var(--accent)); }
 

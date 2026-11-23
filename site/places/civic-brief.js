@@ -154,7 +154,7 @@ export const TOPIC_BLURB = {
   "getting-around": "Buses, vehicle traffic and cameras, biking, BC Ferries, ships and aircraft right now.",
   hazard: "Wildfires, earthquakes and tsunami status.",
   civic: "City notices and council meetings, public safety news, growth and building, water and power.",
-  nature: "Whale watching, cherry blossoms, fall colour and light pollution.",
+  nature: "Whale watching, cherry blossoms, fall colour, Garry oaks and arbutus, wildlife sightings and light pollution.",
   lifestyle: "Things to do: events, parks and trails, surf, golf and Sunday drives.",
   about: "How Open Places works, its sources and what is coming later.",
 };

@@ -52,6 +52,8 @@ const P = {
   layers: "M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83zM2 12l9.17 4.17a2 2 0 0 0 1.66 0L22 12M2 17l9.17 4.17a2 2 0 0 0 1.66 0L22 17",
   clock: "M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0M12 6v6l4 2",
   database: "M3 5a9 3 0 1 0 18 0 9 3 0 1 0-18 0M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0",
+  acorn: "M12 2v3M4.5 9.5C5 6.5 8 5 12 5s7 1.5 7.5 4.5zM6 9.5v1.5c0 4.5 2.7 8.5 6 10.5 3.3-2 6-6 6-10.5V9.5",
+  paw: "M9 6.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0M14 4.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0M19 6.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0M21 11.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0M7 11.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0M12 10c-3 0-6 4.5-6 7.5 0 2 1.5 3 3 3 1.2 0 2-.6 3-.6s1.8.6 3 .6c1.5 0 3-1 3-3 0-3-3-7.5-6-7.5",
   map: "M14.1 5.9 9.9 3.8a2 2 0 0 0-1.8 0L3.6 6A1 1 0 0 0 3 7v12.4a1 1 0 0 0 1.4.9l3.7-1.9a2 2 0 0 1 1.8 0l4.2 2.1a2 2 0 0 0 1.8 0l4.5-2.2a1 1 0 0 0 .6-.9V4.6a1 1 0 0 0-1.4-.9l-3.7 1.9a2 2 0 0 1-1.8 0zM15 5.8v15M9 3.2v15",
 };
 
@@ -61,7 +63,7 @@ export const TOPIC_ICON = { overview: "grid", now: "radio", weather: "cloudSun",
 /** leaves (module ids) */
 export const LEAF_ICON = { summary: "grid", alerts: "bell", natalerts: "siren", weather: "cloudSun", air: "wind", transit: "bus", roads: "car", route95: "timer", airtraffic: "plane",
   waterways: "anchor", "waterways-next": "anchor", malahat: "mountain", ferries: "ship", goose: "bike", biking: "bike", galloping: "bike", ferry: "ship", bike: "bike", ttc: "train", quakes: "activity", tsunami: "waves",
-  ar: "cloudRain", hazards: "flame", bigquakes: "globe", lnotices: "megaphone", lstops: "pin", crime: "shield", blossom: "flower", foliage: "leaf", salish: "waveform", darksky: "moon",
+  ar: "cloudRain", hazards: "flame", bigquakes: "globe", lnotices: "megaphone", lstops: "pin", crime: "shield", blossom: "flower", foliage: "leaf", salish: "waveform", darksky: "moon", oaks: "acorn", wildlife: "paw",
   sunday: "route", trails: "footprints", hot: "sparkles", surf: "waves", events: "calendar", golf: "flag", langford: "building", water: "droplet", grid: "zap", unusual: "sparkles", enso: "globe", outlook: "calendar", patterns: "wind" };
 
 /** an inline SVG icon (aria-hidden; label the control it sits in). name: a key of P, or a topic / leaf id */

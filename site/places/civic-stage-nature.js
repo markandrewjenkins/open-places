@@ -906,3 +906,5 @@ export const NATURE_STAGES = Object.fromEntries(Object.entries({ blossom: blosso
   .map(([k, s]) => [k, floated(k, s)]));
 // for What's Hot Now (civic-mod-hot.js): the season models and the shared mount
 export { blossomModel, foliageModel, salishModel, SP as WHALE_SPECIES, bWin, dateOfDoy, fDate0, stName, mount, whenFile, bboxOf, mid, live, skyHere };
+// for the Garry Oaks & Arbutus and Wildlife Sightings pages (civic-stage-wild.js): the panel and popup kit, the tree cards
+export const NT = { fc, pt, f0, ago, card, meta, tag, lead, sub, key, rows, cred, foot, body, wait, surf, ink, data, focus, floated, treeKind, treeSource, inatRef, CROWD };

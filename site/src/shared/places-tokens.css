@@ -28,6 +28,7 @@
   --m-ferry: #0b78a8; --m-ferries: #0b78a8; --m-malahat: #8a6d1f; --m-goose: #2f8f45; --m-bike: #2f8f45; --m-ttc: #c4262b;
   --m-grid: #c08400; --m-water: #2479b8; --m-quakes: #8c4a2f; --m-bigquakes: #7a3b26; --m-tsunami: #1d5fa0; --m-ar: #2a7fa8;
   --m-unusual: #a3407d; --m-enso: #1f6e86; --m-outlook: #4b7d91; --m-crime: #4a5a8a;
+  --m-oaks: #6b7a1f; --m-wildlife: #a4532a;
 }
 /* ------------------------------------------------------------ Blue: dark, navy (system dark, or the theme button) */
 @media (prefers-color-scheme: dark) {
@@ -47,6 +48,7 @@
     --m-ferry: #48b6e6; --m-ferries: #48b6e6; --m-malahat: #d8b65a; --m-goose: #6fd083; --m-bike: #6fd083; --m-ttc: #ff6b6b;
     --m-grid: #f4c23e; --m-water: #5fb3f0; --m-quakes: #e0956e; --m-bigquakes: #d98a63; --m-tsunami: #5aa2ee; --m-ar: #62c0e6;
     --m-unusual: #e086bf; --m-enso: #5fc1d3; --m-outlook: #86bfd2; --m-crime: #9aa8d8;
+    --m-oaks: #b3c25c; --m-wildlife: #e8996a;
   }
 }
 :root[data-theme="dark"] {
@@ -65,6 +67,7 @@
   --m-ferry: #48b6e6; --m-ferries: #48b6e6; --m-malahat: #d8b65a; --m-goose: #6fd083; --m-bike: #6fd083; --m-ttc: #ff6b6b;
   --m-grid: #f4c23e; --m-water: #5fb3f0; --m-quakes: #e0956e; --m-bigquakes: #d98a63; --m-tsunami: #5aa2ee; --m-ar: #62c0e6;
   --m-unusual: #e086bf; --m-enso: #5fc1d3; --m-outlook: #86bfd2; --m-crime: #9aa8d8;
+    --m-oaks: #b3c25c; --m-wildlife: #e8996a;
 }
 
 /* ------------------------------------------------------------ Grey (data-skin="grey"): light "Fog" */

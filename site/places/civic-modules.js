@@ -30,6 +30,7 @@ import { bikeDef } from "./civic-mod-bike.js";   // Biking (OSM bike network, ri
 import { gooseDef } from "./civic-mod-goose.js";   // Galloping Goose (Biking inset: the trail end to end, km markers, profile)
 import { hotDef } from "./civic-mod-hot.js";   // What's Hot Now (seasonal pick, live surf)
 import { surfDef } from "./civic-mod-surf.js";   // Surf (Nature: the breaks and their live wave forecast)
+import { oaksDef, wildDef } from "./civic-stage-wild.js";   // Garry Oaks & Arbutus, Wildlife Sightings (Nature, their own maps)
 import { eventsDef } from "./civic-mod-events.js";   // Events (Lifestyle: holidays, markets, culture venues)
 import * as CL from "./civic-mod-climate.js";   // tsunami, ENSO, seasonal outlook, ocean snapshots
 import * as HZ from "./civic-mod-hazards.js";   // Wildfires, the Earthquakes map stage, Weather Patterns (live)
@@ -970,6 +971,8 @@ export const trails = mod(trailsDef({ LIVE, DATA, PLANNED, rowsList }));
 // What's Hot Now (Lifestyle, first): civic-mod-hot.js
 export const hot = mod(hotDef({ LIVE, DATA, PLANNED, rowsList }));
 export const surf = mod(surfDef({ LIVE, DATA, PLANNED, rowsList }));
+export const oaks = mod(oaksDef({ DATA, rowsList, bump }));
+export const wildlife = mod(wildDef({ LIVE, rowsList }));
 export const events = mod(eventsDef({ LIVE, DATA, PLANNED, rowsList }));
 
 const r95Need = (ctx) => { WS.touch(ctx); const c = file("blink/blink.json", ctx); if (c.err) return { err: c.err }; return c.data ? { b: c.data } : null; };   // touch: West Shore road-speed alerts
@@ -1698,7 +1701,7 @@ export const enso = mod({
 export const patterns = mod(HZ.patternsDef({ LIVE, DATA, rowsList, lineChart, colChart, arEstimate: (ctx) => arEstimate(ctx) }));
 
 export const SPECIALS = [langford, lnotices, crime, quakes, blossom, foliage, sunday, salish, golf, trails, hot, surf, events, route95, airtraffic, waterways, waterwaysNext, ferries, wsferries, malahat, biking, galloping, ferry, bike, ttc, water,
-  tsunami, hazards, ar, unusual, darksky, grid, natalerts, outlook, enso, patterns];   // bigquakes: merged into quakes (its alerts too)
+  tsunami, hazards, ar, unusual, darksky, grid, natalerts, outlook, enso, patterns, oaks, wildlife];   // bigquakes: merged into quakes (its alerts too)
 export const ALL = [alerts, ...BASICS, ...SPECIALS];
 
 // ------------------------------------------------------------------ navigation: main topics (rail) → leaves (tabs above the content)
@@ -1717,7 +1720,7 @@ export const TOPICS = [
   { id: "civic", title: "Civic", color: "var(--m-lnotices)", h: "This place", leaves: [lnotices, crime, langford, water, grid] },
   // Nature: the natural world and its seasons. Things to Do (id "lifestyle", so old links hold): events and outings.
   // What's Hot Now (civic-mod-hot.js) has no tab any more; Surf still uses its surf table.
-  { id: "nature", title: "Nature", color: "var(--m-sunday)", leaves: [salish, blossom, foliage, darksky] },
+  { id: "nature", title: "Nature", color: "var(--m-sunday)", leaves: [salish, blossom, foliage, oaks, wildlife, darksky] },
   { id: "lifestyle", title: "Things to Do", color: "var(--m-blossom)", fixed: true, sumAll: true, leaves: [events, trails, surf, golf, sunday] },
 ];
 // earlier topic ids → their replacement (old links to a summary land on the new topic; links to a leaf follow the leaf)

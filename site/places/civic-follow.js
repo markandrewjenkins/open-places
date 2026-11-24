@@ -1,10 +1,16 @@
 // Open Places: focus on and follow a selected vehicle, and the white selection ring, shared by Sea Traffic and BC Ferries
 // (ships), Air Traffic (aircraft) and the transit map (buses).
 //
-// The click model (vehicles only): the first click selects (white ring, card); a second click on the same vehicle, or the
-// card's "Focus & follow" button, flies to it (closer, if the map is zoomed far out) and tracks it. While following, a
-// click on it, the pill's Stop or the card's × stops following; a click on empty map doesn't, a drag does. The module's
-// own × and Esc deselect.
+// The gesture, the same on every map (followGestures below; each module registers its vehicle layers with it):
+//   click             selects (white ring, card); a single click on the selected vehicle deselects (after a short wait,
+//                     so it can still become a double-click)
+//   double-click      on a vehicle: selects it, flies to it (closer, if the map is zoomed far out) and tracks it; the
+//                     map's own double-click zoom is off only while the pointer is over a vehicle
+//   right-click       anywhere on the map while following: stops (no browser menu then); so do the pill's Stop, the
+//                     card's × / Esc (they deselect) and a drag
+//   hover             a small tooltip by the cursor: the vehicle's name and "Double-click to follow" / "Right-click to stop"
+// The nearest vehicle within a few pixels of the pointer wins, so small or crowded markers are easy to hit. The card's
+// "Focus & follow" button stays as the keyboard way in.
 //
 // Tracking: a short loop (TICK_MS) asks the module where the vehicle is *now* (where(): dead-reckoned from its last
 // report by speed and heading, so it moves between reports) and eases the map there with linear steps as long as the
@@ -16,9 +22,11 @@
 //   followButton({ map, key, name, where, ... }) → <button>   key: "ship:<mmsi>", "air:<hex>", "bus:<id>", "ferry:<mmsi>"
 //   startFollow(opts) / stopFollow(key?) / toggleFollow(opts)   key: stop only if that key (or a key starting with it) is followed
 //   following(key?) → bool;  followTick()   (kept for callers: the loop does the work now)
-//   followHint(key) → <p>   "Click again to follow" / "Following: click it again, or Stop, to stop"
+//   followHint(key) → <p>   "Double-click it on the map to follow it" / "Following: … right-click the map, or Stop, to stop"
+//   followGestures(map, spec) → off()   the shared click / double-click / right-click / hover handling (see there)
+//   followTip(key) → "Double-click to follow" | "Right-click to stop"   (for a module that draws its own tooltip)
 //   opts: { map, key, name, where() → [lon, lat] | null, seen() → ms | null, minZoom, redraw(), redrawMs = 400,
-//           lostMs = 120000, giveUpMs = 600000 }
+//           lostMs = 120000, giveUpMs = 600000 }   (lostMs / giveUpMs may be functions, asked each tick)
 //   glider() → { fix({ lon, lat, t, kmh, deg }), at(ms) → [lon, lat] }   dead reckoning with a short blend at each new
 //       report (for feeds whose positions don't move between reports, e.g. buses)
 //   addRing(map, { id, source, filter, beforeId, radius }) / setRing(map, id, filter) / removeRing(map, id)
@@ -31,6 +39,8 @@ const F = { key: null, o: null, pill: null, timer: 0, hold: 0, lastLL: null, los
 export const following = (key) => !!F.key && (key == null || F.key === key);
 export function followTick() { /* the loop recentres continuously; kept so modules can still call it on a refresh */ }
 
+/** a threshold given as ms or as a function (a feed whose clock changes: Air Traffic's every_s) */
+const ms = (v, d) => { const x = typeof v === "function" ? v() : v; return Number.isFinite(x) ? x : d; };
 const agoTxt = (ms) => { const s = Math.max(0, ms / 1000); return s < 90 ? `${Math.round(s)} s ago` : `${Math.round(s / 60)} min ago`; };
 function syncButtons() {
   for (const b of [...F.btns]) {
@@ -42,7 +52,7 @@ function syncButtons() {
   }
   for (const h of [...F.hints]) {
     if (!h.isConnected) { F.hints.delete(h); continue; }
-    h.textContent = F.key === h.dataset.key ? "Following: moved on between reports by its speed and heading (an estimate). Click it again, or Stop, to stop; drag the map to look around." : "Click it again on the map to follow it.";
+    h.textContent = F.key === h.dataset.key ? "Following: moved on between reports (an estimate: buses along their route, ships and planes by speed and heading). Right-click the map, or press Stop, to stop; dragging the map stops it too." : "Double-click it on the map to follow it.";
   }
 }
 
@@ -63,9 +73,9 @@ function tick() {
   const now = Date.now();
   let ll = null; try { ll = o.where(); } catch { ll = null; }
   const ok = ll && isFinite(ll[0]) && isFinite(ll[1]);
-  const seen = o.seen?.() || null, lost = !ok || (seen && now - seen > (o.lostMs ?? 120000));
+  const seen = o.seen?.() || null, lost = !ok || (seen && now - seen > ms(o.lostMs, 120000));
   // the pill: following, or lost signal (then stop after a while)
-  if (lost) { F.lostAt ||= now; const last = seen || F.lostAt; F.pill?.setLabel(`Lost signal · last seen ${agoTxt(now - last)}`, true); if (now - F.lostAt > (o.giveUpMs ?? 600000)) { stopFollow(); return; } }
+  if (lost) { F.lostAt ||= now; const last = seen || F.lostAt; F.pill?.setLabel(`Lost signal · last seen ${agoTxt(now - last)}`, true); if (now - F.lostAt > ms(o.giveUpMs, 600000)) { stopFollow(); return; } }
   else { F.lostAt = 0; F.pill?.setLabel(`Following ${o.name}`, false); }
   if (o.redraw && now - F.redrawAt >= (o.redrawMs ?? 400)) { F.redrawAt = now; try { o.redraw(); } catch { /* the module's layer went away */ } }
   if (!ok || now < F.hold) return;
@@ -86,8 +96,8 @@ export function startFollow(o) {
   map.on("dragstart", onDrag); map.on("zoomstart", onZoomStart); map.on("zoomend", onZoomEnd);
   F.off = [() => map.off("dragstart", onDrag), () => map.off("zoomstart", onZoomStart), () => map.off("zoomend", onZoomEnd)];
   const label = el("span", {}, `Following ${F.o.name}`);
-  F.pill = el("div", { class: "civ-follow-pill", role: "status" }, el("i", { "aria-hidden": "true" }), label, el("b", { "aria-hidden": "true" }, "·"),
-    el("button", { type: "button", onclick: () => stopFollow() }, "Stop"));
+  F.pill = el("div", { class: "civ-follow-pill", role: "status" }, el("i", { "aria-hidden": "true" }), label, el("small", {}, "right-click to stop"),
+    el("button", { type: "button", title: "Stop following (or right-click the map)", onclick: () => stopFollow() }, "Stop"));
   F.pill.setLabel = (t, lost) => { if (label.textContent !== t) label.textContent = t; F.pill.classList.toggle("lost", !!lost); };
   map.getContainer().append(F.pill);
   // focus: fly to it, closer when the map is zoomed far out, then track
@@ -111,9 +121,105 @@ export function followButton(o) {
   return b;
 }
 export function followHint(key) {
-  const h = el("p", { class: "civ-follow-hint", "data-key": key }, "Click it again on the map to follow it.");
+  const h = el("p", { class: "civ-follow-hint", "data-key": key }, "Double-click it on the map to follow it.");
   F.hints.add(h); queueMicrotask(syncButtons);
   return h;
+}
+
+// ------------------------------------------------------------------ one gesture on every map
+/** the hover hint for a vehicle: what a double-click / right-click would do now */
+export const followTip = (key) => (following(key) ? "Right-click to stop following" : "Double-click to follow");
+
+const TIP = { el: null };
+function showTip(x, y, name, hint) {
+  if (!TIP.el) { TIP.el = el("div", { class: "civ-follow-tip", role: "tooltip" }); document.body.append(TIP.el); }
+  const t = TIP.el;
+  t.replaceChildren(el("b", {}, name), el("span", {}, hint)); t.style.display = "";
+  const w = t.offsetWidth, h = t.offsetHeight;
+  const left = x + 16 + w > innerWidth - 8 ? x - 14 - w : x + 16, top = y + 18 + h > innerHeight - 8 ? y - 12 - h : y + 18;
+  t.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+}
+const hideTip = () => { if (TIP.el) TIP.el.style.display = "none"; };
+
+/** the vehicle nearest the pointer among the features within r px of it (point geometries), or null */
+function nearest(map, layers, pt, r) {
+  const ls = layers.filter((l) => map.getLayer(l)); if (!ls.length) return null;
+  let best = null, bd = Infinity;
+  for (const f of map.queryRenderedFeatures([[pt.x - r, pt.y - r], [pt.x + r, pt.y + r]], { layers: ls })) {
+    const c = f.geometry?.type === "Point" ? f.geometry.coordinates : null; if (!c) continue;
+    const p = map.project(c), d = Math.hypot(p.x - pt.x, p.y - pt.y);
+    if (d < bd) { bd = d; best = f; }
+  }
+  return best;
+}
+/** the double-click zoom is off while the pointer is over a vehicle of any registration on that map */
+const DZ = new WeakMap();
+function dzSet(map, who, over) {
+  let d = DZ.get(map); if (!d) DZ.set(map, (d = { on: map.doubleClickZoom.isEnabled(), over: new Set() }));
+  if (over) d.over.add(who); else d.over.delete(who);
+  if (!d.on) return;
+  if (d.over.size) map.doubleClickZoom.disable(); else map.doubleClickZoom.enable();
+}
+/**
+ * Register a map's followable vehicles → off(). spec:
+ *   layers   [layer ids] (or a function giving them): the vehicles' point layers
+ *   prefix   the follow key's prefix, e.g. "ship:"; a vehicle's key is prefix + id
+ *   id(props)        → its id (default props.id)          name(id, props) → its name for the tooltip (default props.name)
+ *   selected()       → the selected id (or null)          select(id, props): select it (never toggles it off)
+ *   deselect()       clear the selection (a single click on the selected vehicle)
+ *   follow(id)       → startFollow options (civic-follow.js startFollow), or null
+ *   click (default true): false when the module handles single clicks itself (it should ignore clicks with
+ *     originalEvent.detail >= 2, the second half of a double-click)
+ *   tip (default true): false when the module draws its own hover tooltip (it can use followTip(key) for the hint)
+ *   radius (px, default 12): how far from the pointer a vehicle still counts
+ */
+export function followGestures(map, spec) {
+  const r = spec.radius ?? 12, layers = () => (typeof spec.layers === "function" ? spec.layers() : spec.layers) || [];
+  const idOf = (f) => String(spec.id ? spec.id(f.properties) : f.properties.id), keyOf = (id) => `${spec.prefix}${id}`;
+  const nameOf = (id, f) => spec.name?.(id, f.properties) || f.properties.name || id;
+  const sel = () => { const s = spec.selected?.(); return s == null || s === "" ? null : String(s); };
+  const who = {};
+  let over = null, pend = 0;
+  const hit = (pt) => nearest(map, layers(), pt, r);
+  const tip = (e, id, f) => { if (spec.tip !== false) showTip(e.originalEvent.clientX, e.originalEvent.clientY, nameOf(id, f), followTip(keyOf(id))); };
+  const leave = () => { if (over == null) return; over = null; map.getCanvas().style.cursor = ""; if (spec.tip !== false) hideTip(); dzSet(map, who, false); };
+  const onMove = (e) => {
+    if (e.originalEvent?.buttons) { leave(); return; }   // a drag
+    const f = hit(e.point); if (!f) { leave(); return; }
+    const id = idOf(f); over = id;
+    map.getCanvas().style.cursor = "pointer"; dzSet(map, who, true); tip(e, id, f);
+  };
+  const onClick = (e) => {
+    if (spec.click === false) return;
+    const f = hit(e.point); if (!f) return;
+    if ((e.originalEvent?.detail || 1) >= 2) return;   // the second click of a double-click: onDbl decides
+    const id = idOf(f);
+    if (id === sel()) {
+      if (following(keyOf(id))) return;
+      clearTimeout(pend);
+      pend = setTimeout(() => { pend = 0; if (sel() === id && !following(keyOf(id))) spec.deselect?.(); }, 320);
+      return;
+    }
+    spec.select(id, f.properties);
+  };
+  const onDbl = (e) => {
+    const f = hit(e.point); if (!f) return;
+    e.preventDefault();
+    clearTimeout(pend); pend = 0;
+    const id = idOf(f);
+    if (sel() !== id) spec.select(id, f.properties);
+    const o = spec.follow(id); if (o?.map) startFollow(o);
+    tip(e, id, f);
+  };
+  const onCtx = (ev) => { if (!F.key?.startsWith(spec.prefix) || F.o?.map !== map) return; ev.preventDefault(); stopFollow(); hideTip(); };
+  const onOut = () => leave(), onPan = (e) => { if (e?.originalEvent) hideTip(); };   // the user's own moves, not the follow's easing
+  map.on("mousemove", onMove); map.on("click", onClick); map.on("dblclick", onDbl); map.on("mouseout", onOut); map.on("movestart", onPan);
+  const box = map.getCanvasContainer(); box.addEventListener("contextmenu", onCtx);
+  return () => {
+    clearTimeout(pend); leave();
+    map.off("mousemove", onMove); map.off("click", onClick); map.off("dblclick", onDbl); map.off("mouseout", onOut); map.off("movestart", onPan);
+    box.removeEventListener("contextmenu", onCtx);
+  };
 }
 
 // ------------------------------------------------------------------ dead reckoning between reports

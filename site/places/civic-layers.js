@@ -10,6 +10,8 @@ import * as TRF from "./civic-mod-traffic.js";   // Traffic: bus-speed colouring
 import * as RS from "./civic-mod-roadsigns.js";   // road-event signs (works, closure, incident, conditions) by severity
 import maplibregl from "maplibre-gl";
 import { addAirLayers, aircraftCard, idOf } from "../src/air/layer.js";
+import { callsign } from "../src/air/feed.js";
+import { followGestures, stopFollow } from "./civic-follow.js";   // the Overview's aircraft: click / double-click to follow / right-click
 import { transitLayer, transitPanels, R95_BOX } from "./civic-transit-stage.js";
 import { relayURL } from "../src/shared/relay.js";
 import { livePart, hubSetFor } from "../src/shared/livehub.js";
@@ -111,21 +113,30 @@ L.notices = noticesLayer;
 
 // aircraft (the Overview's layer): the Air Traffic page's own layer and shared, smoothed feed (src/air/layer.js: one feed
 // per 0.05° cell, 22 nm, counted within 40 km, the same feed the Air Traffic tile and page use, so the numbers agree).
-// A click opens the aircraft's card in a map popup.
+// A click opens the aircraft's card in a map popup; a double-click follows it (the popup rides along), a right-click
+// stops (civic-follow.js followGestures, the same gesture as on Air Traffic).
 L.aircraft = { id: "aircraft", title: "Aircraft", icon: "plane", color: "var(--m-airtraffic, var(--accent))", optional: true,
   custom: (map, ctx) => {
     const [lon, lat] = ctx.place.ll; let pop = null, sel = "";
     // the same shared feed as the Air Traffic tile (30 s), not a second 10 s poll of its own
-    const layer = addAirLayers(map, { feed: airWatch(lat, lon, inCRD(ctx), ctx), rangeKm: 40, prefix: "opair", beforeId: map.getLayer("st-place-p") ? "st-place-p" : undefined,
-      onSelect: (a) => {
-        pop?.remove(); pop = null;
-        const id = a ? idOf(a) : ""; if (!a || id === sel) { sel = ""; layer.select(""); return; }
-        sel = id; layer.select(id);
-        pop = new maplibregl.Popup({ className: "civ-pop", maxWidth: "300px", offset: 12, closeOnClick: false }).setLngLat([a.nlon ?? a.lon, a.nlat ?? a.lat])
-          .setDOMContent(el("div", { class: "civ-popc" }, aircraftCard(a, { place: ctx.place.short }), el("a", { class: "civ-popa", href: `#getting-around/airtraffic/${encodeURIComponent(id)}` }, "Air Traffic →"))).addTo(map);
-        pop.on("close", () => { if (sel === id) { sel = ""; layer.select(""); } });
-      } });
-    return () => { pop?.remove(); layer.destroy(); };
+    const layer = addAirLayers(map, { feed: airWatch(lat, lon, inCRD(ctx), ctx), rangeKm: 40, prefix: "opair", beforeId: map.getLayer("st-place-p") ? "st-place-p" : undefined });
+    const find = (id) => layer.aircraft().find((x) => idOf(x) === id);
+    const close = () => { const p = pop; pop = null; p?.remove(); sel = ""; layer.select(""); stopFollow("air:"); };
+    const open = (id) => {
+      const a = find(id); pop?.remove(); pop = null; if (!a) return;
+      sel = id; layer.select(id);
+      pop = new maplibregl.Popup({ className: "civ-pop", maxWidth: "300px", offset: 12, closeOnClick: false }).setLngLat([a.nlon ?? a.lon, a.nlat ?? a.lat])
+        .setDOMContent(el("div", { class: "civ-popc" }, aircraftCard(a, { place: ctx.place.short }), el("a", { class: "civ-popa", href: `#getting-around/airtraffic/${encodeURIComponent(id)}` }, "Air Traffic →"))).addTo(map);
+      const me = pop; pop.on("close", () => { if (pop === me) { pop = null; if (sel === id) { sel = ""; layer.select(""); stopFollow(`air:${id}`); } } });
+    };
+    const every = () => layer.feed?.every?.() || 30;
+    const gest = followGestures(map, { layers: ["opair-ac", "opair-parked"], prefix: "air:", selected: () => sel, select: (id) => open(id), deselect: close,
+      name: (id) => { const a = find(id); return a ? `${callsign(a)}${a.tname ? ` · ${a.tname}` : ""}` : id; },
+      follow: (id) => ({ map, key: `air:${id}`, name: (find(id) && callsign(find(id))) || id, minZoom: 10.5, where: () => layer.where(id),
+        seen: () => { const a = find(id); return a ? Date.now() - (a.age ?? 0) * 1000 : null; },
+        redraw: () => { layer.update(); const ll = layer.where(id); if (ll && pop) pop.setLngLat(ll); }, redrawMs: 250,
+        lostMs: () => Math.max(90000, (every() * 2.5 + 30) * 1000), giveUpMs: () => Math.max(300000, every() * 5000) }) });
+    return () => { gest(); stopFollow("air:"); pop?.remove(); layer.destroy(); };
   } };
 
 L.ferries = { id: "ferries", title: "Ferries", icon: "ship", color: "var(--m-ferries, var(--accent))", kind: "arrow", optional: true,

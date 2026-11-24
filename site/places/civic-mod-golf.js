@@ -1,6 +1,7 @@
 // Open Places: Golfing (Things to Do). "Should I play, and where, right now?"
 //   Every course in the region gets a live verdict, Good / Fair / Poor, with a one-line reason, for now or for tomorrow
-//   at 9 am. Inputs, per course (its 0.1° weather cell):
+//   at 9 am. The verdict is weather playability only (rain, wet ground, wind, cold, frost delay, warnings, daylight; crowds
+//   shown beside it), never a judgement of the course itself: courses differ only by where they sit and their exposure. Inputs, per course (its 0.1° weather cell):
 //     Weather: Open-Meteo forecast API (CC BY 4.0): rain in the next 3 hours (amount and chance), wind and gusts,
 //              temperature, and a frost delay when the morning sits near 0 °C. One multi-point request per region,
 //              cached for 30 minutes (memory and localStorage), so a visit costs at most one call per half hour.
@@ -159,7 +160,8 @@ function golfData(ctx, pick = GO.when) {
 const safeIn = (g, p) => { try { return inGeom(g, p); } catch { return false; } };
 
 // ------------------------------------------------------------------ pieces
-const pill = (v) => el("span", { class: "go-pill", "data-v": v }, VL[v]);
+const pill = (v) => el("span", { class: "go-pill", "data-v": v, title: `${VL[v]} weather for golf: a playability forecast, not a course rating` }, VL[v]);
+const PLAY_ONLY = "Weather playability only, not a course rating.";
 /** the next 6 hours from T, one cell per hour coloured by that hour's verdict */
 function strip(x, T) {
   const W = x.W, i0 = Math.max(0, d3.bisectRight(W.t, T) - 1);
@@ -181,7 +183,7 @@ function courseCard(x, d) {
       el("li", { "data-l": -1 }, `Ground: ${r1(j.p24)} mm in 24 h, ${r1(j.p72)} mm in 72 h`),
       el("li", { "data-l": -1 }, `Daylight: sunset ${hm(W, j.day.set)} · last ${x.kind === "full" && (x.holes_expected || 18) >= 18 ? "18-hole " : ""}tee ~${hm(W, j.lastTee)}`),
       el("li", { "data-l": -1, title: `A heuristic (${ty.why}), not live tee-sheet data` }, `Crowds: ${ty.txt} (not live)`)),
-    el("p", { class: "civ-popm" }, "Open-Meteo forecast (CC BY 4.0) · course: OpenStreetMap (ODbL)"));
+    el("p", { class: "civ-popm" }, `${PLAY_ONLY} Open-Meteo forecast (CC BY 4.0) · course: OpenStreetMap (ODbL)`));
 }
 
 // ------------------------------------------------------------------ the map layer: outlines and dots coloured by verdict
@@ -258,7 +260,8 @@ function paint() {
   }
   const W = d.W0, c = d.counts, when = d.when === "now" ? `Now (${hm(W, d.T)})` : `${d.m9label.replace(" 9 am", "")} at 9 am${d.auto && d.dark ? " (it's dark now)" : ""}`;
   GO.els.best.replaceChildren(seg,
-    el("p", { class: "go-head" }, el("b", {}, when), `: ${c.good} good, ${c.fair} fair, ${c.poor} poor of ${d.courses.length} courses.`),
+    el("p", { class: "go-head" }, el("b", {}, when), `: weather is good for golf at ${c.good}, fair at ${c.fair}, poor at ${c.poor} of ${d.courses.length} courses.`),
+    el("p", { class: "go-only" }, PLAY_ONLY),
     el("ol", { class: "go-list flt-scroll" }, ...d.courses.map((x, i) => { const on = GO.sel === x.id;
       return el("li", {}, el("button", { type: "button", class: "go-row" + (on ? " on" : ""), "aria-pressed": String(on), title: on ? "Click again to clear" : "Show on the map",
         onclick: () => { if (GO.layer) GO.layer.focus(x.id); else { GO.sel = on ? null : x.id; paint(); } } },
@@ -278,7 +281,8 @@ function paint() {
       row("Sunset", hm(W, j0.day.set)),
       row("Last 18-hole tee", `~${hm(W, j0.day.set - 4.25 * H)}`, "About 4¼ hours before sunset; 9 holes take about 2"),
       row("Warnings", d.alerts.length ? d.alerts.map((a) => a.replace(/\b\w/g, (m) => m.toUpperCase())).join(", ") : "none in effect", "ECCC weather alerts covering any course (OGL-Canada)")),
-    el("div", { class: "go-key" }, ...["good", "fair", "poor"].map((v) => el("span", {}, el("i", { style: `background:${VC[v]}` }), VL[v]))),
+    el("div", { class: "go-key" }, ...["good", "fair", "poor"].map((v) => el("span", {}, el("i", { style: `background:${VC[v]}` }), `${VL[v]} weather`))),
+    el("p", { class: "go-rules go-only" }, "Good, Fair and Poor say only how the current and coming weather is expected to affect play at each course: rain, wet greens and ground, wind, cold and frost delays, heat, flooding and warnings, daylight left, with typical crowding beside them. They are not a rating of any course's quality or merits; courses differ here only by where they are and how exposed they are to the weather."),
     el("p", { class: "go-rules" }, "Poor: rain ≥ 3 mm in 3 h, gusts ≥ 60 km/h, near freezing, a long frost delay, very wet ground, a weather warning, or too late to finish. Fair: showers likely, breezy, cold, soggy ground, or time for 9 only."),
     el("p", { class: "go-rules" }, "Crowds are typical for the day and hour, not live: no course publishes open tee-sheet or open / closed / cart-path data."),
     el("div", { class: "civ-fp-foot" }, el("span", {}, "Open-Meteo (CC BY 4.0) · ECCC alerts (OGL-Canada) · courses © OpenStreetMap (ODbL)")));
@@ -319,7 +323,7 @@ const stage = {
     if (!GO.els) GO.els = { best: el("div", { class: "civ-fp-body go-body" }), cond: el("div", { class: "civ-fp-body go-body" }) };
     float(GO.els.best, "golf:best", { keep: true }); float(GO.els.cond, "golf:cond", { keep: true });
     paint(); GO.layer?.update();
-    return [{ id: "go-best", title: "Best Bets", place: "left", el: GO.els.best }, { id: "go-cond", title: "Conditions", place: "right", el: GO.els.cond }];
+    return [{ id: "go-best", title: "Playing Weather", place: "left", el: GO.els.best }, { id: "go-cond", title: "Conditions", place: "right", el: GO.els.cond }];
   },
 };
 
@@ -330,11 +334,11 @@ export function golfDef(h) {
     id: "golf", title: "Golfing", tileTitle: "Golfing", scale: "region", at: ["crd", "metrovan"], reach: 1, eyebrow: "Region", heading: "Golfing",
     stage, need,
     season: () => 0.6, seasonal: false,
-    status: () => ({ kind: h.LIVE, text: "Live", long: "Live: Open-Meteo forecast (CC BY 4.0) at every course, refreshed every 30 minutes, with ECCC weather warnings (OGL-Canada). Crowds are a typical-by-day-and-hour heuristic, not live." }),
+    status: () => ({ kind: h.LIVE, text: "Live", long: "Live: Open-Meteo forecast (CC BY 4.0) at every course, refreshed every 30 minutes, with ECCC weather warnings (OGL-Canada). Good / Fair / Poor is how the weather is expected to affect play (rain, wet ground, wind, cold, frost delays, warnings, daylight), not a rating of the courses. Crowds are a typical-by-day-and-hour heuristic, not live." }),
     source: () => "Open-Meteo · ECCC alerts",
-    badge: (d) => `${d.counts.good} good`,
-    tileKpis: (d) => [[short(d.courses[0].name), `best now · ${VL[d.courses[0].j.v].toLowerCase()}`], [`${d.counts.good} / ${d.courses.length}`, "courses good now"]],
-    kpis: (d) => [["Best now", short(d.courses[0].name), d.courses[0].j.line], ["Good", `${d.counts.good}`, "courses"], ["Fair", `${d.counts.fair}`, "courses"], ["Poor", `${d.counts.poor}`, "courses"]],
+    badge: (d) => `${d.counts.good} good weather`,
+    tileKpis: (d) => [[short(d.courses[0].name), `best weather now · ${VL[d.courses[0].j.v].toLowerCase()}`], [`${d.counts.good} / ${d.courses.length}`, "courses, good weather now"]],
+    kpis: (d) => [["Best weather now", short(d.courses[0].name), d.courses[0].j.line], ["Good weather", `${d.counts.good}`, "courses"], ["Fair weather", `${d.counts.fair}`, "courses"], ["Poor weather", `${d.counts.poor}`, "courses"]],
     mini: (host, d) => h.rowsList(host, d.courses.slice(0, 4).map((x) => [short(x.name), VL[x.j.v], x.j.v === "good" ? 1 : x.j.v === "fair" ? 0.55 : 0.15]), { fit: true, bars: true }),
   };
 }

@@ -698,3 +698,6 @@ a.civ-alr:hover .civ-alr-go { color: var(--accent); }
 .civ-inset-back { --lc: var(--muted, #8a94a7); }
 .civ-leaf.civ-leaf-parent-on { box-shadow: inset 0 -2px 0 var(--lc); }
 .civ-leaf.civ-leaf-inset .civ-lic::before { content: "↳"; margin-right: 2px; opacity: .6; }
+.civ-about-stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.civ-credits li b { color: var(--ink); }
+.civ-credits small { color: var(--muted); font-size: 12px; }

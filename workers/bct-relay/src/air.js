@@ -3,7 +3,10 @@
 // Same rules as the bus routes: cache at the edge (one upstream call serves every viewer at a Cloudflare location), trim
 // to what the page needs, carry the credit.
 //
-//   /air/point.json?lat=48.45&lon=-123.50&r=22   aircraft within r nautical miles (5–100), lat/lon snapped to 0.05°
+//   /air/point.json?lat=48.45&lon=-123.50&r=22   aircraft within r nautical miles (5–100), lat/lon snapped to 0.05°:
+//                                                 with the hub (hub.js) always cut from a zone's or city's snapshot, or
+//                                                 { uncovered: true } outside them (airzones.js); the route below only
+//                                                 answers without the hub (local dev), keyless and for covered circles
 //   /air/metar.json?ids=CYYJ,CYWH                 latest METAR + TAF for up to 12 stations
 //   /air/metar.json?bbox=lat0,lon0,lat1,lon1      METARs inside a box (≤ 4° a side), for "any place"
 //
@@ -18,12 +21,15 @@
 //     that fails twice in a row for 30 s; the error text names every upstream's failure, for diagnosis;
 //   - when every upstream fails, the last good snapshot for that point (kept LAST_GOOD_S) is served instead of an
 //     error, marked { stale: true, age_s }, so pages can say "delayed" rather than blank the map.
-// adsb.lol's keyless limit is published as 500 requests a day per IP (https://www.adsb.lol/docs/open-data/api/). A
-// Worker's outgoing IP is shared, so if 429s ever appear the owner can add a free adsb.lol key as the Worker secret
-// ADSBLOL_API_KEY (`npx.cmd wrangler secret put ADSBLOL_API_KEY`); it is then sent as the x-api-key header.
+// adsb.lol's keyless limit is published as 500 requests a day per IP (https://www.adsb.lol/docs/open-data/api/); the
+// adhoc key (Worker secret ADSBLOL_API_KEY, sent as x-api-key) allows 1,000 metered calls a day wherever they come from.
+// Only the hub's counted calls use the key (hub.js countedPoint; budgets in airzones.js); the per-request route below
+// never sends it.
 //
 // Privacy: aircraft flagged FAA LADD or PIA in the aggregator's database lose their callsign and hex; registrations and
 // owners are never passed on.
+
+import { coverFor, COVER_NOTE } from "./airzones.js";
 
 const POINT_CACHE_S = 8;       // the page polls every 10 s and dead-reckons in between; the tile every 30 s
 const LAST_GOOD_S = 900;       // a stale snapshot older than 15 min is no use to anyone
@@ -171,6 +177,9 @@ async function point(q, ctx, env) {
   const p = snapPoint(q.get("lat"), q.get("lon"), q.get("r"));
   if (!p) return null;
   const { lat, lon, r, id } = p;
+  // outside every zone and city (airzones.js): no live aircraft, as with the hub
+  if (!coverFor(lat, lon, r)) return { body: { as_of_epoch: Math.floor(Date.now() / 1000), lat, lon, r_nm: r, count: 0, aircraft: [], uncovered: true, note: COVER_NOTE, credit: AIR_CREDIT.adsb_lol }, ttl: 3600 };
+  env = { ...(env || {}), ADSBLOL_API_KEY: "" };   // uncounted, so never with the key
   const cache = globalThis.caches?.default;
   const freshKey = new Request(`https://air.openplaces.internal/point/${id}`), lastKey = new Request(`https://air.openplaces.internal/last/${id}`);
   const served = () => Math.floor(Date.now() / 1000);

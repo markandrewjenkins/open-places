@@ -6,9 +6,10 @@
 //
 //   source key                  clock                                     upstream
 //   transit:<agency>            20 s (vehicles + trip updates), alerts 60 s   BC Transit GTFS-Realtime (agencies.js)
-//   air:<lat>,<lon>,<r>         30 s; 10 s while a client asked fast=air       adsb.lol, adsb.fi failover (air.js)
-//                               within the last 60 s; both stretched to fit
-//                               adsb.lol's daily budget (airEvery below)
+//   air:<zone | city>           zone: 30 s, 10 s while a client asked         adsb.lol, adsb.fi failover (air.js)
+//                               fast=air in the last 60 s, stretched to fit
+//                               its daily budget; city: 60 s (airzones.js)
+//   budget:adsb                 none: the day's adsb.lol call counts per pool (zones, cities), taken before every call
 //   ais:<area>                  one persistent websocket; housekeeping 60 s    aisstream.io (ais.js), reconnects with backoff
 //   roads:<bbox>                60 s                                          DriveBC Open511 (cams.js)
 //
@@ -32,12 +33,19 @@
 //       (90 min; one point per TRACK_STEP_S at most), kept in the source's memory from its own polls / socket (not saved,
 //       so a restart starts it again). Asking doesn't wake a sleeping source. Pages draw it as the selected vehicle's wake.
 //
+// Air (airzones.js): live aircraft only for two 250 nm zones (pnw: Victoria & Vancouver; phx: Phoenix) and a few named
+// cities sharing one pool. Every adsb.lol call, the DO's own polls and edge refreshes alike, first takes one call from
+// the budget DO (take), and settles the difference after (add: a retry costs one more, a call that never reached
+// adsb.lol is given back), so no path spends the key uncounted. A pool used up serves its last snapshot, stale, until
+// 00:00 UTC. A set's aircraft part (/live) and /air/point.json are the zone's or city's snapshot cut down to the circle
+// asked for; a circle outside every zone and city gets { uncovered: true } and no upstream call.
+//
 // Air when the hub's own polls fail (2026-11-23: adsb.lol answered the DO's location 429 for three days, its keyless
 // allowance is 500 calls a day per IP and a Worker's outgoing IPs are shared; adsb.fi refuses Workers with 403):
 //   - /live, finding the aircraft part stale, refreshes it from the edge location that served the request
 //     (edgeAir below: at most once per EDGE_AIR_LOCK_S per location, longer after a 429) and hands the answer to the DO
 //     (POST /put), so a viewer's location's outgoing IP can keep the region fed while the DO's is refused;
-//   - /air/point.json no longer serves a stale hub snapshot: it lets the old per-request route try upstream instead;
+//   - /air/point.json is always answered from the hub (stale or not), never by a per-request upstream call;
 //   - the aircraft part says why: `retry_s` (the DO waits out a 429 this long), `via` ("hub" or "edge"), `last_error`.
 //
 // Edge caching: each source answer is cached at the Cloudflare location until the source's next poll is due (the DO says
@@ -46,7 +54,8 @@
 import { decodeFeed } from "./gtfsrt.js";
 import { AGENCIES } from "./agencies.js";
 import { vehicles as decodeVehicles, alerts as decodeAlerts, parseBbox } from "./rt.js";
-import { snapPoint, fetchPoint } from "./air.js";
+import { snapPoint, fetchPoint, adsbKey, AIR_CREDIT } from "./air.js";
+import { AIR_SOURCES, COVER_NOTE, coverFor, budgets, everyFor, Ledger, packAir, unpackAir, within, utcDay, nextUtcMidnight } from "./airzones.js";
 import { AIS_AREAS, AIS_CREDIT, openWS, subscription, mergeMessage, snapshot as aisSnapshot } from "./ais.js";
 import { box as drivebcBox, fetchEvents } from "./cams.js";
 import { SETS, PARTS } from "./sets.js";
@@ -60,26 +69,26 @@ const FIRST_WAIT_MS = 3000;        // waking with an old snapshot: wait this lon
 const AIS_FIRST_MS = 6000;         // a cold AIS source waits this long for its first ships
 const AIS_SILENT_MS = 300000;      // an open socket that has carried no position in this long is reopened
 const LIVE_CACHE_S = 5;            // /live answers, per Cloudflare location
-const AIR_BUDGET = 450, AIR_BUDGET_KEY = 950;   // adsb.lol calls per UTC day: keyless 500 and keyed 1,000, less headroom
-                                   // (env ADSBLOL_DAILY_BUDGET overrides, e.g. 7000 for a feeder's key)
+const BUDGET_KEY = "budget:adsb";  // the one DO that counts every adsb.lol call per pool and UTC day (airzones.js budgets)
+const EDGE_TTL_MAX_S = 120;        // a source answer waits in an edge cache at most this long (a stretched clock is longer)
+const REPORT_EVERY_MAX_S = 900;    // every_s as reported while a pool is used up (the real wait is until 00:00 UTC)
 const UA = { "User-Agent": "openplaces relay (hub)" };
 const TRACK_S = 5400, TRACK_N = 200, TRACK_STEP_S = 20;   // /track.json: 90 min of where each vehicle has been, a point per 20 s at most
 const EDGE_AIR_LOCK_S = 45;        // an edge location refreshes a stale aircraft part at most this often (longer after a 429)
 const nowS = () => Math.floor(Date.now() / 1000);
-const utcDay = (ms = Date.now()) => new Date(ms).toISOString().slice(0, 10);
-const secsLeftToday = (ms = Date.now()) => { const d = new Date(ms); return (Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - ms) / 1000; };
 
 // ------------------------------------------------------------------ source keys
-/** "transit:victoria" → { key, kind, ... } or null (only allow-listed agencies, known areas, BC boxes, snapped circles) */
+/** "transit:victoria" → { key, kind, ... } or null (only allow-listed agencies, known areas, BC boxes, air zones and cities) */
 export function parseKey(key) {
   const [kind, arg] = String(key || "").split(/:(.*)/s);
   if (kind === "transit" && AGENCIES[arg]) return { key, kind, agency: arg };
   if (kind === "ais" && AIS_AREAS[arg]) return { key, kind, area: arg };
   if (kind === "roads" && drivebcBox(arg) === arg) return { key, kind, bbox: arg };
-  if (kind === "air") { const [la, lo, r] = (arg || "").split(",").map(Number), p = snapPoint(la, lo, r); if (p && p.id === arg) return { key, kind, ...p }; }
+  if (kind === "air" && Object.hasOwn(AIR_SOURCES, arg || "")) return { key, ...AIR_SOURCES[arg], kind, src: AIR_SOURCES[arg].kind };
+  if (key === BUDGET_KEY) return { key, kind: "budget" };
   return null;
 }
-const airKey = (set) => `air:${snapPoint(...set.air).id}`;
+const airKey = (set) => `air:${coverFor(...set.air)?.id}`;   // a set's circle sits inside its zone (sets.js)
 const sourceOf = (set, part) => (part === "transit" || part === "alerts" ? `transit:${set.transit}` : part === "air" ? airKey(set) : part === "ais" ? `ais:${set.ais}` : part === "roads" ? `roads:${set.roads}` : null);
 
 // ------------------------------------------------------------------ the Durable Object
@@ -96,8 +105,9 @@ export class LiveHub {
     state.blockConcurrencyWhile(async () => {
       const meta = await state.storage.get("meta");
       if (meta?.key) { this.src = parseKey(meta.key); this.lastReq = meta.lastReq || 0; this.until = meta.until || 0; this.polls = meta.calls || 0; }
-      this.snap = (await state.storage.get("snap")) || null;
-      this.airDay = (await state.storage.get("airday")) || null;
+      const snap = (await state.storage.get("snap")) || null;
+      this.snap = snap?.data ? { ...snap, data: unpackAir(snap.data) } : snap;
+      this.ledger = new Ledger((await state.storage.get("ledger")) || null);   // the budget DO only
       const ais = await state.storage.get("ais");
       if (ais) { this.ships = ais.ships || {}; this.statics = ais.statics || {}; }
     });
@@ -106,27 +116,30 @@ export class LiveHub {
   get idleMs() { return (+this.env.HUB_IDLE_S || IDLE_S) * 1000; }
   every() { return this.src.kind === "air" ? this.airEvery() : CLOCK_S[this.src.kind]; }
 
-  // ---- adsb.lol daily budget: calls are counted per UTC day (in DO storage) and the air clock stretches so the rest of
-  // the day's allowance lasts until midnight UTC: every = max(30 s, or 10 s fast, seconds left today / calls left today).
-  // Light use keeps the normal clock; all-day watching spreads the allowance evenly instead of running dry by noon.
-  airBudget() { return Math.max(1, Math.round(+this.env.ADSBLOL_DAILY_BUDGET || (this.env.ADSBLOL_API_KEY ? AIR_BUDGET_KEY : AIR_BUDGET))); }
-  airUsed() { return this.airDay?.day === utcDay() ? this.airDay.used : 0; }
+  // ---- adsb.lol budget (airzones.js): this source's pool as the budget DO last told it ({ day, used, budget, left }); a
+  // zone's clock stretches so the calls left last until 00:00 UTC, a city's stays at 60 s until its pool runs out
   airEvery() {
-    const base = Date.now() < this.fastUntil ? CLOCK_S.airFast : CLOCK_S.air;
-    const secsLeft = secsLeftToday(), left = this.airBudget() - this.airUsed();
-    return Math.max(base, Math.ceil(left > 0 ? secsLeft / left : secsLeft + 5));
+    const b = this.bud && this.bud.day === utcDay() ? this.bud : null;
+    return everyFor({ kind: this.src.src }, { fast: Date.now() < this.fastUntil, left: b ? b.left : null });
   }
-  async airCount(stats) {
-    const n = stats.adsb_lol || 0, day = utcDay();
-    if (!n) return;
-    this.airDay = { day, used: (this.airDay?.day === day ? this.airDay.used : 0) + n };
-    await this.state.storage.put("airday", this.airDay).catch(() => {});
+  airOut() { return !!(this.bud && this.bud.day === utcDay() && this.bud.left <= 0); }   // no calls left today (the last may have just worked)
+
+  /** the budget DO's own routes: /take?pool= reserves one call (or says no), /add?pool=&n= settles, /get lists the day */
+  async budgetRoute(u) {
+    const q = u.searchParams, pool = q.get("pool") || "", all = budgets(this.env, !!adsbKey(this.env));
+    let out;
+    if (u.pathname === "/take" && pool in all) out = this.ledger.take(pool, all[pool]);
+    else if (u.pathname === "/add" && pool in all) out = this.ledger.add(pool, +q.get("n") || 0, all[pool]);
+    else { this.ledger.roll(); return Response.json({ day: this.ledger.day, used: this.ledger.used, budgets: all, keyed: !!adsbKey(this.env) }); }
+    await this.state.storage.put("ledger", this.ledger.toJSON());
+    return Response.json(out);
   }
 
   async fetch(req) {
     const u = new URL(req.url), q = u.searchParams;
     const key = q.get("key");
     if (!this.src || this.src.key !== key) { const s = parseKey(key); if (!s) return Response.json({ error: "unknown source" }, { status: 400 }); this.src = s; }
+    if (this.src.kind === "budget") return this.budgetRoute(u);
     // where one vehicle has been: answered from memory, without waking a sleeping source
     if (u.pathname === "/track") {
       const id = String(q.get("id") || "").toLowerCase().replace(/[^0-9a-z]/g, "").slice(0, 12);
@@ -136,9 +149,9 @@ export class LiveHub {
     if (u.pathname === "/put" && req.method === "POST" && this.src.kind === "air") {
       const b = await req.json().catch(() => null), d = b?.data;
       if (!d || !Array.isArray(d.aircraft) || !(d.as_of_epoch > (this.snap?.asOf || 0))) return Response.json({ ok: false });
-      this.snap = { ...(this.snap || {}), data: d, asOf: d.as_of_epoch, fetched: nowS(), error: null, via: "edge" };
+      this.snap = { ...(this.snap || {}), data: d, asOf: d.as_of_epoch, fetched: nowS(), error: null, via: "edge", budgetOut: false };
+      if (b.bud) this.bud = b.bud;   // the edge took its call from the budget DO already (edgeAir)
       this.airTracks(d);
-      if (this.env.ADSBLOL_API_KEY) await this.airCount(b.stats || {});   // a key's allowance is per key, wherever the call came from
       await this.save(false);
       return Response.json({ ok: true });
     }
@@ -177,7 +190,7 @@ export class LiveHub {
     if (this.src.kind === "ais") return 30;
     if (this.inflight) return 2;   // a poll is landing: don't let the edge keep the old copy for a whole clock
     const due = (this.snap?.tried || Date.now()) + this.every() * 1000 + 1500 - Date.now();
-    return Math.max(1, Math.min(this.every(), Math.ceil(due / 1000)));
+    return Math.max(1, Math.min(this.every(), EDGE_TTL_MAX_S, Math.ceil(due / 1000)));
   }
 
   /** set the alarm for the next poll (sooner if fast mode just shortened the clock) */
@@ -215,14 +228,15 @@ export class LiveHub {
       this.snap = { ...(this.snap || {}), tried: t };
       try {
         const r = await this.poll(t);
-        this.snap = { ...this.snap, ...r, fetched: Math.floor(t / 1000), tried: t, error: null, last_error: null, via: "hub" };
+        this.snap = { ...this.snap, ...r, fetched: Math.floor(t / 1000), tried: t, error: null, last_error: null, via: "hub", budgetOut: false };
         this.until = 0;
         if (this.src.kind === "air") this.airTracks(r.data);
       } catch (e) {
         // an edge location's fresh answer (POST /put) stays good while the DO's own call is refused: keep the reason apart
-        const msg = String(e.message || e), edgeFresh = this.snap?.via === "edge" && this.snap.fetched && nowS() - this.snap.fetched <= this.every() * 2.5;
-        this.snap = { ...this.snap, tried: t, error: edgeFresh ? null : msg, last_error: msg };
+        const msg = String(e.message || e), edgeFresh = !e.budget && this.snap?.via === "edge" && this.snap.fetched && nowS() - this.snap.fetched <= this.every() * 2.5;
+        this.snap = { ...this.snap, tried: t, error: edgeFresh ? null : msg, last_error: msg, budgetOut: !!e.budget };
         if (e.status === 429) this.until = t + (e.retryAfter || 60) * 1000;
+        if (e.budget) this.until = nextUtcMidnight(t) + 1000;   // the pool is used up: nothing more today
         console.log(`hub ${this.src.key} upstream error: ${this.snap.error}`);
       }
       await this.save(false);
@@ -254,7 +268,7 @@ export class LiveHub {
     if (!force && now - this.savedAt < SAVE_MS) { await this.state.storage.put("meta", this.meta()).catch(() => {}); return; }   // small: keeps lastReq and the call count across restarts
     this.savedAt = now;
     const puts = { meta: this.meta() };
-    if (this.snap) puts.snap = this.snap;
+    if (this.snap) puts.snap = this.src.kind === "air" && this.snap.data ? { ...this.snap, data: packAir(this.snap.data) } : this.snap;
     if (this.src.kind === "ais") puts.ais = { ships: this.ships, statics: this.statics };
     await this.state.storage.put(puts).catch((e) => console.log(`hub ${this.src.key} save failed: ${e.message || e}`));
   }
@@ -262,9 +276,8 @@ export class LiveHub {
   async poll(t) {
     const s = this.src;
     if (s.kind === "air") {
-      if (this.airUsed() >= this.airBudget()) throw new Error(`adsb.lol daily budget (${this.airBudget()} calls) used up; next call after 00:00 UTC`);
-      this.polls++; const stats = {};
-      try { const data = await fetchPoint(s.lat, s.lon, s.r, this.env, stats); return { data, asOf: data.as_of_epoch }; } finally { await this.airCount(stats); }
+      const data = await countedPoint(this.env, s, (b) => { this.bud = b; }, () => { this.polls++; });
+      return { data, asOf: data.as_of_epoch };
     }
     if (s.kind === "roads") { this.polls++; const data = await fetchEvents(s.bbox); return { data, asOf: data.fetched_epoch }; }
     if (s.kind === "transit") return this.pollTransit(t);
@@ -394,12 +407,43 @@ export class LiveHub {
       const al = snap.data?.alerts;
       parts = { transit: part("transit", CLOCK_S.transit, snap.data?.vehicles, snap.fetched, snap.asOf, snap.error),
         alerts: part("alerts", CLOCK_S.alerts, al, al?.fetched_epoch, al?.as_of_epoch, al ? null : snap.error) };
-    } else if (k === "air") parts = { air: { ...part("air", this.every(), snap.data, snap.fetched, snap.asOf, snap.error), budget: this.airBudget(), used: this.airUsed(),
-      retry_s: this.until > Date.now() ? Math.ceil((this.until - Date.now()) / 1000) : 0, via: snap.via || "hub", last_error: snap.last_error || snap.error || null } };
+    } else if (k === "air") {
+      const out = this.airOut(), every = Math.min(this.every(), REPORT_EVERY_MAX_S), b = this.bud && this.bud.day === utcDay() ? this.bud : null;
+      const p = part("air", every, snap.data, snap.fetched, snap.asOf, snap.error);
+      if (out) {   // used up: the last snapshot, marked stale, until 00:00 UTC
+        if (snap.data && !p.data) p.data = snap.data;
+        p.stale = true; p.error ||= `the day's adsb.lol allowance for ${this.src.pool === "cities" ? "the city pool" : this.src.name} is used up; next update after 00:00 UTC`;
+      }
+      parts = { air: { ...p, zone: this.src.id, zone_name: this.src.name, zone_kind: this.src.src, pool: this.src.pool, budget: b?.budget ?? null, used: b?.used ?? null,
+        budget_out: out, retry_s: this.until > Date.now() ? Math.ceil((this.until - Date.now()) / 1000) : 0, via: snap.via || "hub", last_error: snap.last_error || snap.error || null } };
+    }
     else if (k === "ais") parts = { ais: part("ais", CLOCK_S.ais, snap.data, snap.fetched ?? (snap.data?.count ? snap.data.as_of_epoch : null), snap.asOf, snap.error) };
     else parts = { roads: part("roads", CLOCK_S.roads, snap.data, snap.fetched, snap.asOf, snap.error) };
     return { key: this.src.key, kind: k, upstream_calls: this.polls, was_idle: this.wasIdle, fast: k === "air" ? Date.now() < this.fastUntil : undefined,
       socket: k === "ais" ? (this.ws ? "open" : "closed") : undefined, msgs: k === "ais" ? this.msgs : undefined, bad_msgs: k === "ais" ? this.badMsgs : undefined, parts };
+  }
+}
+
+// ------------------------------------------------------------------ counted adsb.lol calls (DO polls and edge refreshes)
+const budgetStub = (env) => env.HUB.get(env.HUB.idFromName(BUDGET_KEY));
+async function budgetCall(env, path, pool, n) {
+  const r = await budgetStub(env).fetch(`https://hub${path}?key=${encodeURIComponent(BUDGET_KEY)}&pool=${encodeURIComponent(pool)}${n != null ? `&n=${n}` : ""}`);
+  if (!r.ok) throw new Error(`budget ${r.status}`);
+  return r.json();
+}
+/** one counted call for an air source: take a call from its pool first (none left: throw, marked budget), make it, then
+ *  settle what was really spent (a retry inside race() costs one more; a call that never reached adsb.lol is given back).
+ *  onBudget(b) gets the pool's count ({ day, used, budget, left }); onCall() runs once the call is allowed. */
+export async function countedPoint(env, src, onBudget, onCall) {
+  const t = await budgetCall(env, "/take", src.pool);
+  onBudget?.(t);
+  if (!t.ok) throw Object.assign(new Error(`the day's adsb.lol allowance for ${src.pool === "cities" ? "the city pool" : src.name} (${t.budget} calls) is used up; next update after 00:00 UTC`), { budget: true });
+  onCall?.();
+  const stats = {};
+  try { return await fetchPoint(src.lat, src.lon, src.r, env, stats); }
+  finally {
+    const extra = (stats.adsb_lol || 0) - 1;
+    if (extra) { try { onBudget?.(await budgetCall(env, "/add", src.pool, extra)); } catch (e) { console.log(`hub budget settle failed: ${e.message || e}`); } }
   }
 }
 
@@ -447,10 +491,14 @@ async function rawFeed(env, ctx, agency, feed, ttl) {
 }
 
 const HUB_AGENCIES = new Set(Object.values(SETS).map((s) => s.transit));
-const HUB_AIR = [...new Map(Object.values(SETS).map((s) => { const p = snapPoint(...s.air); return [p.id, p]; })).values()];
-const nmBetween = (la1, lo1, la2, lo2) => { const R = 3440.065, r = Math.PI / 180, a = Math.sin(((la2 - la1) * r) / 2) ** 2 + Math.cos(la1 * r) * Math.cos(la2 * r) * Math.sin(((lo2 - lo1) * r) / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(a)); };
-const OLD_AIR_MAX_R = 30;   // old /air/point.json circles up to this are answered from the hub (the tiles' 22 nm); the Air
-                            // Traffic page's 40 nm / 10 s polling stays on the old route until it asks /live with fast=air
+/** a zone or city snapshot cut down to a circle (the same body /air/point.json sends) */
+function airCut(d, lat, lon, r) {
+  const list = within(d.aircraft, lat, lon, r);
+  return { ...d, lat, lon, r_nm: r, count: list.length, aircraft: list };
+}
+/** /air/point.json outside every zone and city */
+const uncoveredBody = (p) => ({ as_of_epoch: nowS(), served_epoch: nowS(), lat: p.lat, lon: p.lon, r_nm: p.r, count: 0, aircraft: [], uncovered: true, stale: false,
+  note: COVER_NOTE, zones: Object.values(AIR_SOURCES).map((x) => ({ id: x.id, kind: x.kind, name: x.name, lat: x.lat, lon: x.lon, r_nm: x.r })), credit: AIR_CREDIT.adsb_lol });
 const HUB_AREAS = new Set(Object.values(SETS).map((s) => s.ais));
 const HUB_BOXES = [...new Set(Object.values(SETS).map((s) => s.roads))];
 const inBox = (inner, outer) => { const a = inner.split(",").map(Number), b = outer.split(",").map(Number); return a[0] >= b[0] && a[1] >= b[1] && a[2] <= b[2] && a[3] <= b[3]; };
@@ -465,23 +513,25 @@ function vehicleFilter(a, route, bbox) {
 }
 
 /** a stale aircraft part, refreshed from this edge location (its own outgoing IP) and handed to the DO: at most once per
- *  EDGE_AIR_LOCK_S per location (a 429 holds it for the Retry-After), run after the /live answer has gone (waitUntil) */
-async function edgeAir(env, set) {
-  const cache = globalThis.caches?.default, p = snapPoint(...set.air), key = `air:${p.id}`;
-  if (!cache) return;
-  const lock = new Request(`https://hub.cache/edge-air-lock/${p.id}`);
+ *  EDGE_AIR_LOCK_S per location and source (a 429 holds it for the Retry-After), run after the /live answer has gone
+ *  (waitUntil). The call is taken from the source's pool first (countedPoint), so an edge never spends the key uncounted. */
+async function edgeAir(env, key) {
+  const cache = globalThis.caches?.default, src = parseKey(key);
+  if (!cache || src?.kind !== "air") return;
+  const lock = new Request(`https://hub.cache/edge-air-lock/${src.id}`);
   if (await cache.match(lock).catch(() => null)) return;
   const hold = (s) => cache.put(lock, new Response("1", { headers: { "Cache-Control": `public, max-age=${s}` } })).catch(() => {});
   await hold(EDGE_AIR_LOCK_S);
-  const stats = {};
   try {
-    const data = await fetchPoint(p.lat, p.lon, p.r, env, stats);
-    await env.HUB.get(env.HUB.idFromName(key)).fetch(`https://hub/put?key=${encodeURIComponent(key)}`, { method: "POST", body: JSON.stringify({ data, stats }) });
+    let bud = null;
+    const data = await countedPoint(env, src, (b) => { bud = b; });
+    await env.HUB.get(env.HUB.idFromName(key)).fetch(`https://hub/put?key=${encodeURIComponent(key)}`, { method: "POST", body: JSON.stringify({ data, bud }) });
     await cache.delete(new Request(`https://hub.cache/src/${encodeURIComponent(key)}`)).catch(() => {});
     await cache.delete(new Request(`https://hub.cache/src/${encodeURIComponent(key)}?fast=1`)).catch(() => {});
   } catch (e) {
-    if (e.status === 429) await hold(Math.max(EDGE_AIR_LOCK_S, Math.min(600, e.retryAfter || 120)));
-    console.log(`hub edge air ${p.id} failed: ${e.message || e}`);
+    if (e.budget) await hold(600);
+    else if (e.status === 429) await hold(Math.max(EDGE_AIR_LOCK_S, Math.min(600, e.retryAfter || 120)));
+    console.log(`hub edge air ${src.id} failed: ${e.message || e}`);
   }
 }
 
@@ -503,7 +553,7 @@ async function live(url, env, ctx) {
   // the aircraft part stale (the DO's own calls refused): refresh it from here once the answer has gone
   if (env.HUB && ctx?.waitUntil && res.status === 200) {
     const set = SETS[(url.searchParams.get("set") || "").toLowerCase()];
-    try { const air = (await res.clone().json()).parts?.air; if (set && air?.stale) ctx.waitUntil(edgeAir(env, set)); } catch { /* not JSON */ }
+    try { const air = (await res.clone().json()).parts?.air; if (set && air?.stale && !air.budget_out) ctx.waitUntil(edgeAir(env, airKey(set))); } catch { /* not JSON */ }
   }
   return res;
 }
@@ -525,6 +575,8 @@ async function liveAnswer(url, env, ctx) {
     for (const p of want) {
       const v = byKey[sourceOf(set, p)];
       parts[p] = v?.parts?.[p] ? { ...v.parts[p], served } : { asOf: null, fetched: null, served, age_s: null, stale: true, error: v?.error || "unavailable", data: null };
+      // the zone holds every aircraft within 250 nm: send only the set's own circle (sets.js air)
+      if (p === "air" && parts.air.data) parts.air.data = airCut(parts.air.data, ...set.air);
     }
     const body = { set: id, name: set.name, region: set.region, ll: set.ll, served_epoch: served, parts };
     if (debug) body.sources = Object.fromEntries(views.map(([k, v]) => [k, { upstream_calls: v.upstream_calls, was_idle: v.was_idle, fast: v.fast, socket: v.socket, msgs: v.msgs, bad_msgs: v.bad_msgs, error: v.error }]));
@@ -563,14 +615,17 @@ export async function hubRoute(req, url, env, ctx, h) {
 
     if (system === "air" && a === "point.json") {
       const p = snapPoint(q.get("lat"), q.get("lon"), q.get("r"));
-      const big = p && p.r <= OLD_AIR_MAX_R && HUB_AIR.find((c) => nmBetween(c.lat, c.lon, p.lat, p.lon) + p.r <= c.r);
-      if (!big) return null;
-      const v = await source(env, ctx, `air:${big.id}`), part = v.parts.air;
-      if (!part.data || part.stale) return null;   // nothing fresh in the hub: let the old route try (and report) upstream from this location
-      // the region's circle cut down to the one asked for, so the body is what the old route would have sent
-      const list = part.data.aircraft.filter((x) => nmBetween(p.lat, p.lon, x.lat, x.lon) <= p.r);
-      const body = { ...part.data, lat: p.lat, lon: p.lon, r_nm: p.r, count: list.length, aircraft: list, served_epoch: nowS(), cache: "hub" };
-      return withH(jsonRes(body, Math.min(8, part.every_s)), h);
+      if (!p) return null;
+      const c = coverFor(p.lat, p.lon, p.r);
+      // outside every zone and city: no live aircraft, no upstream call
+      if (!c) return withH(jsonRes(uncoveredBody(p), 3600), h);
+      const v = await source(env, ctx, `air:${c.id}`), part = v.parts.air;
+      // the zone's or city's snapshot cut down to the circle asked for, stale or not (the relay's own last copy is the
+      // fallback now; it never asks upstream per request)
+      const d = part.data ? airCut(part.data, p.lat, p.lon, p.r) : { as_of_epoch: part.asOf, lat: p.lat, lon: p.lon, r_nm: p.r, count: 0, aircraft: [], credit: AIR_CREDIT.adsb_lol };
+      const body = { ...d, served_epoch: nowS(), cache: "hub", every_s: part.every_s, age_s: part.age_s, stale: !!part.stale || !part.data, error: part.error || (part.data ? undefined : "no snapshot yet"),
+        zone: part.zone, zone_name: part.zone_name, zone_kind: part.zone_kind, budget: part.budget, used: part.used, budget_out: part.budget_out };
+      return withH(jsonRes(body, Math.max(1, Math.min(15, part.every_s || 15))), h);
     }
 
     if (system === "ais" && a?.endsWith(".json")) {

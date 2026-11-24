@@ -54,3 +54,6 @@
 /* the picked bus's Follow toggle (civic-follow.js), above its card in the drawer */
 .civ-trfollow { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 6px; }
 .civ-trfollow .civ-follow-hint { margin: 0; }
+/* Transit: a departure row picks its route (lit on the map) */
+.civ-trdeps .tr-row-pick { cursor: pointer; border-radius: 4px; }
+.civ-trdeps .tr-row-pick:hover, .civ-trdeps .tr-row-pick:focus-visible { background: var(--surface-2, rgba(127, 127, 127, 0.12)); outline: none; }

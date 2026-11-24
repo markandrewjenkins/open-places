@@ -19,7 +19,7 @@ import { color } from "./civic-stage.js";
 import { water, grid, enso, outlook, unusual, ar, arSeries, tsunami, hazards, bigquakes, natalerts, wx, aq, ferry, bike, ttc, waterwaysNext } from "./civic-modules.js";
 import { radarLayer, radarPanel } from "./civic-mod-weather.js";
 import { rainPanel } from "./civic-wxfx.js";   // Forecast: the rain line at the top
-import { parentView, arNowPanel, ensoNowPanel } from "./civic-mod-hazards.js";
+import { parentView, arNowPanel, ensoNowPanel, arFieldLayer, arFieldPanel, arCoverage, arView } from "./civic-mod-hazards.js";
 import * as TR from "../src/blink/transit.js";
 import "./civic-stage-civic.css";
 
@@ -331,9 +331,10 @@ export const CIVIC_STAGES = {
     panels: (ctx) => [modPanel(unusual, ctx, { id: "un", title: "Unusual Weather", list: true, lede: "Live weather alerts, the NE Pacific sea-temperature anomaly and the year's highest predicted tides.",
       credit: `${isUS(ctx) ? "NWS" : "ECCC"} alerts (live) · NOAA OISST and CO-OPS tide predictions (public domain)` })] },
 
-  ar: { layout: "map", pane: "none", layers: [AR_PTS, AR_LBL], view: (ctx) => { const b = AR_VIEW[provinceOf(ctx.place)?.id] || AR_VIEW.bc; return { center: [(b[0][0] + b[1][0]) / 2, (b[0][1] + b[1][1]) / 2], zoom: 6, bounds: b }; },
-    panels: (ctx) => [arNowPanel(ctx, need(ar, ctx)), modPanel(ar, ctx, { id: "ar", title: "Moisture Transport", h: 200, credit: "Open-Meteo GFS (CC BY 4.0), scored on the CW3E 1–5 scale: an estimate",
-      lede: `Estimated water-vapour transport over ${ctx.place.name}, next 7 days (kg/m/s); 250 starts an atmospheric river. Map: the same estimate along the coast, arrows pointing where the moisture flows.` })] },
+  // the moisture band itself over the North Pacific, Hawaii to the coast (civic-mod-hazards.js arFieldLayer; the coast arrows AR_PTS are no longer drawn here)
+  ar: { layout: "map", pane: "none", layers: [{ id: "ar-field", custom: arFieldLayer, rerun: true }], view: arView, coverage: arCoverage,
+    panels: (ctx) => [arFieldPanel(ctx, need(ar, ctx)), arNowPanel(ctx, need(ar, ctx)), modPanel(ar, ctx, { id: "ar", title: "Moisture Transport", h: 200, credit: "Open-Meteo GFS (CC BY 4.0), scored on the CW3E 1–5 scale: an estimate",
+      lede: `Estimated water-vapour transport over ${ctx.place.name}, next 7 days (kg/m/s); 250 starts an atmospheric river.` })] },
   // opens on the place's parent area (Langford → Greater Victoria), like Wildfires and Earthquakes; messages from further out stay on the map
   tsunami: { layout: "map", pane: "none", layers: [TSU_PTS], view: parentView,
     panels: (ctx) => [modPanel(tsunami, ctx, { id: "tsu", title: "Latest Messages", list: true, lede: (d) => (d.level >= 1 ? "A tsunami message is in effect on this coast: follow local officials." : `No tsunami watch, advisory or warning for the ${d.prov.short} coast. Map: where the latest messages were centred.`),

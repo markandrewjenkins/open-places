@@ -1,11 +1,10 @@
 """Download raw inputs for Air Traffic (air traffic).
 
-  python -m pipelines.air.fetch [daily|snapshot|metar|airports ...] [--force]
+  python -m pipelines.air.fetch [daily|metar|airports ...] [--force]
 
-snapshot   one poll of every aircraft in the home circle (adsb.lol, fallback adsb.fi), appended to the log
 metar      latest METAR and TAF for the stations in config.METAR_IDS (NOAA Aviation Weather Center)
 airports   OurAirports airports, runways and frequencies (public domain), reused until a week old
-daily      all three
+daily      both
 
 Each source runs on its own: a failure is recorded in data/air/raw/status.json (and as a GitHub Actions warning) and
 the others still run. No accounts or keys.
@@ -19,21 +18,10 @@ import time
 import traceback
 from datetime import datetime, timezone
 
-from . import logio
-from .collect import poll_once
 from .config import METAR_IDS, OURAIRPORTS, OURAIRPORTS_MAX_AGE_DAYS, RAW
-from .feeds import FIELDS, S, metar_taf
+from .feeds import S, metar_taf
 
 FORCE = "--force" in sys.argv
-
-
-def snapshot() -> dict:
-    rows, p = poll_once()
-    logio.append("ac", rows, FIELDS)
-    logio.append("polls", [p], logio.POLL_FIELDS)
-    if not p["ok"]:
-        raise RuntimeError(p["error"])
-    return {"aircraft": p["n"], "source": p["source"]}
 
 
 def metar() -> dict:
@@ -60,7 +48,7 @@ def airports() -> dict:
     return got
 
 
-SOURCES = {"snapshot": snapshot, "metar": metar, "airports": airports}
+SOURCES = {"metar": metar, "airports": airports}
 
 
 def record(name: str, ok: bool, info: dict | None = None, error: str | None = None) -> None:

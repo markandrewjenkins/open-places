@@ -21,10 +21,11 @@ export const LIVE_S = 45, DOWN_S = 300;     // newest report younger than LIVE_S
 
 export const createTrack = () => ({ ac: new Map(), anon: [], asOf: 0, offset: 0, source: "", credit: "", stale: false, staleWhy: "", reports: 0, lastCount: 0, every: 0 });
 
-// The relay's hub can stretch its aircraft clock to fit adsb.lol's daily allowance (it says so in every_s). A report is
-// then expected less often, so "live", the fade and dead reckoning stretch with it (dead reckoning to at most 4 min).
+// The relay's hub stretches its aircraft clock to fit adsb.lol's daily allowance (every_s: up to ~4 min for a zone watched
+// all day). A report is then expected less often, so "live", the fade, holding and dead reckoning stretch with it: dead
+// reckoning covers a clock plus the page's own poll lag (a quarter clock), at most 5.5 min.
 const liveS = (T) => Math.max(LIVE_S, (T.every || 0) * 1.5 + 15);
-const drS = (T) => Math.min(240, Math.max(DR_MAX_S, (T.every || 0) + 15));
+const drS = (T) => Math.min(330, Math.max(DR_MAX_S, (T.every || 0) * 1.25 + 15));
 
 /** the relay's clock (s): local time plus the offset learned from its served_epoch */
 export const serverNow = (T, ms = Date.now()) => ms / 1000 + T.offset;
@@ -78,7 +79,7 @@ export function feedState(T, ms = Date.now()) {
 }
 export const agoS = (s) => (s == null ? "–" : s < 90 ? `${Math.round(s)} s ago` : s < 5400 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`);
 
-/** Poll `run()` every `every` ms while the tab is visible. Failures retry after 3 s, then 15 s doubling to 2 min (a 429
+/** Poll `run()` every `every` ms (or every `every()` ms, asked after each answer) while the tab is visible. Failures retry after 3 s, then 15 s doubling to 2 min (a 429
  *  waits at least a minute). onResult(value) / onError(err, waitMs) after each attempt. Returns { stop, kick, info }. */
 export function poller(run, { every = 10000, onResult, onError } = {}) {
   let timer = 0, stopped = false, fails = 0, nextAt = 0, busy = false;
@@ -91,7 +92,7 @@ export function poller(run, { every = 10000, onResult, onError } = {}) {
     try {
       const v = await run();
       fails = 0; busy = false;
-      plan(every);
+      plan(typeof every === "function" ? every() : every);
       onResult?.(v);
     } catch (e) {
       fails++; busy = false;

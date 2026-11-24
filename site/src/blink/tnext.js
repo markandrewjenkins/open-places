@@ -122,7 +122,16 @@ export const tnext = {
 };
 
 const solo = new Set();
-export function departuresList({ stops = 4, rows: nRows = 6, links = true } = {}) {
+/** onRoute(route) (optional): a row's click picks its route (the Open Places transit map lights it up); onRouteHover(route | null) */
+export function departuresList({ stops = 4, rows: nRows = 6, links = true, onRoute = null, onRouteHover = null } = {}) {
+  const rowOf = (x) => {
+    const n = rowNode(x); if (!onRoute) return n;
+    n.classList.add("tr-row-pick"); n.tabIndex = 0; n.setAttribute("role", "button"); n.title = `Light up route ${x.sv.route.name} on the map`;
+    n.onclick = () => onRoute(x.sv.route);
+    n.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onRoute(x.sv.route); } };
+    if (onRouteHover) { n.onmouseenter = () => onRouteHover(x.sv.route); n.onmouseleave = () => onRouteHover(null); }
+    return n;
+  };
   const host = el("div", { class: "tr-boards tr-boards-solo" });
   let ready = false;
   const paint = () => {
@@ -131,7 +140,7 @@ export function departuresList({ stops = 4, rows: nRows = 6, links = true } = {}
     if (!near.length) { host.replaceChildren(el("p", { class: "note" }, "No stops found near this spot.")); return; }
     host.replaceChildren(...near.slice(0, stops).map(({ stop, m }) => el("section", { class: "tr-stop" },
       el("header", {}, links ? el("a", { href: href("next", "board", stopKey(stop)) }, stop.name) : el("b", {}, stop.name), el("small", {}, `${distTxt(m)}${stop.code ? ` · stop ${stop.code}` : ""}`)),
-      el("div", { class: "tr-board" }, ...rows(stop).slice(0, nRows).map(rowNode)))));
+      el("div", { class: "tr-board" }, ...rows(stop).slice(0, nRows).map(rowOf)))));
   };
   solo.add(paint);
   window.addEventListener("transit-pred", paint);

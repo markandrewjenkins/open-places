@@ -1,10 +1,10 @@
-// Airports: who is arriving and departing right now at YYJ and the harbour (from the live feed), the logged daily
-// movements, runway diagrams with the current wind, radio frequencies and every aerodrome nearby (OurAirports).
+// Airports: who is arriving and departing right now at YYJ and the harbour (from the live feed), runway diagrams with
+// the current wind, radio frequencies and every aerodrome nearby (OurAirports).
 import * as d3 from "d3";
 import { cssVar, el, tipRow } from "../shared/ui.js";
 import { frame, gridY, axisClean, colPath } from "../shared/charts.js";
 import { href } from "../shared/console.js";
-import { A, $, tip, fmt0, allAircraft, whenTxt, isLive, loadCore, loadWorld, startLive, onLive, aeroZones, legendKey, fStamp, fTime, fDay, chip, MIN, thin } from "./common.js";
+import { A, $, tip, fmt0, allAircraft, whenTxt, isLive, loadCore, loadWorld, startLive, onLive, aeroZones, fTime } from "./common.js";
 import { typeInfo, callsign, fAlt, nearestAirports, windOn, compass, distKm } from "./feed.js";
 
 const TYPE_LABEL = { large_airport: "Airports", medium_airport: "Airports", small_airport: "Small airfields", seaplane_base: "Seaplane bases (water aerodromes)", heliport: "Heliports", balloonport: "Other" };
@@ -12,9 +12,6 @@ const idOf = (a) => a.hex || `p${a.lat},${a.lon}`;
 let pick = null;                     // aerodrome shown in Runways & radio
 
 const inZones = () => allAircraft().filter((a) => a.at);
-const homeMoves = () => (A.place.home ? A.data?.movements : null);
-const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Vancouver" });
-const dayRow = (d) => A.data?.coverage?.by_day?.find((x) => x.date === d);
 const localAero = () => (A.place.home ? (A.airports?.airports || []) : []);
 function runwayAeros() {
   if (A.place.home) return localAero().filter((x) => x.icao === "CYWH" || (x.type !== "heliport" && x.km <= 45 && x.runways.some((r) => r.le_lat != null))).slice(0, 8);
@@ -32,17 +29,15 @@ export const airports = {
   load: (ctx) => loadCore().then(() => (A.place.home ? null : loadWorld())).then(() => startLive(ctx)),
   badge: () => [`${inZones().length}`, "aircraft arriving, departing or low near an aerodrome"],
   kpis: () => {
-    const Z = aeroZones(), M = homeMoves(), d = dayRow(today());
+    const Z = aeroZones();
     return [
       ...Z.map((z) => { const n = inZones().filter((a) => a.at.id === z.id); return [`${z.short} right now`, `${n.length}`, n.length ? n.map((a) => `${callsign(a)} ${a.at.move}`).slice(0, 2).join(", ") : `nothing within ${z.zone_km} km below ${fmt0(z.ceiling_ft)} ft`]; }),
-      M ? ["Logged today", d ? `${fmt0(d.CYYJ_arr + d.CYYJ_dep + d.CYWH_arr + d.CYWH_dep)}` : "0", "arrivals + departures, YYJ and harbour", thin(d?.polls, MIN.polls) ? { class: "cx-kpi ov-thin-kpi" } : undefined] : null,
       ["Aerodromes nearby", `${A.place.home ? localAero().length : nearestAirports(A.world, A.place.lat, A.place.lon, 50, A.place.r * 1.852).length}`, A.place.home ? "within 60 km, incl. seaplane bases and helipads" : "large and medium airports in the circle"],
     ].filter(Boolean);
   },
   tile: (t) => {
-    const Z = aeroZones(), M = homeMoves();
-    t.kpis([...Z.slice(0, 2).map((z) => [`${inZones().filter((a) => a.at.id === z.id).length}`, `near ${z.short} now`]),
-      M ? [`${fmt0(M.n.CYYJ.arr + M.n.CYYJ.dep)}`, "YYJ moves logged"] : ["–", "no log here"]]);
+    const Z = aeroZones(), nAero = A.place.home ? localAero().length : nearestAirports(A.world, A.place.lat, A.place.lon, 50, A.place.r * 1.852).length;
+    t.kpis([...Z.slice(0, 2).map((z) => [`${inZones().filter((a) => a.at.id === z.id).length}`, `near ${z.short} now`]), [`${nAero}`, "aerodromes nearby"]]);
     t.status(isLive() ? "Live" : "");
     const yyj = localAero().find((x) => x.icao === "CYYJ");
     if (yyj) runwayDiagram(t.vis, yyj, metarFor("CYYJ"), { mini: true });
@@ -50,12 +45,8 @@ export const airports = {
   },
   subs: [
     { id: "moves", title: "Arrivals & departures", short: "Moves", class: "pane-ovmoves",
-      view: () => renderMoves(),
-      html: `<div class="cx-row cols-13-1">
-        <div class="card cx-fill"><h3 class="cx-card-title">Right now near each aerodrome</h3><p class="note cx-card-sub" id="ov-mv-sub"></p><div class="ov-zones cx-grow" id="ov-zones"></div></div>
-        <div class="card cx-fill"><h3 class="cx-card-title">Recent movements (log)</h3><p class="note cx-card-sub" id="ov-mv-log-sub"></p><ol class="ov-moves cx-grow" id="ov-moves"></ol></div>
-      </div>
-      <div class="card cx-fill ov-mvdays"><div class="ov-cardhead"><div><h3 class="cx-card-title">Movements per day</h3><p class="note cx-card-sub" id="ov-mvd-sub"></p></div><div class="legend" id="ov-mvd-legend"></div></div><div class="chart" id="ov-mvd"></div></div>` },
+      view: () => renderZones(),
+      html: `<div class="card cx-fill"><h3 class="cx-card-title">Right now near each aerodrome</h3><p class="note cx-card-sub" id="ov-mv-sub"></p><div class="ov-zones cx-grow" id="ov-zones"></div></div>` },
     { id: "runways", title: "Runways & radio", short: "Runways", class: "pane-ovrwy",
       view: () => renderRunways(),
       html: `<div class="ov-seg seg" id="ov-rw-seg"></div>
@@ -82,42 +73,6 @@ function renderZones() {
         : el("p", { class: "note" }, "Nothing low in the zone right now."));
   }) : [el("p", { class: "note" }, "No aerodrome zones for this place yet.")]));
 }
-function renderMoves() {
-  renderZones();
-  const M = homeMoves(), c = A.data?.coverage;
-  if (!M) {
-    $("ov-mv-log-sub").textContent = "Logged movements exist only for Greater Victoria (YYJ and the harbour).";
-    $("ov-moves").replaceChildren(); $("ov-mvd").replaceChildren(el("p", { class: "note" }, "Switch the place to Greater Victoria for the logged view."));
-    $("ov-mvd-sub").textContent = ""; $("ov-mvd-legend").replaceChildren();
-    return;
-  }
-  $("ov-mv-log-sub").replaceChildren(`Inferred from the logged tracks: a track that ends low or on the ground in a zone is an arrival; one that starts there and climbs is a departure. `, chip(c.polls_ok, MIN.polls));
-  $("ov-moves").replaceChildren(...(M.recent.length ? M.recent.slice(0, 40).map((m) => el("li", {}, el("time", {}, fStamp(m.ts)), el("b", { class: `mv-${m.kind}` }, m.kind === "arr" ? "arrived" : m.kind === "dep" ? "departed" : "low pass"),
-    el("span", {}, `${m.aero === "CYWH" ? "Harbour" : "YYJ"} · ${m.flight || "?"} · ${typeInfo(m.type, m.cat).name}${m.float ? " (float)" : ""}`)))
-    : [el("li", { class: "note" }, "None logged yet: the collector needs to watch a few hours.")]));
-  const days = (c.by_day || []).slice(-21);
-  $("ov-mvd-sub").replaceChildren(`Arrivals and departures inferred per day. Days with few hours watched undercount (hours watched in the tooltip). `, chip(c.days, MIN.days, "days"));
-  const keys = [["CYYJ_arr", "YYJ arrivals", "--m-yyj"], ["CYYJ_dep", "YYJ departures", "--m-yyj2"], ["CYWH_arr", "Harbour arrivals", "--m-hbr"], ["CYWH_dep", "Harbour departures", "--m-hbr2"]];
-  $("ov-mvd-legend").replaceChildren(...keys.map(([, l, v]) => legendKey(v, l, "band")));
-  const { g, iw, ih } = frame("ov-mvd", { l: 34, r: 8, t: 8, b: 22 }, 180);
-  const x = d3.scaleBand(days.map((d) => d.date), [0, Math.min(iw, Math.max(1, days.length) * 56)]).padding(0.2);
-  const y = d3.scaleLinear([0, Math.max(4, d3.max(days, (d) => d3.sum(keys, ([k]) => d[k])) || 0)], [ih, 0]).nice();
-  gridY(g, y, iw, ih, d3.format("d"));
-  g.append("g").attr("class", "axis").attr("transform", `translate(0,${ih})`).call(d3.axisBottom(x).tickValues(days.filter((_, i) => i % Math.ceil(days.length / 8 || 1) === 0).map((d) => d.date)).tickFormat((d) => fDay(d).replace(/^\w+ /, "")).tickSize(0).tickPadding(6)).call(axisClean);
-  for (const d of days) {
-    let y0 = ih;
-    for (const [k, , v] of keys) {
-      const h = ih - y(d[k]); if (!h) continue;
-      g.append("rect").attr("x", x(d.date)).attr("width", x.bandwidth()).attr("y", y0 - h).attr("height", h).style("fill", `var(${v})`).style("opacity", d.hours < 12 ? 0.45 : 1);
-      y0 -= h;
-    }
-    g.append("rect").attr("x", x(d.date)).attr("width", x.bandwidth()).attr("y", 0).attr("height", ih).style("fill", "transparent")
-      .on("pointermove", (e) => tip.show(e.clientX, e.clientY, (t) => { t.append(el("div", { class: "t-title" }, fDay(d.date)));
-        for (const [k, l, v] of keys) t.append(tipRow(cssVar(v), fmt0(d[k]), l)); t.append(el("div", { class: "note" }, `${d.hours.toFixed(1)} h watched`)); }))
-      .on("pointerleave", () => tip.hide());
-  }
-}
-
 // ------------------------------------------------------------------ runways & radio
 function renderRunways() {
   const list = runwayAeros();

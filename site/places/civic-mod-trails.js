@@ -345,13 +345,13 @@ function addParkLayers(map, ctx, o = {}) {
 
 // ------------------------------------------------------------------ the page state
 const HASH = "#lifestyle/trails";   // Parks & Trails moved to Things to Do (the shell redirects old #nature/trails links)
-const PANE = { sel: null, route: undefined, map: null, parks: null, adv: null, ctx: null, hide: new Set(), els: null };
+const PANE = { sel: null, trail: null, route: undefined, map: null, parks: null, adv: null, ctx: null, hide: new Set(), els: null };
 const selOf = (item) => (!item ? null : item.startsWith("adv:") ? { k: "adv", id: item.slice(4) } : { k: "park", id: item });
 const itemOf = (s) => (!s ? null : s.k === "adv" ? `adv:${s.id}` : s.id);
 /** select a park (id) or an advisory ({ adv: id }); the same again clears it */
 function setSel(s) {
   const same = s && PANE.sel && s.k === PANE.sel.k && s.id === PANE.sel.id;
-  PANE.sel = same ? null : s;
+  PANE.sel = same ? null : s; PANE.trail = null; PANE.parks?.focusTrail(-1);
   const it = itemOf(PANE.sel);   // the address follows the selection (replaceState: the shell's route keeps its last hash, PANE.route)
   try { history.replaceState(null, "", it ? `${HASH}/${encodeURIComponent(it).replace("%3A", ":")}` : HASH); } catch { /* ignore */ }
   paint();
@@ -367,6 +367,38 @@ function advFor(id) {
   const m = /^bc-(\d+)$/.exec(id || "");
   return d.rows.filter((r) => (m && r.orcs != null && pad4(r.orcs) === m[1]) || r.pid === id);
 }
+/** pick one trail of the selected park (its index in the park's trails): details and advisories narrow to it; the same
+ *  trail again goes back to the whole park (and the park again clears it all) */
+function setTrail(i) {
+  PANE.trail = PANE.trail === i ? null : i;
+  PANE.parks?.focusTrail(PANE.trail ?? -1);
+  paint();
+  const t = trailSel()?.t;
+  if (t) PANE.map?.fitBounds(bounds(t.g.flat()), { padding: 80, maxZoom: 15.5, duration: 600 }); else fly();
+}
+/** the picked trail → { p (its park), t, i } | null */
+function trailSel() {
+  const s = PANE.sel; if (s?.k !== "park" || PANE.trail == null) return null;
+  const p = parkOf(s.id), t = p?.trails?.[PANE.trail];
+  return t ? { p, t, i: PANE.trail } : null;
+}
+// does an advisory name a trail? Its full name, or the name without "Trail"/"Path"/"Loop"… when that is distinctive
+const GENERIC = new Set(["main", "loop", "lower", "upper", "middle", "east", "west", "north", "south", "connector", "access", "service", "summit", "lookout", "beach", "lake", "river", "creek", "park"]);
+const plain = (html) => String(html || "").replace(/<[^>]+>/g, " ").replace(/&[a-z0-9#]+;/gi, " ");
+const norm = (x) => String(x || "").toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, " ").trim();
+const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function mentions(r, t) {
+  const n = norm(t.n), core = n.replace(/^the /, "").replace(/ (trail|path|footpath|loop|road|route)$/, "").trim();
+  const keys = [n, ...(core !== n && core.length >= 4 && !GENERIC.has(core) ? [core] : [])];
+  const txt = norm(`${r.title} ${plain(r.desc)}`);
+  return keys.some((k) => new RegExp(`(^|[^a-z])${reEsc(k)}([^a-z]|$)`).test(txt));
+}
+/** one trail's advisories: those that name it, and the park's park-wide ones (naming none of its trails), marked wide */
+function advForTrail(pid, i) {
+  const p = parkOf(pid), t = p?.trails?.[i]; if (!t) return [];
+  return advFor(pid).map((r) => ({ r, wide: !p.trails.some((x) => mentions(r, x)) })).filter(({ r, wide }) => wide || mentions(r, t));
+}
+const wideTag = () => el("span", { class: "trx-tag trx-wide", title: "Posted for the whole park, not a named trail" }, "Park-wide");
 function fly() {
   const map = PANE.map, s = PANE.sel; if (!map || !s) return;
   if (s.k === "park") {
@@ -420,19 +452,22 @@ function advPanel(ctx) {
   if (!d) { b.replaceChildren(el("p", { class: "note civ-empty" }, "Loading BC Parks advisories…")); return; }
   // a selected park narrows the list to its own advisories; clearing the park brings the full list back
   const s = PANE.sel, only = s?.k === "park" ? s.id : null, onlyName = only ? parkOf(only)?.name || d.parks.find((p) => canon(p.pid, PANE.P) === only)?.name || "this park" : null;
-  const parks = only ? d.parks.filter((p) => canon(p.pid, PANE.P) === only) : d.parks, rows = parks.flatMap((p) => p.rows);
+  const tr = only ? trailSel() : null, keep = tr ? new Map(advForTrail(only, tr.i).map(({ r, wide }) => [r.id, wide])) : null;
+  const rowsOf = (p) => (keep ? p.rows.filter((r) => keep.has(r.id)) : p.rows);
+  const parks = only ? d.parks.filter((p) => canon(p.pid, PANE.P) === only) : d.parks, rows = parks.flatMap(rowsOf);
   const n = (id) => rows.filter((r) => r.type.id === id).length;
   const head = el("div", { class: "trl-legend trx-leg", "aria-label": "Marker colours" }, ...TYPES.filter((t) => n(t.id)).map((t) => el("span", {}, el("i", { class: "trl-sw", "data-t": t.id }), `${t.label} ${n(t.id)}`)));
-  const list = parks.length ? el("div", { class: "trx-list flt-scroll" }, ...parks.map((p) => {
+  const list = parks.length && rows.length ? el("div", { class: "trx-list flt-scroll" }, ...parks.map((p) => {
     const pid = canon(p.pid, PANE.P), on = s?.k === "park" && s.id === pid;
     return el("div", { class: "trx-pk" },
       el("button", { type: "button", class: "trx-pk-h" + (on ? " on" : ""), "aria-pressed": String(on), title: on ? "Click again to clear" : "Show the park", onclick: () => setSel({ k: "park", id: pid }) },
         el("i", { class: "trl-sw", "data-t": p.type.id }), el("b", {}, p.name), el("em", {}, `${Math.round(p.km ?? 0)} km`)),
-      ...p.rows.map((r) => { const a = s?.k === "adv" && s.id === r.id;
+      ...rowsOf(p).map((r) => { const a = s?.k === "adv" && s.id === r.id;
         return el("button", { type: "button", class: "trx-ad" + (a ? " on" : ""), "aria-pressed": String(a), title: a ? "Click again to close" : "Read the advisory", onclick: () => setSel({ k: "adv", id: r.id }) },
-          kind(r.type), el("span", { class: "trx-ad-t" }, r.title), el("small", {}, r.date ? fDay(r.date) : r.src)); }));
-  })) : el("p", { class: "note civ-empty" }, only ? `No advisories posted for ${onlyName}.` : d.planned ? "No US feed yet: NPS alerts need the owner's free API key." : `Nothing posted for parks within ${RADIUS} km.`);
-  const scope = only ? el("p", { class: "trx-hint trx-only" }, `${onlyName} only. Click the park again for every advisory within ${RADIUS} km.`) : null;
+          kind(r.type), el("span", { class: "trx-ad-t" }, r.title, keep?.get(r.id) ? [" ", wideTag()] : null), el("small", {}, r.date ? fDay(r.date) : r.src)); }));
+  })) : el("p", { class: "note civ-empty" }, tr ? `No advisories posted for ${tr.t.n}, or for ${onlyName} as a whole.` : only ? `No advisories posted for ${onlyName}.` : d.planned ? "No US feed yet: NPS alerts need the owner's free API key." : `Nothing posted for parks within ${RADIUS} km.`);
+  const scope = tr ? el("p", { class: "trx-hint trx-only" }, `${tr.t.n} only, with ${onlyName}'s park-wide advisories. Click the trail again for the whole park.`)
+    : only ? el("p", { class: "trx-hint trx-only" }, `${onlyName} only. Click the park again for every advisory within ${RADIUS} km.`) : null;
   const links = otherSources(ctx);
   const more = links.length ? el("details", { class: "trx-more" }, el("summary", {}, `Other sources (${links.length}, linked)`),
     el("div", { class: "trl-links" }, ...links.map(([nm, u, t]) => el("div", {}, el("a", { href: u, target: "_blank", rel: "noopener" }, `${nm} ↗`), el("span", {}, t))))) : null;
@@ -478,6 +513,7 @@ function detailPanel(ctx) {
         el("a", { class: "civ-open", href: r.url, target: "_blank", rel: "noopener" }, "Source ↗")));
     return;
   }
+  const tr = trailSel(); if (tr) { trailDetail(ctx, tr); return; }
   const p = parkOf(s.id), ap = PANE.d?.parks.find((x) => canon(x.pid, PANE.P) === s.id), advs = advFor(s.id);
   if (!p && !ap) { b.replaceChildren(el("p", { class: "note civ-empty" }, PANE.P ? "That park isn't on the map." : "Loading the parks…")); return; }
   const name = p?.name || ap.name, c = CLS[p?.cls || "provincial"], dist = p ? km(p.c, ctx.place.ll) : ap.km;
@@ -496,13 +532,42 @@ function detailPanel(ctx) {
       p?.peaks || p?.beaches || p?.falls ? el("p", { class: "trx-also" }, [p.peaks ? `Peaks: ${p.peaks.join(", ")}` : "", p.beaches ? `Beaches: ${p.beaches.join(", ")}` : "", p.falls ? `Falls: ${p.falls.join(", ")}` : ""].filter(Boolean).join(". ") + ".") : null,
       p?.trails?.length ? el("div", {}, el("h5", { class: "trx-sub" }, "Main Trails"),
         el("div", { class: "trx-trails", role: "list" }, ...p.trails.map((t, i) => el("button", { type: "button", role: "listitem", class: "trx-tr", title: [SAC[t.sac], t.mtb ? `MTB scale ${t.mtb}` : "", t.surf].filter(Boolean).join(" · ") || "Show on the map",
-          onclick: () => { PANE.parks?.focusTrail(i); const g = t.g.flat(); PANE.map?.fitBounds(bounds(g), { padding: 80, maxZoom: 15.5, duration: 600 }); } },
+          onclick: () => setTrail(i) },
           el("span", { class: "trx-tr-n" }, t.n), el("small", {}, `${t.km < 1 ? `${Math.round(t.km * 1000)} m` : `${t.km.toFixed(1)} km`}${t.bike ? " · bikes" : ""}${t.mtb ? ` · MTB ${t.mtb}` : ""}`), pill(t.d)))),
         el("p", { class: "trx-note" }, "Length from the mapped path; difficulty from OpenStreetMap's hiking (SAC) and mountain-bike scales where someone has tagged it.")) : null,
       advs.length ? el("div", {}, el("h5", { class: "trx-sub" }, `Advisories (${advs.length})`),
         ...advs.map((r) => el("button", { type: "button", class: "trx-ad", onclick: () => setSel({ k: "adv", id: r.id }), title: "Read the advisory" }, kind(r.type), el("span", { class: "trx-ad-t" }, r.title), el("small", {}, r.date ? fDay(r.date) : "")))) : null),
     el("div", { class: "civ-fp-foot" }, el("span", {}, p ? (p.orcs ? "Boundary: BC Data Catalogue (OGL-BC) · trails: OSM" : "Boundary, trails, facilities: © OpenStreetMap (ODbL)") : "BC Parks advisories"),
       web ? el("a", { class: "civ-open", href: web, target: "_blank", rel: "noopener" }, "Park page ↗") : null));
+}
+/** right, below, a trail picked: its length, difficulty, surface, status and advisories */
+function trailDetail(ctx, { p, t, i }) {
+  const b = PANE.els.det, pid = PANE.sel.id, advs = advForTrail(pid, i).sort((x, y) => x.wide - y.wide);   // the ones naming it first
+  const shut = advs.find(({ r }) => r.type.id === "closure");
+  const status = shut ? (shut.wide ? "Park closure posted: read it, it may cover only part" : "Closure posted that names this trail: read it")
+    : advs.some((x) => !x.wide) ? "Advisory posted that names this trail"
+    : advs.length ? "No advisory names it; the park has park-wide notices"
+    : p.orcs ? "No BC Parks advisories posted" : "No advisory feed for this park: check the park page";
+  const surf = t.surf ? t.surf.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()) : "Not mapped";
+  const rate = [SAC[t.sac] || (t.sac ? t.sac.replace(/[_;]/g, " ") : ""), t.mtb ? `MTB scale ${t.mtb}` : ""].filter(Boolean).join(" · ");
+  const web = p.web || (p.orcs ? `https://bcparks.ca/find-a-park/?q=${encodeURIComponent(p.name.replace(/ (Provincial )?Park$/i, ""))}` : null);
+  b.replaceChildren(
+    el("div", { class: "trx-top" }, el("button", { type: "button", class: "trx-back", title: "Back to the whole park", onclick: () => setTrail(i) }, `← ${p.name}`),
+      el("button", { type: "button", class: "trl-x", "aria-label": "Clear the selection", onclick: () => setSel(PANE.sel) }, "×")),
+    el("h4", { class: "trx-h" }, t.n),
+    el("p", { class: "trx-facts" }, `Trail in ${p.name}`),
+    el("div", { class: "trx-scroll flt-scroll" },
+      el("dl", { class: "trx-dates trx-tfacts" },
+        el("dt", {}, "Length"), el("dd", {}, t.km < 1 ? `${Math.round(t.km * 1000)} m` : `${t.km.toFixed(1)} km`),
+        el("dt", {}, "Difficulty"), el("dd", {}, pill(t.d), rate ? el("small", {}, ` ${rate}`) : null),
+        el("dt", {}, "Surface"), el("dd", {}, surf),
+        el("dt", {}, "Bikes"), el("dd", {}, t.bike ? "Allowed" : "Not marked as allowed"),
+        el("dt", {}, "Status"), el("dd", { class: shut ? "trx-shut" : "" }, status)),
+      advs.length ? el("div", {}, el("h5", { class: "trx-sub" }, `Advisories (${advs.length})`),
+        ...advs.map(({ r, wide }) => el("button", { type: "button", class: "trx-ad", onclick: () => setSel({ k: "adv", id: r.id }), title: "Read the advisory" },
+          kind(r.type), el("span", { class: "trx-ad-t" }, r.title, wide ? [" ", wideTag()] : null), el("small", {}, r.date ? fDay(r.date) : "")))) : null,
+      el("p", { class: "trx-note" }, "Length from the mapped path and difficulty from OpenStreetMap's hiking (SAC) and mountain-bike scales, where tagged. Status from BC Parks advisories: those that name this trail, plus the park's park-wide ones.")),
+    el("div", { class: "civ-fp-foot" }, el("span", {}, "Trail: © OpenStreetMap (ODbL)"), web ? el("a", { class: "civ-open", href: web, target: "_blank", rel: "noopener" }, "Park page ↗") : null));
 }
 function paint() {
   if (!PANE.els || !PANE.ctx) return;
@@ -532,7 +597,7 @@ const stage = {
       const marks = [adv.ids.pt, adv.ids.cl].filter((l) => map.getLayer(l));
       if (marks.length && map.queryRenderedFeatures(box, { layers: marks }).length) return;
       const tl = map.getLayer(parks.ids.tl) ? map.queryRenderedFeatures(box, { layers: [parks.ids.tl] })[0] : null;
-      if (tl) { parks.focusTrail(tl.properties.i); return; }
+      if (tl) { setTrail(tl.properties.i); return; }
       const f = map.getLayer(parks.ids.af) ? map.queryRenderedFeatures(e.point, { layers: [parks.ids.af] }) : [];
       // the smallest park under the pointer (a town park inside a regional one)
       const pick = f.map((x) => ({ id: x.properties.id, ha: PANE.P?.parks[x.properties.id]?.ha ?? 1e9 })).sort((a, b) => a.ha - b.ha)[0];
@@ -547,7 +612,7 @@ const stage = {
     let item = ctx.route?.item ?? null;
     try { item = item && decodeURIComponent(item); } catch { /* keep it as typed */ }
     // a new link (hash change) wins over a click
-    if (item !== PANE.route) { PANE.route = item; PANE.sel = selOf(item); PANE.flyDue = !!PANE.sel; }
+    if (item !== PANE.route) { PANE.route = item; PANE.sel = selOf(item); PANE.trail = null; PANE.flyDue = !!PANE.sel; }
     const d = need(ctx); PANE.d = d && !d.err ? d : null; PANE.err = d?.err || null;
     PANE.P = parksData(ctx);
     // a link straight to a park or an advisory: go there once the advisories and the parks are in

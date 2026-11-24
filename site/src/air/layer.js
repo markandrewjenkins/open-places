@@ -4,13 +4,17 @@
 // Exports
 //   airFeed({ lat, lon, every = 10000, nm = FETCH_NM, common }) → feed
 //       Polls the relay's /air/point.json for one circle and smooths it (tracker.js): aircraft kept by address, held
-//       (fading) for up to a minute after they drop out of a report, dead-reckoned along track at ground speed between
-//       reports, retries with backoff, honest state from the newest report's age.
+//       (fading) after they drop out of a report, dead-reckoned along track at ground speed between reports, retries
+//       with backoff, honest state from the newest report's age. The relay's zones refresh as slowly as every ~4 min
+//       (every_s, to fit adsb.lol's daily allowance), so holding, fading, "delayed" and the poll itself scale with it.
+//       Outside the relay's zones and cities (src/shared/aircover.js) nothing is polled and the state says so.
 //       feed.list() → enriched aircraft (see enrich below); feed.state() → { level: "live"|"delayed"|"down"|
-//       "connecting", age, source, credit, err }; feed.on(fn) / feed.off(fn) after each report or failure;
+//       "connecting"|"uncovered", age, every, source, credit, err, uncovered }; feed.on(fn) / feed.off(fn) after each report or failure;
 //       feed.setCenter(lat, lon); feed.setEvery(ms); feed.stop(). Feeds are shared per 0.05° cell: airFeed() twice for the same spot
 //       returns the same feed, and stop() only ends it when its last user stops.
 //   addAirLayers(map, opts) → { update(), select(id), destroy(), aircraft(), feed }
+//                     (opts.onSelect: the layer's own plain click; Open Places pages leave it out and register the
+//                     aircraft layers with civic-follow.js followGestures instead: click / double-click / right-click)
 //       Adds the aircraft (silhouette by airframe, colour by kind, size by weight class, fade when held or stale),
 //       their contrails (soft white smoke along the path flown, fading with age), parked dots, rare rings, a selection ring and callsign labels. Re-adds itself after a
 //       style change (light/dark). Options:
@@ -39,6 +43,7 @@ import { fetchPoint, fromHub, FETCH_NM, SHAPES, KINDS, KIND, kindColor, planeSVG
   bearingDeg, compass, callsign, fAlt, fFL, NM } from "./feed.js";
 import { createTrack, ingest, aircraftOf, reckon, feedState, agoS, poller } from "./tracker.js";
 import { livePart, hubAirCovers } from "../shared/livehub.js";
+import { airCover, COVER_NOTE, COVER_SHORT, everyText } from "../shared/aircover.js";
 import { typeFigure } from "../shared/typephoto.js";
 import { familyOf, FAMILIES, profileURI } from "./profiles.js";
 import { operatorEl } from "./operator.js";
@@ -73,56 +78,51 @@ export function airFeed({ lat, lon, every = 10000, nm = FETCH_NM, common = [], s
   const had = feeds.get(key);
   if (had) { had.users++; return had.api; }
   const fns = new Set();
-  const F = { users: 1, T: createTrack(), err: null, center: { lat, lon }, poll: null };
+  const F = { users: 1, T: createTrack(), err: null, center: { lat, lon }, poll: null, uncovered: false };
   const emit = () => { for (const f of fns) f(api); };
+  // the relay's clock can be minutes long (every_s): ask about four times per clock, never more often than `every`
+  // asks for and never less often than once a minute, so a new snapshot shows within a quarter of its clock
+  const pace = () => Math.max(every, Math.min(60000, (F.T.every || 0) * 250));
+  const stale = (msg, extra = {}) => Object.assign(new Error(msg || "upstreams not answering"), { code: "stale", ...extra });
   const start = () => {
-    F.poll?.stop();
+    F.poll?.stop(); F.poll = null;
+    // outside the relay's zones and cities: no live aircraft, nothing to ask (the relay would answer uncovered too)
+    F.uncovered = !airCover(F.center.lat, F.center.lon, nm);
+    if (F.uncovered) { F.err = null; queueMicrotask(emit); return; }
     // in a region the relay's live hub covers (set = an Open Places place id, see src/shared/livehub.js) the feed rides
-    // the place's one shared /live poll, cut down to this circle; 10 s polling becomes the hub's fast mode
+    // the place's one shared /live poll, cut down to this circle; 10 s polling becomes the hub's fast mode. The hub's
+    // own copy is the fallback when it is behind (stale): /air/point.json would answer from the same snapshot.
     if (set && hubAirCovers(F.center.lat, F.center.lon, nm)) {
-      // the backup: while the hub's aircraft part is stale or empty (2026-11-23: its own adsb.lol calls answered 429 for
-      // days and /live sent data: null, so the page sat on "connecting"), poll /air/point.json too: the relay then asks
-      // upstream from the viewer's own Cloudflare location. Reports merge by fix time (tracker.js), so the two never
-      // fight; the backup stops as soon as the hub is fresh again.
-      let backup = null, backupAt = 0;
-      const BACKUP_MS = Math.max(every, 30000);
-      const backupOn = (on) => {
-        if (on && !backup) backup = poller(() => fetchPoint({ lat: F.center.lat, lon: F.center.lon, r: nm }), { every: BACKUP_MS,
-          onResult: (j) => { j.raw.every_s = BACKUP_MS / 1000; ingest(F.T, j.raw); if (!j.stale) backupAt = Date.now();
-            F.err = j.stale ? Object.assign(new Error(j.raw.error || "upstreams not answering"), { code: "stale", hub: F.hubErr }) : null; emit(); },
-          onError: (e) => { if (Date.now() - backupAt > BACKUP_MS * 2.5) F.err = Object.assign(e, { hub: F.hubErr }); emit(); } });
-        else if (!on && backup) { backup.stop(); backup = null; }
-      };
-      const backupGood = () => Date.now() - backupAt <= BACKUP_MS * 2.5;
       const h = livePart(set, "air", { fast: every <= 10000,
         onData: (d, m) => {
           F.hubErr = m.error || null;
-          if (m.stale) {   // the hub's copy is old: keep it (older fixes never replace newer ones) and let the backup carry on
-            backupOn(true);
-            ingest(F.T, { ...fromHub(d, m, { lat: F.center.lat, lon: F.center.lon, r: nm }).raw, every_s: backupGood() ? BACKUP_MS / 1000 : m.every_s });
-            if (!backupGood()) F.err = Object.assign(new Error(m.error || "upstreams not answering"), { code: "stale", retry: m.retry_s });
-            emit(); return;
-          }
-          backupOn(false);
-          ingest(F.T, fromHub(d, m, { lat: F.center.lat, lon: F.center.lon, r: nm }).raw); F.err = null; emit();
+          ingest(F.T, fromHub(d, m, { lat: F.center.lat, lon: F.center.lon, r: nm }).raw);
+          F.err = m.stale ? stale(m.error, { retry: m.retry_s, budget: !!m.budget_out }) : null;
+          emit();
         },
-        onError: (e, m) => { F.hubErr = m?.error || e.message; backupOn(true); if (!backupGood()) { F.err = Object.assign(e, { retry: m?.retry_s }); emit(); } },
-        fallback: () => { backupOn(false); set = null; start(); return null; } });
-      F.poll = { stop: () => { backupOn(false); h.stop(); }, setFast: h.setFast, info: () => ({ nextAt: 0 }) };
+        onError: (e, m) => { F.hubErr = m?.error || e.message; F.err = Object.assign(e, { retry: m?.retry_s }); emit(); },
+        fallback: () => { set = null; start(); return null; } });
+      F.poll = { stop: () => h.stop(), setFast: h.setFast, info: () => ({ nextAt: 0 }) };
       return;
     }
-    F.poll = poller(() => fetchPoint({ lat: F.center.lat, lon: F.center.lon, r: nm }), { every,
-      onResult: (j) => { ingest(F.T, j.raw); F.err = j.stale ? Object.assign(new Error(j.raw.error || "upstreams not answering"), { code: "stale" }) : null; emit(); },
+    F.poll = poller(() => fetchPoint({ lat: F.center.lat, lon: F.center.lon, r: nm }), { every: pace,
+      onResult: (j) => {
+        if (j.raw.uncovered) { F.uncovered = true; F.err = null; F.poll?.stop(); emit(); return; }   // the relay knows best
+        ingest(F.T, j.raw); F.err = j.stale ? stale(j.raw.error, { budget: !!j.raw.budget_out }) : null; emit();
+      },
       onError: (e) => { F.err = e; emit(); } });
   };
   const api = {
     list: () => aircraftOf(F.T).map((a) => (a.kind ? position(a, F.center) : enrich(a, F.center, common))),
-    state: () => ({ ...feedState(F.T), source: F.T.source, credit: F.T.credit, err: F.err, nextAt: F.poll?.info().nextAt || 0, count: F.T.reports ? F.T.lastCount : null, asOf: F.T.asOf || null }),
+    state: () => (F.uncovered ? { level: "uncovered", age: null, every: null, uncovered: true, err: null, nextAt: 0, count: null, asOf: null, source: "", credit: "" }
+      : { ...feedState(F.T), source: F.T.source, credit: F.T.credit, err: F.err, nextAt: F.poll?.info().nextAt || 0, count: F.T.reports ? F.T.lastCount : null, asOf: F.T.asOf || null }),
     track: () => F.T,
     on: (f) => fns.add(f), off: (f) => fns.delete(f),
     // the poll interval can change while the feed runs (Open Places: 30 s as a side layer, 10 s on the Air Traffic page)
     setEvery: (ms) => { if (ms && ms !== every) { every = ms; if (F.poll?.setFast) F.poll.setFast(ms <= 10000); else start(); } },
     setCenter: (la, lo) => { const moved = cell(la, lo) !== cell(F.center.lat, F.center.lon); F.center = { lat: la, lon: lo }; if (moved) { F.T = createTrack(); start(); } emit(); },
+    /** the relay's clock (s) for this feed, once a report has said it */
+    every: () => F.T.every || null,
     stop: () => { if (--F.users > 0) return; F.poll?.stop(); fns.clear(); feeds.delete(key); },
   };
   feeds.set(key, F); F.api = api;
@@ -249,12 +249,14 @@ export function addAirLayers(map, opts = {}) {
 }
 
 // ------------------------------------------------------------------ DOM for panels and popups
-const LABEL = { live: "LIVE", delayed: "DELAYED", down: "FEED DOWN", connecting: "CONNECTING" };
+const LABEL = { live: "LIVE", delayed: "DELAYED", down: "FEED DOWN", connecting: "CONNECTING", uncovered: "NO LIVE AIRCRAFT" };
 export function feedText(s) {
+  if (s?.uncovered) return COVER_NOTE;
   if (!s || s.level === "connecting") return s?.err ? `Live feed not answering (${s.err.message}); retrying.` : "Connecting to the live feed…";
   const src = s.source === "adsb_fi" ? "adsb.fi" : "adsb.lol";
   const pace = s.every > 30 ? ` New positions every ${s.every < 90 ? `${Math.round(s.every)} s` : `${Math.round(s.every / 60)} min`} to stay within adsb.lol's daily allowance; aircraft are moved on between them.` : "";
   if (s.level === "live") return `Live from ${src}, updated ${agoS(s.age)}.${pace}`;
+  if (s.err?.budget) return `Feed paused: adsb.lol's daily allowance for here is used up, so this is the last snapshot (${agoS(s.age)}); new positions after 00:00 UTC.`;
   const why = s.err?.code === "stale" ? "the relay couldn't reach adsb.lol or adsb.fi" : s.err ? `the feed isn't answering (${s.err.message})` : "no new report yet";
   return `${s.level === "down" ? "Feed down" : "Feed delayed"}: newest report ${agoS(s.age)} because ${why}; retrying. Aircraft fade where they were heading.`;
 }
@@ -265,7 +267,7 @@ export function feedReason(s) {
   const msg = `${e?.message || ""} ${e?.hub || ""}`, nextS = s?.nextAt ? Math.max(1, Math.round((s.nextAt - Date.now()) / 1000)) : 0;
   const wait = e?.retry || e?.retryAfter || nextS;
   if (e?.code === "429" || /\b429\b|rate limit/i.test(msg)) return `adsb.lol rate-limited (HTTP 429)${wait ? `, retrying in ${wait} s` : ""}`;
-  if (/budget/i.test(msg)) return "adsb.lol daily allowance used up; more after 00:00 UTC";
+  if (e?.budget || /budget|allowance .*used up/i.test(msg)) return "adsb.lol daily allowance used up; more after 00:00 UTC";
   if (/\b403\b/.test(msg)) return "adsb.fi refused the relay (HTTP 403)";
   if (/failed to fetch|networkerror|load failed|nohub/i.test(msg)) return "relay unreachable";
   const st = /relay (\d{3})/.exec(msg); if (st) return `relay returned HTTP ${st[1]}`;
@@ -275,8 +277,14 @@ export function feedReason(s) {
 }
 export function feedStrip(s) {
   const lv = s?.level || "connecting";
-  return el("div", { class: `air-strip ${lv}`, title: feedText(s) }, el("i", { class: "air-dot" }), el("span", {}, LABEL[lv]), s?.age != null ? el("b", {}, `updated ${agoS(s.age)}`) : "");
+  if (lv === "uncovered") return el("div", { class: "air-strip uncovered", title: COVER_NOTE }, el("i", { class: "air-dot" }), el("span", {}, COVER_SHORT.toUpperCase()));
+  // a stretched clock is said plainly ("updated 2 min ago · updates about every 4 min"), so a slow refresh doesn't look broken
+  const ev = lv === "live" ? everyText(s?.every) : "";
+  return el("div", { class: `air-strip ${lv}`, title: feedText(s) }, el("i", { class: "air-dot" }), el("span", {}, s?.err?.budget ? "PAUSED" : LABEL[lv]),
+    s?.age != null ? el("b", {}, `updated ${agoS(s.age)}`) : "", ev ? el("small", {}, ev) : "");
 }
+/** the note for a place without live aircraft (the Air surfaces show it instead of a feed state) */
+export const coverNote = () => el("p", { class: "air-note air-cover" }, COVER_NOTE);
 /** an example photo of its type (Wikimedia Commons, credited), else a drawing of its type family; null when unknown */
 export function typeImage(a) {
   const fam = familyOf(a);
@@ -304,11 +312,11 @@ export function aircraftCard(a, { place = "the centre", image = true } = {}) {
       ...(a.age > 45 ? row("Last report", `${agoS(a.age)} (position estimated since)`) : [])),
     el("p", { class: "air-note" }, "Type from a crowd-sourced database (adsb.lol, ODbL); airline from the callsign (OpenFlights, ODbL); country from the ICAO address block; height is barometric."));
 }
-export function overheadList(list, { limit = 8, selected = "", onPick, range } = {}) {
+export function overheadList(list, { limit = 8, selected = "", onPick, onFollow, range } = {}) {
   const L = [...list].filter((a) => range == null || a.km <= range).sort((a, b) => (a.km ?? 0) - (b.km ?? 0));
   if (!L.length) return el("p", { class: "air-note" }, range ? `No aircraft within ${range} km right now.` : "No aircraft right now.");
   return el("ol", { class: "air-list" }, ...L.slice(0, limit).map((a) => el("li", { class: idOf(a) === selected ? "on" : "", style: { opacity: a.fade ?? 1 } },
-    el("button", { type: "button", onclick: () => onPick?.(a) },
+    el("button", { type: "button", title: onFollow ? "Show on the map · double-click to follow" : null, onclick: (e) => { if (e.detail < 2) onPick?.(a); }, ondblclick: onFollow ? () => onFollow(a) : null },
       el("i", { style: { background: kindColor(a.kind || "other") } }),
       el("span", { class: "air-n" }, el("b", {}, callsign(a), a.rare ? el("em", {}, "rare") : ""), el("small", {}, a.tname || "")),
       el("span", { class: "air-a" }, el("b", {}, airborne(a) ? fFL(a.alt) : a.taxi ? "taxiing" : "parked"), el("small", {}, `${PH[a.phase] || ""} ${fKm(a.km)}`))))),

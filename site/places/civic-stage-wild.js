@@ -317,6 +317,29 @@ function paintWild() {
     cred("iNaturalist observations (api.inaturalist.org, no key): verifiable, open location, accuracy within 100 m, observation licence CC0, CC BY or CC BY-NC, credited per observer; photos shown only under those licences. Cached for 15 minutes."));
 }
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+/** a sighting's photo, large, over the map (iNaturalist's "large" size, 1024 px): species, credit, licence, date and the
+ *  observation link. Esc, a click outside the photo box or × closes it; focus stays inside while open and returns after. */
+function lightbox(o) {
+  document.querySelector(".ow-lb")?.remove();
+  const back = document.activeElement, when = new Date(o.t), name = o.cn ? cap(o.cn) : o.sci;
+  const close = () => { lb.remove(); document.removeEventListener("keydown", key, true); back?.focus?.(); };
+  const x = el("button", { type: "button", class: "ow-lb-x", "aria-label": "Close", title: "Close (Esc)", onclick: close }, "×");
+  const link = el("a", { href: `https://www.inaturalist.org/observations/${o.id}`, target: "_blank", rel: "noopener" }, "Observation on iNaturalist ↗");
+  const box = el("figure", { class: "ow-lb-box" }, x,
+    el("img", { src: o.ph.url.replace(/\/(square|small|medium)\./, "/large."), alt: name }),
+    el("figcaption", {},
+      el("b", {}, name), " ", el("i", {}, o.sci),
+      el("span", {}, `Photo ${o.ph.attr}`),
+      el("span", {}, `Seen ${when.toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" })}${o.tt ? `, ${when.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}` : ""} · iNaturalist observer ${o.login} · observation ${o.lic}, photo ${o.ph.lic}`),
+      link));
+  const lb = el("div", { class: "ow-lb", role: "dialog", "aria-modal": "true", "aria-label": `Photo of ${name}`, onclick: (e) => { if (!box.contains(e.target)) close(); } }, box);
+  const key = (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); }
+    else if (e.key === "Tab") { const f = [x, link]; const i = f.indexOf(document.activeElement); e.preventDefault(); f[(i + (e.shiftKey ? f.length - 1 : 1)) % f.length].focus(); }
+  };
+  document.addEventListener("keydown", key, true);
+  document.body.append(lb); x.focus();
+}
 /** mark the row of the species picked out on the map (click again shows all) */
 const picked = (list, items) => { [...list.children].forEach((r, i) => { r.classList.toggle("on", items[i]?.id === W.sp); r.setAttribute("aria-pressed", String(items[i]?.id === W.sp)); }); return list; };
 const wildStage = {
@@ -342,7 +365,8 @@ const wildStage = {
       const when = new Date(o.t);
       return card("wildlife", `${WG[o.g][0]} · ${ago(o.t)}`, o.cn ? cap(o.cn) : o.sci, [
         el("p", { class: "civ-popb" }, el("i", {}, o.sci)),
-        o.ph ? el("figure", { class: "ow-photo" }, el("img", { src: o.ph.url, alt: o.cn || o.sci, loading: "lazy" }), el("figcaption", {}, o.ph.attr)) : null,
+        o.ph ? el("figure", { class: "ow-photo" }, el("button", { type: "button", class: "ow-zoom", title: "Show a larger photo", "aria-label": `Show a larger photo of ${o.cn || o.sci}`, onclick: () => lightbox(o) },
+          el("img", { src: o.ph.url, alt: o.cn || o.sci, loading: "lazy" })), el("figcaption", {}, o.ph.attr)) : null,
         meta(`Seen ${when.toLocaleDateString("en-CA", { month: "short", day: "numeric" })}${!o.tt ? "" : `, ${when.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}`}`),
         meta(`iNaturalist observer ${o.login}, ${o.lic}`)], `https://www.inaturalist.org/observations/${o.id}`, "Observation ↗");
     },

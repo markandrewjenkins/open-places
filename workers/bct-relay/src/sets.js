@@ -2,8 +2,9 @@
 // place id (site/places/civic-data.js; keep the ids and coordinates in step), and each of its parts names one shared
 // source, so places that share a source share its one upstream clock:
 //   transit  BC Transit agency id (agencies.js): vehicles + trip-update delays every 20 s, alerts every 60 s
-//   air      [lat, lon, r_nm]: one circle per region, big enough to hold every place's own 22 nm circle and the Air
-//            Traffic page's Greater Victoria view (48.53, -123.42, 40 nm), so a region costs adsb.lol one call per clock
+//   air      [lat, lon, r_nm]: the set's aircraft circle, big enough to hold every place's own circle and the Air
+//            Traffic page's Greater Victoria view (48.53, -123.42, 40 nm). It sits inside the pnw zone (airzones.js),
+//            whose one shared snapshot /live cuts down to it, so a set costs adsb.lol nothing extra
 //   ais      aisstream area (ais.js AIS_AREAS): one persistent websocket for the whole area
 //   roads    DriveBC bbox "w,s,e,n" (0.5°-snapped, ≤ 3° a side): one box covers every place in the region
 // Greater Victoria is the first region. Add another by giving its places the same four parts.

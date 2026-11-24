@@ -13,7 +13,7 @@
       if (s === "alt" || s === "grey") r.dataset.skin = s; } catch (e) {} })();
   </script>
   <title>Air Traffic</title>
-  <meta name="description" content="What's flying over Greater Victoria right now: live aircraft from volunteer ADS-B receivers, arrivals and departures at Victoria International and the harbour, runways, flying weather and the sky's busy hours." />
+  <meta name="description" content="What's flying over Greater Victoria right now: live aircraft from volunteer ADS-B receivers, arrivals and departures at Victoria International and the harbour, runways and flying weather." />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -35,7 +35,7 @@
   </header>
 
   <!-- the console (left rail, overview tiles, topic views, detail drawer) is built by src/shared/console.js from the
-       topic modules in src/air/ (now.js, airports.js, weather.js, busy.js) -->
+       topic modules in src/air/ (now.js, airports.js, weather.js) -->
   <div id="app" class="cx-app"></div>
   <script type="module" src="../src/air/main.js"></script>
 </body>

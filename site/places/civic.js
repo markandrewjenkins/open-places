@@ -21,7 +21,7 @@ import { createConsole, rovingTabs } from "../src/shared/console.js";
 import { PLACES, LEVELS, LIT, byId, childrenOf, chainOf, anywhere, placeFromParam, TODAY, monthF, km, nearestLit, boundaryOf, hasBoundary, inGeom, tzOf } from "./civic-data.js";
 import { ALL, BASICS, SPECIALS, TOPICS, TOPIC_ALIAS, nodeFor, score, inSeason, collectAlerts } from "./civic-modules.js";
 import { createGlobe } from "./civic-globe.js";
-import { createAlerts, rel, tagAlert } from "./civic-alerts.js";
+import { createAlerts, rel, tagAlert, newLeft, isImportant, alertKey, alertWhen } from "./civic-alerts.js";
 import { createSound } from "./civic-sound.js";
 import { icon } from "./civic-icons.js";
 import { brief, briefEl, railTip } from "./civic-brief.js";
@@ -88,19 +88,36 @@ const comingLater = () => {
   return el("div", { class: "card prose civ-later" }, el("h3", {}, "Coming Later"),
     el("ul", {}, ...rows.map(([t, w, why]) => el("li", {}, el("b", {}, t), el("small", {}, ` · ${w}`), el("br"), why))));
 };
+const PORTFOLIO = "https://markandrewjenkins.github.io/";
+// credits by name only (no logos); each page's “Updated” panel lists the exact feeds it used
+const CREDITS = [
+  ["Maps and Imagery", "OpenStreetMap contributors (ODbL), map tiles from OpenFreeMap and OpenMapTiles, drawn with MapLibre GL. Satellite: Sentinel-2 cloudless by EOX (CC BY 4.0, contains modified Copernicus Sentinel data); USGS NAIP in the US (public domain)."],
+  ["Weather and Air", "Environment and Climate Change Canada: forecasts, warnings, radar and AQHI (Open Government Licence – Canada). Open-Meteo forecasts, marine and GFS fields (CC BY 4.0). NOAA and the US National Weather Service, including the Climate Prediction Center (public domain). RainViewer radar."],
+  ["Hazards", "USGS earthquakes (public domain) and Natural Resources Canada, including CWFIS fire danger (OGL – Canada). NOAA tsunami warning centres. BC Wildfire Service, the BC River Forecast Centre and Emergency Management and Climate Readiness (OGL – BC). NIFC WFIGS wildfires (public domain)."],
+  ["Getting Around", "BC Transit timetables and real-time feeds. DriveBC road events and cameras (OGL – BC). WSDOT, Caltrans, ADOT, NDOT and Ontario 511. City of Toronto, TTC and Bike Share Toronto (OGL – Toronto). City of Vancouver (OGL – Vancouver)."],
+  ["Aircraft and Ships", "Aircraft: adsb.lol and its volunteer feeders (ODbL 1.0). Ships: AISstream.io; NOAA / BOEM Marine Cadastre AIS and NOAA CO-OPS tides in the US (public domain)."],
+  ["Nature and Places", "iNaturalist observations (© their observers), Acartia and Orcasound. BC Parks and the US National Park Service. Street-tree inventories and other municipal open data under each city's open government licence."],
+  ["Statistics", "Statistics Canada, including CMHC tables (Statistics Canada Open Licence). BC Stats (OGL – BC)."],
+];
 const about = {
   title: "About", eyebrow: "Open Places", heading: "About",
   html: () => el("div", { class: "cx-row cols-3 civ-about" },
-    el("div", { class: "card prose" }, el("h3", {}, "What It Is"),
+    el("div", { class: "card prose" }, el("h3", {}, "About This Project"),
       el("p", {}, el("b", {}, "What's happening where you live right now, from open public data, on one page.")),
-      el("p", {}, "Open Places gathers live public feeds for a place: weather and air, departures and road events, alerts, aircraft, ships, earthquakes. Published data (forecasts, yearly records) appears only as comparison or in the detail views."),
-      el("p", {}, "Every number shows where it came from and how fresh it is: click “Updated” at the top right for every source on the page. Open data only, no sign-in, no ads, no analytics.")),
-    el("div", { class: "card prose" }, el("h3", {}, "Screen Layout"), el("ul", {},
+      el("p", {}, "Open Places is a personal project, shared as is. It started as an experiment, and an aspiration to see what open data can do for us: how much of daily life (weather, transit, roads, alerts, aircraft, ships, nature) public feeds can already show, live, in one place."),
+      el("p", {}, "It is an ongoing project and continuously improving, so pages change and some places get more than others. Numbers can be late, missing or wrong: for anything that matters to your safety, follow the official alert or the source itself."),
+      el("p", {}, "Every number shows where it came from and how fresh it is: click “Updated” at the top right for every source on the page. Open data only, no sign-in, no ads, no analytics."),
+      el("p", {}, el("b", {}, "Not for commercial use."), " The data belongs to its publishers under their own licences; check those before reusing anything."),
+      el("p", {}, "More of my projects: ", el("a", { href: PORTFOLIO, target: "_blank", rel: "noopener" }, "Portfolio"), ".")),
+    el("div", { class: "card prose civ-credits" }, el("h3", {}, "Credits and Data Sources"),
+      el("ul", {}, ...CREDITS.map(([h, t]) => el("li", {}, el("b", {}, h), el("br"), t))),
+      el("p", {}, el("small", {}, "Sources are credited by name; no endorsement by any of them is implied."))),
+    el("div", { class: "civ-about-stack" }, el("div", { class: "card prose" }, el("h3", {}, "Screen Layout"), el("ul", {},
       el("li", {}, el("b", {}, "A live map"), " of the place sits behind every page. Panels float over it; click anything on the map for its detail."),
       el("li", {}, el("b", {}, "Overview: "), "conditions, departures and roads large; active alerts with where, since when and the source; the place's other live topics; then every topic at a glance."),
       el("li", {}, el("b", {}, "Level focus: "), "at a municipality nearly everything is that municipality or its immediate area. The region above shows up only when it matters (a warning, a closure, an unusual event), and higher levels only with a warning that covers the place. The same rule holds at every level."),
       el("li", {}, el("b", {}, "The rail"), " lists the topics; a topic's pages are one row of tabs, starting with its Summary."))),
-    comingLater()),
+    comingLater())),
 };
 
 // ------------------------------------------------------------------ topics → console modules, leaves → sub-topics
@@ -715,6 +732,37 @@ function fitAlertList(list) {
   }
 }
 addEventListener("resize", () => fitAlertList(strip.querySelector(".civ-al-list")));
+/** a new alert pulses for what is left of its first 5 minutes (civic-alerts.js newLeft; none with reduced motion, CSS) */
+function pulse(node, x) { const left = newLeft(x); if (left > 0) { node.classList.add("civ-pulse"); node.style.setProperty("--pulse-n", String(Math.ceil(left / 2400))); } return node; }
+// a really important alert (civic-alerts.js isImportant) opens this popup once; dismissing it is remembered per alert in
+// this browser. The alert itself stays in the bar and on Right Now while it applies. A warning hidden from the bar (×) skips it.
+const POP_KEY = "op-alert-popups";
+let popDone = (() => { try { return new Set(JSON.parse(localStorage.getItem(POP_KEY) || "[]")); } catch { return new Set(); } })();
+let alPop = null;
+function paintPopup(items) {
+  const due = items.filter((x, i) => isImportant(x) && !popDone.has(alertKey(x)) && !hiddenWarn.has(warnKey(x)) && items.findIndex((y) => y.title === x.title && y.src === x.src) === i).slice(0, 3);
+  if (!due.length) { alPop?.remove(); alPop = null; return; }
+  const sig = due.map(alertKey).join("\n");
+  if (alPop?.dataset.sig === sig) return;
+  const dismiss = () => {
+    for (const x of due) popDone.add(alertKey(x));
+    try { localStorage.setItem(POP_KEY, JSON.stringify([...popDone].slice(-80))); } catch { /* private window */ }
+    alPop?.remove(); alPop = null;
+  };
+  const row = (x) => el("div", { class: "civ-alpop-i" }, el("i", { class: "civ-sev", "data-sev": x.sev }),
+    el("div", {}, el("b", {}, x.title), el("span", {}, [x.where, alertWhen(x), x.src].filter(Boolean).join(" · ")),
+      x.text ? el("p", {}, x.text.split("\n").filter(Boolean).slice(0, 2).join(" ").slice(0, 220)) : null,
+      tagAlert(el("a", { class: "civ-alpop-go", href: x.href || "#now/alerts", onclick: () => dismiss() }, "Show on map"), x)));
+  const ok = el("button", { type: "button", class: "civ-alpop-ok", onclick: dismiss }, "Dismiss");
+  const box = el("div", { class: "civ-alpop", role: "alertdialog", "aria-modal": "false", "aria-labelledby": "civ-alpop-h", "data-sev": Math.max(...due.map((x) => x.sev)) },
+    el("h2", { id: "civ-alpop-h" }, due.length === 1 ? "Important Alert" : `${due.length} Important Alerts`,
+      el("button", { type: "button", class: "civ-alpop-x", "aria-label": "Dismiss", title: "Dismiss (it stays in the alert bar)", onclick: dismiss }, "×")),
+    ...due.map(row), el("div", { class: "civ-alpop-f" }, el("span", {}, "Stays in the alert bar and on Right Now while it applies."), ok));
+  box.dataset.sig = sig;
+  alPop?.remove(); alPop = box; document.body.append(box);
+  if (document.activeElement === document.body) ok.focus({ preventScroll: true });
+}
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && alPop && alPop.contains(document.activeElement)) alPop.querySelector(".civ-alpop-ok")?.click(); });
 function paintAlerts() {
   const a = collectAlerts(ctx), all = focusAlerts(a.items);
   const warns = all.filter((x) => x.sev >= 3), hid = warns.filter((x) => hiddenWarn.has(warnKey(x)));
@@ -722,14 +770,14 @@ function paintAlerts() {
   const state = !items.length ? "clear" : top.sev >= 3 ? "warning" : "active";
   strip.dataset.state = state;
   root.dataset.warn = state === "warning" ? "on" : hid.length ? "hidden" : "";
-  const chip = (x) => tagAlert(el("a", { class: "civ-al-i", href: x.href, "data-sev": x.sev, title: [x.title, x.where, x.src].filter(Boolean).join(" · ") },
-    el("i", { class: "civ-sev", "data-sev": x.sev }), el("b", {}, x.title), x.where ? el("span", {}, x.where) : null), x);
+  const chip = (x) => pulse(tagAlert(el("a", { class: "civ-al-i", href: x.href, "data-sev": x.sev, title: [x.title, x.where, x.src].filter(Boolean).join(" · ") },
+    el("i", { class: "civ-sev", "data-sev": x.sev }), el("b", {}, x.title), x.where ? el("span", {}, x.where) : null), x), x);
   const head = el("a", { class: "civ-al-k", href: "#now/alerts", title: "Alerts" }, all.length ? `Alerts · ${all.length}` : "Alerts");
   let body;
   if (state === "clear") body = [el("span", { class: "civ-al-clear" }, a.loading ? "Checking alerts…" : hid.length ? "No other alerts" : `All clear for ${ctx.place.anywhere ? "this spot" : ctx.place.short}`)];
   else if (state === "warning") {
-    body = [tagAlert(el("a", { class: "civ-al-top", href: top.href }, el("i", { class: "civ-sev", "data-sev": 3 }), el("b", {}, top.title),
-      el("span", {}, [top.where, top.until ? `until ${fWhen(top.until)}` : null, top.src].filter(Boolean).join(" · "))), top),
+    body = [pulse(tagAlert(el("a", { class: "civ-al-top", href: top.href, "data-sev": 3 }, el("i", { class: "civ-sev", "data-sev": 3 }), el("b", {}, top.title),
+      el("span", {}, [top.where, top.until ? `until ${fWhen(top.until)}` : null, top.src].filter(Boolean).join(" · "))), top), top),
     el("button", { type: "button", class: "civ-al-hide", title: "Hide this warning: the bar stops turning red (the bell brings it back)", "aria-label": `Hide ${top.title}`,
       onclick: () => setWarnHidden([warnKey(top)], true) }, "×"),
     el("div", { class: "civ-al-list" }, ...items.slice(1).map(chip))];
@@ -745,6 +793,7 @@ function paintAlerts() {
     el("em", {}, "New"), el("b", {}, nw.title), el("time", { class: "civ-fd-w", datetime: new Date(nw.t).toISOString() }, rel(nw.t))), nw) : null;
   strip.replaceChildren(head, ...(fresh ? [fresh] : []), ...body, el("span", { class: "civ-al-sp" }), ...(bell ? [bell] : []), upd);
   if (!mobile()) requestAnimationFrame(() => fitAlertList(strip.querySelector(".civ-al-list")));
+  paintPopup(all);
   paintUpdated();
   seedState(a);
   requestAnimationFrame(() => root.style.setProperty("--cx-top", `${$("#civ-head").offsetHeight}px`));

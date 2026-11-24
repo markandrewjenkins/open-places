@@ -105,7 +105,7 @@ Local pages: start the dev site, then open http://localhost:5173/.
 - [ ] **Air Traffic** (/air/, new; live map needs the relay: /air/?relay=http://localhost:8788 with
   `node workers/bct-relay/dev.mjs 8788` running): live aircraft over Greater Victoria as generic silhouettes coloured by
   height, YYJ / Harbour arrivals and departures (inferred from height and climb, not a schedule), flying weather,
-  runways and wind, and busy hours (hatched "collecting" until the logger has run for a few days). Reworked after
+  runways and wind (live aircraft only in the relay's zones and cities; elsewhere a short "no live aircraft" note). Reworked after
   the NeonDeck "Vapor Trails" direction: a radar with 5 / 15 / 40 km ranges, colour = kind of flight, size = weight
   class, airframe silhouettes, speed trails, next close pass, "what you can probably hear", rare-aircraft rings,
   boarding-pass callsigns with adsbdb routes, "Pick my spot" / "Use my location", and a per-browser spotter log. The "Flight Strip"
@@ -225,10 +225,11 @@ Local pages: start the dev site, then open http://localhost:5173/.
 - [x] **Relay redeployed** 2026-11-13 (buses and `/air/` routes live at https://bct-relay.openplaces.workers.dev).
 - [ ] **Air Traffic:** redeploy the relay (new `air.js`: hedged adsb.lol → adsb.fi, one adsb.lol retry, last good copy
   served as stale instead of a 502). Optional: request a free adsb.lol API key and add it as the Worker secret
-  `ADSBLOL_API_KEY` (and the same env var on the collector machine) if `/air/point.json` errors mention 429.
-- [ ] **Air Traffic:** run the aircraft logger (`python -m pipelines.air.collect`, one poll every 3 min) on the
-  always-on machine next to the Route 95 logger, and create the empty `air-traffic` repo. adsb.fi (the fallback) allows personal, non-commercial use
-  only: fine for now, drop it if that ever changes.
+  `ADSBLOL_API_KEY` if `/air/point.json` errors mention 429.
+- [ ] **Air Traffic zones (2026-11-23):** redeploy the relay for the shared zones and city pool (`airzones.js`).
+  `ADSBLOL_DAILY_BUDGET` is no longer read; `ADSBLOL_BUDGETS` (optional) replaces it. The busy-hours logger is gone:
+  the local `data/air/raw/log` files can be deleted. adsb.fi (the fallback) allows personal, non-commercial use only:
+  fine for now, drop it if that ever changes.
 
 - [x] **Waterways live ships: on** 2026-11-13 (aisstream.io key set as the relay secret; the map switches to Live by
   itself). For the record, the setup was: get a free aisstream.io key (GitHub sign-in), then

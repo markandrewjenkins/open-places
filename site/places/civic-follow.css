@@ -4,15 +4,23 @@
 .civ-follow-btn:hover, .civ-follow-btn:focus-visible { filter: brightness(1.12); }
 .civ-follow-btn[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 .civ-follow-hint { margin: 4px 0 6px; font-size: 11.5px; color: var(--muted, var(--ink-2)); }
-.civ-follow-pill { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 5; display: inline-flex; align-items: center; gap: 8px;
-  height: 32px; padding: 0 6px 0 12px; border-radius: var(--pill, 999px); border: 1px solid var(--border, var(--line));
-  background: color-mix(in oklab, var(--surface) 90%, transparent); backdrop-filter: blur(8px); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-  color: var(--ink); font: 600 12.5px/1 var(--font, inherit); white-space: nowrap; pointer-events: auto; }
-.civ-follow-pill i { width: 8px; height: 8px; border-radius: 50%; background: #ffffff; box-shadow: 0 0 0 2px rgba(10, 14, 20, 0.55); animation: civ-follow-beat 1.6s ease-in-out infinite; }
+.civ-follow-pill { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 5; display: inline-flex; align-items: center; gap: 10px;
+  height: 42px; padding: 0 6px 0 14px; border-radius: var(--pill, 999px); border: 2px solid var(--accent, #2a63d6);
+  background: color-mix(in oklab, var(--surface) 94%, transparent); backdrop-filter: blur(8px);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent, #2a63d6) 22%, transparent), 0 8px 26px rgba(0, 0, 0, 0.28);
+  color: var(--ink); font: 650 14.5px/1 var(--font, inherit); white-space: nowrap; pointer-events: auto; }
+.civ-follow-pill i { width: 10px; height: 10px; border-radius: 50%; background: var(--accent, #2a63d6); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent, #2a63d6) 30%, transparent);
+  animation: civ-follow-beat 1.6s ease-in-out infinite; }
+.civ-follow-pill.lost { border-color: #e0a030; }
 .civ-follow-pill.lost i { background: #e0a030; animation: none; }
-.civ-follow-pill b { color: var(--muted); font-weight: 400; }
-.civ-follow-pill button { height: 22px; padding: 0 10px; border: 1px solid var(--border, var(--line)); border-radius: var(--pill, 999px); background: transparent;
-  color: var(--ink); font: inherit; cursor: pointer; }
-.civ-follow-pill button:hover, .civ-follow-pill button:focus-visible { background: var(--ink); color: var(--surface); }
+.civ-follow-pill small { color: var(--muted, var(--ink-2)); font-weight: 450; font-size: 12px; }
+.civ-follow-pill button { height: 30px; padding: 0 14px; border: 0; border-radius: var(--pill, 999px); background: var(--accent, #2a63d6);
+  color: #fff; font: 650 13px/1 var(--font, inherit); cursor: pointer; }
+.civ-follow-pill button:hover, .civ-follow-pill button:focus-visible { filter: brightness(1.12); }
+/* the hover hint by the cursor over a followable vehicle (followGestures) */
+.civ-follow-tip { position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none; display: flex; flex-direction: column; gap: 2px; max-width: 280px;
+  padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border, var(--line)); background: color-mix(in oklab, var(--surface) 95%, transparent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2); color: var(--ink); font: 650 12.5px/1.3 var(--font, inherit); }
+.civ-follow-tip span { color: var(--muted, var(--ink-2)); font-weight: 450; font-size: 11.5px; }
 @keyframes civ-follow-beat { 50% { opacity: 0.45; } }
 @media (prefers-reduced-motion: reduce) { .civ-follow-pill i { animation: none; } }

@@ -28,6 +28,8 @@
 //   startAIS / aisState / onAIS / aisShips / ferryOf / ferryIds   the shared AIS snapshot for Sea Traffic (civic-mod-sea.js)
 // Selection: the leaf's URL carries it (#getting-around/ferries/<mmsi>, or t-<terminal id> for a terminal); clicking a
 // ferry on the tile's mini map opens the leaf with it selected; clicking the selected ferry or terminal again clears it.
+// On the maps a double-click on a ferry follows it and a right-click stops (civic-follow.js followGestures). Positions
+// between reports and "moving or still" come from src/ships/motion.js, the same test Sea Traffic uses.
 import * as d3 from "d3";
 import maplibregl from "maplibre-gl";
 import "../src/shared/basemap.js";   // dark basemap labels match the light style's size and case
@@ -38,8 +40,9 @@ import { file } from "./civic-data.js";
 import { classOf, classURI, addClassImages } from "../src/ships/classes.js";
 import { vesselFigure, operatorRows, loadVesselInfo } from "../src/ships/vesselinfo.js";   // exact-vessel photo, operator
 import { vesselProfileURI } from "../src/ships/profiles.js";
-import { TERMINALS, ROUTES, routeName, km as kmBetween, isFerry, isBcFerriesName, isWsfName, nameLooksFerry, ferryStatus, inFerryWaters, inWsfWaters, nearestTerminal, ferryTrip, reckon, WATCH_BOXES, inBox, PARKED_NAV } from "../src/ships/ferries.js";
-import { followButton, followHint, following, toggleFollow, stopFollow, addRing, setRing } from "./civic-follow.js";   // Focus & follow + the white ring
+import { TERMINALS, ROUTES, routeName, km as kmBetween, isFerry, isBcFerriesName, isWsfName, nameLooksFerry, ferryStatus, inFerryWaters, inWsfWaters, nearestTerminal, ferryTrip, WATCH_BOXES, inBox, PARKED_NAV } from "../src/ships/ferries.js";
+import { noteShips, motionOf, shipPos } from "../src/ships/motion.js";   // moving or still, and where it is now
+import { followButton, followHint, following, startFollow, stopFollow, followGestures, addRing, setRing } from "./civic-follow.js";   // Focus & follow + the white ring
 import "./civic-mod-ferries.css";
 
 export const CREDIT = "AIS positions from aisstream.io via the Open Places relay. Not for navigation.";
@@ -75,6 +78,7 @@ function start(ctx) {
     L.off = j.served_epoch ? j.served_epoch * 1000 - now : 0;
     const first = !L.data;
     L.data = j; L.err = null; L.at = now;
+    noteShips(ships());   // each vessel's reports, so motion.js can tell a moving ship from drift
     alerts();
     for (const P of Object.values(PANE)) P.layers?.update();
     for (const f of L.subs) { try { f(); } catch (e) { console.warn(e); } }
@@ -120,13 +124,13 @@ const ORDER = { underway: 0, stopped: 1, docked: 2, quiet: 3 };
 
 /** one ferry: { s, age, st, pos, trip, fleet, id } */
 function item(s) {
-  const age = ageS(s), moving = !PARKED_NAV.has(s.nav) && s.sog >= 0.5 && age < 180;
-  const st = ferryStatus(s, age), pos = moving ? reckon(s, age) : [s.lon, s.lat];
+  const age = ageS(s), moving = age < 180 && motionOf(s).moving;
+  const st = ferryStatus(s, age), pos = moving ? shipPos(s) : [s.lon, s.lat];
   return { s, id: String(s.mmsi), age, st, pos, trip: ferryTrip(s, st, pos), fleet: inWsfWaters(s) ? isWsfName(s.name) : isBcFerriesName(s.name) };
 }
 /** where a ferry is now: dead-reckoned from its last report while it moves (item() fixes pos when the data arrives; the
  *  markers and Follow use this, so they glide between reports) */
-const livePos = (x) => { const s = x.s, age = ageS(s); return !PARKED_NAV.has(s.nav) && s.sog >= 0.5 && age < 240 ? reckon(s, age) : [s.lon, s.lat]; };
+const livePos = (x) => shipPos(x.s);
 /** the operator's ferries, nearest the place first within each state */
 function ferryList(op, place) {
   const ll = place?.ll || [-123.37, 48.43], o = OPS[op];
@@ -333,13 +337,16 @@ export function addFerryLayers(map, ctx, o = {}) {
     map.getSource(ids.trip)?.setData(tripGeo());
   };
   const onClick = (e) => { const id = e.features?.[0]?.properties?.id; if (id) o.onSelect?.(String(id)); };
+  // o.gesture (the leaf and the stage): click selects, double-click follows, right-click stops (civic-follow.js), the
+  // nearest ferry within 14 px winning; without it (other pages' stage layers) a plain click selects
+  const gest = o.gesture ? followGestures(map, { layers: [ids.ships], prefix: "ferry:", radius: 14, ...o.gesture }) : null;
   // terminals: a click opens the terminal's card (a ferry drawn over the terminal keeps the click)
   const onTerm = (e) => { const id = e.features?.[0]?.properties?.id; if (!id || !o.onTerminal || map.queryRenderedFeatures(e.point, { layers: [ids.ships] }).length) return; o.onTerminal(String(id)); };
   // the map stage clears the cursor on each mousemove over anything that isn't its own layer (civic-stage.js), so the
   // pointer is set on every move over a ferry (this listener is added after the stage's and runs after it)
   const onEnter = () => { map.getCanvas().style.cursor = "pointer"; }, onLeave = () => { map.getCanvas().style.cursor = ""; };
   const onStyle = () => { add(); };
-  map.on("click", ids.ships, onClick); map.on("mousemove", ids.ships, onEnter); map.on("mouseleave", ids.ships, onLeave);
+  if (!gest) { map.on("click", ids.ships, onClick); map.on("mousemove", ids.ships, onEnter); map.on("mouseleave", ids.ships, onLeave); }
   if (o.onTerminal) for (const l of [ids.term, ids.termLbl]) { map.on("click", l, onTerm); map.on("mousemove", l, onEnter); map.on("mouseleave", l, onLeave); }
   if (o.restyle !== false) map.on("style.load", onStyle);
   if (map.isStyleLoaded?.() || map.getStyle()?.layers?.length) add(); else map.once("load", add);
@@ -362,7 +369,7 @@ export function addFerryLayers(map, ctx, o = {}) {
     selectTerminal(id) { tsel = id || null; paintSel(); },
     destroy() {
       alive = false;
-      map.off("click", ids.ships, onClick); map.off("mousemove", ids.ships, onEnter); map.off("mouseleave", ids.ships, onLeave); map.off("style.load", onStyle);
+      gest?.(); map.off("click", ids.ships, onClick); map.off("mousemove", ids.ships, onEnter); map.off("mouseleave", ids.ships, onLeave); map.off("style.load", onStyle);
       for (const l of [ids.term, ids.termLbl]) { map.off("click", l, onTerm); map.off("mousemove", l, onEnter); map.off("mouseleave", l, onLeave); }
       for (const id of Object.values(ids).reverse()) if (map.getLayer(id)) map.removeLayer(id);
       for (const s of [ids.routes, ids.term, ids.trip, ids.ships]) if (map.getSource(s)) map.removeSource(s);
@@ -374,7 +381,7 @@ export const stageLayer = (op = "bc") => ({ id: `${OPS[op].id}-live`, custom: (m
 /** the module's `stage` (civic-layers.js stageOf): its layers on the shared map, selection synced with the pane */
 // the relay's live AIS area (workers/bct-relay/src/ais.js AIS_AREAS.salish): ships are heard only inside it, so it is
 // the coverage outline (civic-stage.js header) of BC Ferries, Washington State Ferries and Sea Traffic
-export const AIS_BOX = [[-124.10, 47.45], [-122.20, 49.45]];
+export const AIS_BOX = [[-124.80, 46.95], [-122.15, 49.45]];
 export function aisCoverage(ctx) {
   const [[w, s], [e, n]] = AIS_BOX, [lon, lat] = ctx.place.ll;
   if (lon < w - 1.5 || lon > e + 1.5 || lat < s - 1.5 || lat > n + 1.5) return null;   // far away: the shell's default
@@ -386,7 +393,7 @@ export function stage(op = "bc") {
   return { layout: "map", dz: op === "bc" ? -2.4 : -1.6, coverage: aisCoverage,
     view: () => ({ center: [(b[0][0] + b[1][0]) / 2, (b[0][1] + b[1][1]) / 2], zoom: 9.6, bounds: b }),
     layers: (map, ctx) => {
-    const P = pane(op), h = addFerryLayers(map, ctx, { op, onSelect: (id) => clickFerry(op, id), onTerminal: (id) => setTerm(op, id) });
+    const P = pane(op), h = addFerryLayers(map, ctx, { op, gesture: ferryGesture(op), onTerminal: (id) => setTerm(op, id) });
     P.stage = h; h.update(P.d || undefined); h.select(P.sel); h.selectTerminal(P.term); loadVesselInfo();
     // Esc deselects (and so stops following), unless the user is typing
     const onKey = (e) => { if (e.key === "Escape" && P.sel && !/input|textarea|select/i.test(e.target?.tagName || "")) setSel(op, P.sel); };
@@ -444,14 +451,15 @@ export function terminalCard(t, d, op = "bc", o = {}) {
       : el("p", { class: "fer-fine" }, "No ferry heading here right now, as far as AIS position and course show."),
     el("p", { class: "fer-fine" }, `Ferries from live AIS; inbound and ETA are worked out from position, course and speed, not a ${op === "bc" ? "BC Ferries" : "WSF"} timetable.`));
 }
-/** the clickable list. o: { sel, onSelect(id) } */
+/** the clickable list. o: { sel, onSelect(id), onFollow(id) (a double-click) } */
 export function ferryListEl(d, op = "bc", o = {}) {
   const dark = d.dark;
   if (!d.list.length) return el("p", { class: "note civ-empty" }, `No ferries heard in ${OPS[op].where} in the last 20 minutes.`);
   return el("div", { class: "fer-list", role: "list" }, ...d.list.map((x) => {
     const on = x.id === o.sel;
     return el("div", { class: "fer-li" + (on ? " on" : ""), role: "listitem" },
-      el("button", { type: "button", class: "fer-row", "aria-pressed": String(on), title: on ? "Click again to follow" : "Show on the map", onclick: () => o.onSelect?.(x.id) },
+      el("button", { type: "button", class: "fer-row", "aria-pressed": String(on), title: o.onFollow ? "Show on the map · double-click to follow" : "Show on the map",
+        onclick: (e) => { if (e.detail < 2) o.onSelect?.(x.id); }, ondblclick: o.onFollow ? () => o.onFollow(x.id) : null },
         el("img", { src: classURI(classOf(x.s, x.s.known, { ferry: true }), dark), alt: "", height: 14, style: { transform: `rotate(${Math.round(hdgOf(x.s) ?? 0)}deg)`, opacity: x.age > 600 ? 0.45 : 1 } }),
         el("span", { class: "fer-row-t" }, el("b", {}, titleCase(x.s.name) || "Unnamed ferry"), el("small", {}, statusLine(x) + (!x.fleet ? " · other operator" : ""))),
         el("em", {}, x.st.state === "underway" ? `${x.s.sog.toFixed(1)} kn` : x.st.state === "docked" ? "docked" : ago(x.age))));
@@ -476,12 +484,12 @@ function ferryFollow(op, id) {
     where: () => { const y = find(); return y ? livePos(y) : null; }, seen: () => find()?.s.rep || null,
     redraw: () => { const Q = pane(op); Q.stage?.quick(); Q.layers?.quick(); }, redrawMs: 500, lostMs: 300000, giveUpMs: 900000 };
 }
-/** a click on a ferry (map, list, terminal card): select it; on the selected one, focus and follow it (or stop) */
-function clickFerry(op, id) {
-  const P = pane(op);
-  if (id && id === P.sel && (P.stage?.map || P.map)) toggleFollow(ferryFollow(op, id));
-  else setSel(op, id);
-}
+/** select a ferry (map, list, terminal card); never toggles it off */
+function selectFerry(op, id) { if (id && id !== pane(op).sel) setSel(op, id); }
+/** focus on a ferry and follow it (a double-click on the map or in the list) */
+function followFerry(op, id) { selectFerry(op, id); const o = ferryFollow(op, id); if (o.map) startFollow(o); }
+/** the shared map gesture for a ferry map (civic-follow.js followGestures) */
+const ferryGesture = (op) => ({ selected: () => pane(op).sel, select: (id) => selectFerry(op, id), deselect: () => setSel(op, pane(op).sel), follow: (id) => ferryFollow(op, id) });
 function setSel(op, id) {
   const P = pane(op), was = P.sel;
   P.sel = P.sel === id ? null : id;
@@ -506,11 +514,11 @@ function paintPane(op) {
   const fmap = P.stage?.map || P.map;
   const follow = x && fmap ? ferryFollow(op, x.id) : null;
   const body = () => (x ? ferryCard(x, op, { onClose: () => setSel(op, P.sel), dark: P.d.dark, follow })
-    : t ? terminalCard(t, P.d, op, { onClose: () => setTerm(op, P.term), onSelect: (id) => clickFerry(op, id), dark: P.d.dark })
+    : t ? terminalCard(t, P.d, op, { onClose: () => setTerm(op, P.term), onSelect: (id) => selectFerry(op, id), dark: P.d.dark })
     : el("p", { class: "fer-hint" }, "Select a ferry or a terminal on the map, or a ferry in the list."));
   P.wrap?.querySelector(".fer-float")?.replaceChildren(body());
   if (P.card?.isConnected) P.card.replaceChildren(body());
-  if (P.list?.isConnected) P.list.replaceChildren(ferryListEl(P.d, op, { sel: P.sel, onSelect: (id) => clickFerry(op, id) }), el("p", { class: "note fer-foot" }, `${CREDIT} ${OPS[op].note}`));
+  if (P.list?.isConnected) P.list.replaceChildren(ferryListEl(P.d, op, { sel: P.sel, onSelect: (id) => selectFerry(op, id), onFollow: (id) => followFerry(op, id) }), el("p", { class: "note fer-foot" }, `${CREDIT} ${OPS[op].note}`));
 }
 function drawMap(op, host, d, ctx) {
   const P = pane(op), o = OPS[op], theme = ctx.theme === "dark" ? "dark" : "light";
@@ -525,10 +533,10 @@ function drawMap(op, host, d, ctx) {
       attributionControl: { compact: true }, scrollZoom: false, dragRotate: false, pitchWithRotate: false });
     P.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     P.map.on("styleimagemissing", (e) => { if (!P.map.hasImage(e.id)) P.map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) }); });
-    P.map.on("click", (e) => { if (!P.map.queryRenderedFeatures(e.point).some((f) => f.layer.id.endsWith("-ships")) && P.sel && !following(`ferry:${P.sel}`)) setSel(op, P.sel); });   // click on the water clears (not while following)
+    P.map.on("click", (e) => { const q = e.point; if (!P.map.queryRenderedFeatures([[q.x - 14, q.y - 14], [q.x + 14, q.y + 14]]).some((f) => f.layer.id.endsWith("-ships")) && P.sel && !following(`ferry:${P.sel}`)) setSel(op, P.sel); });   // click on the water clears (not while following)
     new ResizeObserver(() => P.map.resize()).observe(P.wrap.querySelector(".fer-map"));
     P.map.once("load", () => P.wrap.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show"));
-    P.layers = addFerryLayers(P.map, ctx, { op, onSelect: (id) => clickFerry(op, id), onTerminal: (id) => setTerm(op, id) });
+    P.layers = addFerryLayers(P.map, ctx, { op, gesture: ferryGesture(op), onTerminal: (id) => setTerm(op, id) });
     P.theme = theme;
   } else if (P.theme !== theme) { P.theme = theme; P.map.setStyle(STYLE[theme], { diff: false }); }
   P.ctx = ctx;
@@ -546,7 +554,7 @@ function main(op, d, ctx) {
   const fleet = d.list.length - d.others;
   return {
     title: onStage(document.querySelector(".civ-sg")) ? "Ferry or Terminal" : "Ferry Map",
-    sub: `${fleet} ${o.short} ${fleet === 1 ? "vessel" : "vessels"} heard in the last 20 minutes${d.others ? ` (plus ${d.others} other passenger ${d.others === 1 ? "ferry" : "ferries"})` : ""}: ${d.under} underway, ${d.docked} docked. Live AIS, updated ${hhmm(d.at)} and every minute. Select a ferry for its route, speed and ETA, or a terminal for its routes and the ferries due in. Click a ferry again to follow it; × or Esc clears.`,
+    sub: `${fleet} ${o.short} ${fleet === 1 ? "vessel" : "vessels"} heard in the last 20 minutes${d.others ? ` (plus ${d.others} other passenger ${d.others === 1 ? "ferry" : "ferries"})` : ""}: ${d.under} underway, ${d.docked} docked. Live AIS, updated ${hhmm(d.at)} and every minute. Select a ferry for its route, speed and ETA, or a terminal for its routes and the ferries due in. Double-click a ferry to follow it, right-click to stop; × or Esc clears.`,
     // on the map stage (one shared map per page) the layers go on that map and this card holds the selection;
     // without a stage the pane draws its own map
     draw: (host) => { if (onStage(host)) { host.classList.add("fer-cardhost"); P.card = host; paintPane(op); } else drawMap(op, host, d, ctx); },

@@ -15,7 +15,7 @@ export function flightStrip() {
   if (!strip) return;
   const U = aircraft().filter(airborne), low = U.filter((a) => a.alt != null).sort((a, b) => a.alt - b.alt)[0];
   const m = A.wx?.metar && Object.values(A.wx.metar)[0];
-  const live = h("span", "fs-live"); live.append(h("i", "fs-dot"), isLive() ? "Live" : "Logged");
+  const live = h("span", "fs-live"); live.append(h("i", "fs-dot"), isLive() ? "Live" : A.uncovered ? "No live aircraft" : "Connecting");
   strip.replaceChildren(live, item("Place", A.place.short), item("Airborne", String(U.length)), item("Lowest", low ? `${callsign(low)} ${fAlt(low.alt)}` : "–"),
     item(m ? m.icaoId : "METAR", m ? `${m.fltCat || "–"} · ${m.wdir ?? "–"}/${m.wspd ?? "–"} kt` : "–"), item("Data as of", A.live ? fTime(A.live.as_of) : "–"));
 }

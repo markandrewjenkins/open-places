@@ -41,6 +41,13 @@
 // ------------------------------------------------------------------ satellite: imagery instead of the map's land and water
 // A "Satellite" button by the zoom buttons swaps in EOX Sentinel-2 cloudless 2016 (CC BY 4.0; the later years are
 // non-commercial) under the basemap roads and labels and every overlay, and back; each viewer's choice is remembered.
+// Sentinel-2 is ~10 m a pixel, soft past zoom 14; for places in the United States the USGS National Map's NAIP orthos
+// (public domain, ~0.6 m, tiles to z16) sit on top from z13. No open, keyless imagery sharper than Sentinel-2 covers BC
+// (the province's orthos are "Access Only"; the CRD's 2025 orthos need its permission), so Canada stays on EOX.
+// ------------------------------------------------------------------ 3D buildings and a gentle tilt close in
+// From z15 the basemap's OpenMapTiles buildings stand up as extrusions (render_height / render_min_height), coloured
+// from the theme's land colour; past z15.5 the camera tilts a little (to 35° at z17.5) and flattens again zooming out.
+// show({ flat: true }) keeps a page's map flat at every zoom.
 
 // ------------------------------------------------------------------ focus: one thing fitted and highlighted (alerts)
 // focus({ key, geo: GeoJSON geometry, zoom?, color?, page? }) fits the map to the geometry (zoom = the most it zooms in)
@@ -53,6 +60,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { el, cssVar } from "../src/shared/ui.js";
 import { icon } from "./civic-icons.js";
 import { addAreaLayers, AREA } from "../src/shared/area.js";
+import { countryOf } from "./civic-data.js";
 
 const STYLE = { light: "https://tiles.openfreemap.org/styles/positron", dark: "https://tiles.openfreemap.org/styles/dark" };
 const OFF_KEY = "odp-places-layers-off";
@@ -109,7 +117,7 @@ export function createStage({ ctx, isDark }) {
   const chips = el("div", { class: "civ-chips", role: "group", "aria-label": "Map layers" });
   const node = el("div", { class: "civ-stage", "aria-label": "Live map" }, mapEl);
   let map = null, styleReady = false, popup = null, selected = null;
-  let cur = { key: null, specs: [], view: null, coverage: null, tint: null };
+  let cur = { key: null, specs: [], view: null, coverage: null, tint: null, flat: false };
   let cov = null, covSig = "";         // the coverage drawn now ({ feature, label }) and its signature
   let focus = null;                    // { key, geo, zoom, color, page, applied }
   let onMoveCb = null, onFocusEndCb = null, userMove = false;
@@ -121,7 +129,9 @@ export function createStage({ ctx, isDark }) {
 
   function ensure() {
     if (map) return map;
-    map = new maplibregl.Map({ container: mapEl, style: STYLE[isDark() ? "dark" : "light"], center: ctx.place.ll, zoom: 10, attributionControl: { compact: true }, maxZoom: 16, dragRotate: false, pitchWithRotate: false });
+    map = new maplibregl.Map({ container: mapEl, style: STYLE[isDark() ? "dark" : "light"], center: ctx.place.ll, zoom: 10, attributionControl: { compact: true }, maxZoom: 18, dragRotate: false, pitchWithRotate: false,
+      // the tilt follows the zoom (see the header), applied inside every camera move so eases and fits stay smooth
+      transformCameraUpdate: ({ zoom, pitch }) => { const p = cur.flat ? 0 : tiltAt(zoom); return Math.abs(p - pitch) > 0.01 ? { pitch: p } : {}; } });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     map.addControl(homeControl(), "bottom-right");   // added after: it sits just above the zoom buttons
     map.addControl(satControl(), "bottom-right");
@@ -216,10 +226,10 @@ export function createStage({ ctx, isDark }) {
     // polls: start what's shown, stop the rest
     for (const s of want) if (s.start && !running.has(s.id)) running.set(s.id, s.start(ctx, () => update()) || (() => {}));
     for (const [id, stop] of running) if (!ids.has(id)) { try { stop(); } catch { /* ignore */ } running.delete(id); }
-    drawSat(); drawCoverage(fresh); drawPlace(); drawFocus(fresh);
+    drawSat(); draw3d(); drawCoverage(fresh); drawPlace(); drawFocus(fresh); lift3d();
     paintChips();
   }
-  function update() { if (map && styleReady) { for (const s of cur.specs.filter(isOn)) if (!s.custom && map.getSource(`st-${s.id}`)) map.getSource(`st-${s.id}`).setData(features(s)); drawCoverage(); drawPlace(); } paintChips(); }
+  function update() { if (map && styleReady) { for (const s of cur.specs.filter(isOn)) if (!s.custom && map.getSource(`st-${s.id}`)) map.getSource(`st-${s.id}`).setData(features(s)); drawCoverage(); drawPlace(); lift3d(); } paintChips(); }
 
   // ---------------------------------------------------------------- coverage (see the header): cv-* layers under the basemap labels
   const EMPTYF = { type: "FeatureCollection", features: [] };
@@ -271,19 +281,64 @@ export function createStage({ ctx, isDark }) {
   const SAT_SRC = { type: "raster", tileSize: 256, maxzoom: 14,
     tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg"],
     attribution: '<a href="https://cloudless.eox.at" target="_blank" rel="noopener">EOxCloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2016), <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>' };
+  // USGS The National Map, Imagery Only (USDA NAIP orthos; public domain, no key): US places only, from z13 (outside the
+  // US its tiles there are transparent, and below z13 it is a coarse mosaic, so EOX shows instead)
+  const SAT_US = { type: "raster", tileSize: 256, maxzoom: 16,
+    tiles: ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"],
+    attribution: '<a href="https://www.usgs.gov/programs/national-geospatial-program/national-map" target="_blank" rel="noopener">USGS The National Map</a>: orthoimagery (USDA NAIP), public domain' };
+  const usHere = () => countryOf(ctx.place)?.id === "us";
+  const dropLayer = (id) => { if (map.getLayer(id)) map.removeLayer(id); if (map.getSource(id)) map.removeSource(id); };
   function drawSat() {
     if (!map || !styleReady || !map.style?._loaded) return;
-    if (!sat) { if (map.getLayer("sat")) map.removeLayer("sat"); if (map.getSource("sat")) map.removeSource("sat"); return; }
-    if (map.getLayer("sat")) return;
-    if (!map.getSource("sat")) map.addSource("sat", SAT_SRC);
+    const us = sat && usHere();
+    // the basemap's flat building footprints (drawn above the roads' layer slot) would cover the imagery: hidden while it shows
+    for (const l of map.getStyle().layers) if (l.type === "fill" && l["source-layer"] === "building") map.setLayoutProperty(l.id, "visibility", sat ? "none" : "visible");
+    if (!sat) dropLayer("sat");
+    if (!us) dropLayer("sat-us");
+    if (!sat || (map.getLayer("sat") && (!us || map.getLayer("sat-us")))) return;
     // over the basemap's land, water and parks; under its roads, boundaries and labels and all of ours
     const ls = map.getStyle().layers;
-    const before = ls.find((l) => /^(st-|cv-|pl-|fx-)/.test(l.id) || l.type === "symbol" || (l.type === "line" && /road|highway|transport|tunnel|bridge|rail|boundary/.test(l.id)))?.id;
-    map.addLayer({ id: "sat", type: "raster", source: "sat", paint: { "raster-opacity": 1, "raster-fade-duration": 150 } }, before);
+    const before = ls.find((l) => /^(st-|cv-|pl-|fx-)/.test(l.id) || l.type === "symbol" || l.type === "fill-extrusion" || (l.type === "line" && /road|highway|transport|tunnel|bridge|rail|boundary/.test(l.id)))?.id;
+    if (!map.getSource("sat")) map.addSource("sat", SAT_SRC);
+    if (!map.getLayer("sat")) map.addLayer({ id: "sat", type: "raster", source: "sat", paint: { "raster-opacity": 1, "raster-fade-duration": 150 } }, before);
+    if (us) {
+      if (!map.getSource("sat-us")) map.addSource("sat-us", SAT_US);
+      if (!map.getLayer("sat-us")) map.addLayer({ id: "sat-us", type: "raster", source: "sat-us", minzoom: 13, paint: { "raster-opacity": 1, "raster-fade-duration": 150 } }, before);
+    }
+  }
+
+  // ---------------------------------------------------------------- 3D buildings and the tilt (see the header)
+  const tiltAt = (z) => { const t = Math.max(0, Math.min(1, (z - 15.5) / 2)); return 35 * t * t * (3 - 2 * t); };
+  // the extrusions stand on our ground tints (coverage, alert focus and area fills), so those can't wash over the roofs and
+  // walls; our lines, points and labels and the basemap's labels still draw on top
+  function lift3d() {
+    if (!map?.getLayer("bld3d")) return;
+    const ls = map.getStyle().layers, i = ls.findIndex((l) => l.id === "bld3d");
+    for (const l of ls.slice(i + 1)) if (l.type === "fill" && /^(st-|cv-|pl-|fx-)/.test(l.id)) map.moveLayer(l.id, "bld3d");
+  }
+  function draw3d() {
+    if (!map || !styleReady || !map.style?._loaded || !map.getSource("openmaptiles")) return;
+    // the land colour lifted towards the ink: a quiet block that reads in both themes and every skin
+    const land = color("var(--map-land, var(--surface))"), ink = color("var(--ink)");
+    const mix = (a, b, t) => { const p = (s) => (s.match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number), x = p(a), y = p(b); return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(",")})`; };
+    // dark: lighter roofs and a stronger light, so the walls turning away fall to half and the blocks read as 3D
+    const dark = isDark(), top = mix(land, ink, dark ? 0.3 : 0.05);
+    const paint = { "fill-extrusion-color": top, "fill-extrusion-opacity": sat ? 0.45 : dark ? 0.94 : 0.9, "fill-extrusion-vertical-gradient": true,
+      // they rise out of the ground between z15 and z15.6
+      "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 15, 0, 15.6, ["coalesce", ["get", "render_height"], 6]],
+      "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 15, 0, 15.6, ["coalesce", ["get", "render_min_height"], 0]] };
+    if (map.getLayer("bld3d")) { for (const [k, v] of Object.entries(paint)) map.setPaintProperty("bld3d", k, v); return; }
+    map.setLight({ anchor: "viewport", color: "#ffffff", intensity: dark ? 0.55 : 0.45, position: [1.2, 210, dark ? 40 : 35] });
+    // above every basemap fill and line (its flat footprints, roads and boundaries: the dark style puts a water label before
+    // them, so "the first symbol" would bury the extrusions), under the labels after them and all of our lines and points
+    const ls = map.getStyle().layers; let last = -1;
+    ls.forEach((l, i) => { if ((l.type === "line" || l.type === "fill") && !/^(st-|cv-|pl-|fx-|sat)/.test(l.id)) last = i; });
+    const before = ls[last + 1]?.id;
+    map.addLayer({ id: "bld3d", type: "fill-extrusion", source: "openmaptiles", "source-layer": "building", minzoom: 15, paint }, before);
   }
   function satControl() {
     satBtn = el("button", { type: "button", class: "civ-satbtn" });
-    satBtn.addEventListener("click", (e) => { e.stopPropagation(); sat = !sat; try { localStorage.setItem(SAT_KEY, sat ? "sat" : "map"); } catch { /* private window */ } paintSat(); drawSat(); });
+    satBtn.addEventListener("click", (e) => { e.stopPropagation(); sat = !sat; try { localStorage.setItem(SAT_KEY, sat ? "sat" : "map"); } catch { /* private window */ } paintSat(); drawSat(); draw3d(); });
     paintSat();
     const box = el("div", { class: "maplibregl-ctrl maplibregl-ctrl-group civ-satctl" }, satBtn);
     return { onAdd: () => box, onRemove: () => box.remove() };
@@ -291,7 +346,7 @@ export function createStage({ ctx, isDark }) {
   function paintSat() {
     if (!satBtn) return;
     satBtn.textContent = sat ? "Map" : "Satellite";
-    satBtn.title = sat ? "Back to the map" : "Satellite imagery (Sentinel-2 cloudless 2016, EOX, CC BY 4.0)";
+    satBtn.title = sat ? "Back to the map" : "Satellite imagery (Sentinel-2 cloudless 2016, EOX, CC BY 4.0; USGS NAIP orthos in the US, public domain)";
     satBtn.setAttribute("aria-pressed", String(sat));
   }
 
@@ -362,9 +417,9 @@ export function createStage({ ctx, isDark }) {
   function setFocus(f) {
     const was = focus;
     focus = f && f.geo ? { ...f, applied: false, fitted: false, at: Date.now() } : null;
-    if (!focus) { drawFocus(); if (was) onFocusEndCb?.(was); return; }
+    if (!focus) { drawFocus(); lift3d(); if (was) onFocusEndCb?.(was); return; }
     ensure();
-    if (!focus.page || focus.page === cur.key) { focus.page = cur.key; focus.applied = focus.fitted = true; if (styleReady) { closePopup(); drawFocus(); fitFocus(); } else map.once("style.load", () => fitFocus(0)); }
+    if (!focus.page || focus.page === cur.key) { focus.page = cur.key; focus.applied = focus.fitted = true; if (styleReady) { closePopup(); drawFocus(); lift3d(); fitFocus(); } else map.once("style.load", () => fitFocus(0)); }
   }
 
   // ---------------------------------------------------------------- chips (layer toggles)
@@ -420,13 +475,14 @@ export function createStage({ ctx, isDark }) {
 
   // ---------------------------------------------------------------- the page's view
   /** show a page: key (stable per page), layer specs, where to look. padding: the free area between the panels */
-  function show({ key, specs = [], center = ctx.place.ll, zoom = 10, bounds = null, padding = null, animate = true, coverage = null, tint = null, home: h = null }) {
+  function show({ key, specs = [], center = ctx.place.ll, zoom = 10, bounds = null, padding = null, animate = true, coverage = null, tint = null, home: h = null, flat = false }) {
     ensure();
     const fresh = key !== cur.key;
     if (fresh) { closePopup(); userMoved = false; showHome(false); }
     // the same page refreshing: a view the user has moved stays where it is
     const moved = fresh || (!userMoved && (cur.view?.center?.join() !== center.join() || cur.view?.zoom !== zoom));
-    cur = { key, specs, view: { center, zoom, bounds }, coverage, tint };
+    cur = { key, specs, view: { center, zoom, bounds }, coverage, tint, flat };
+    if (flat && map.getPitch()) map.setPitch(0);
     home = h;
     if (padding) map.setPadding(padding);
     // a focus waiting for this page fits instead of the page's view; another page ends a focus that was shown
@@ -455,7 +511,7 @@ export function createStage({ ctx, isDark }) {
     else if (v) map.jumpTo({ center: v.center, zoom: v.zoom });
   }
   addEventListener("themechange", () => { if (map) { styleReady = false; closePopup(); map.setStyle(STYLE[isDark() ? "dark" : "light"], { diff: false }); } });
-  addEventListener("skinchange", () => { if (map && styleReady) { tint(); update(); for (const s of cur.specs) if (map.getSource(`st-${s.id}`)) removeSpec(s.id); draw(); } });
+  addEventListener("skinchange", () => { if (map && styleReady) { tint(); draw3d(); update(); for (const s of cur.specs) if (map.getSource(`st-${s.id}`)) removeSpec(s.id); draw(); } });
 
   return { el: node, chips, show, update, pad, close: closePopup, resize: () => map?.resize(), get map() { return map; }, get key() { return cur.key; },
     focus: setFocus, get focused() { return focus; }, onFocusEnd: (cb) => { onFocusEndCb = cb; }, onMove: (cb) => { onMoveCb = cb; },

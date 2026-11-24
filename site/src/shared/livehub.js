@@ -36,9 +36,11 @@
 //              { agency, fetched_epoch, as_of_epoch, count, credit,
 //                alerts: [{ id, header, description, url, cause, effect, severity, route_ids, routes, stops,
 //                           agency_wide, route_types, periods }] }
-//   air      = /air/point.json for the region's one circle (48.50, -123.50, 46 nm; filter by distance: feed.js fromHub)
-//              meta also has { budget, used }: adsb.lol calls allowed / made this UTC day; every_s is the hub's clock,
-//              stretched to fit the allowance (30 s when there's room; ~2.5–3 min keyless if watched all day)
+//   air      = /air/point.json for the set's circle (48.50, -123.50, 46 nm; filter by distance: feed.js fromHub), cut by
+//              the relay from its pnw zone's snapshot (workers/bct-relay/src/airzones.js)
+//              meta also has { zone, zone_name, budget, used, budget_out }: the zone's adsb.lol calls allowed / made this
+//              UTC day; every_s is the zone's clock, stretched to fit its allowance (30 s when there's room; ~4 min if
+//              watched all day); budget_out: used up, so the last snapshot (stale) until 00:00 UTC
 //              { as_of_epoch, lat, lon, r_nm, count, source, upstream_ms, credit,
 //                aircraft: [{ hex, flight, type, cat, lat, lon, alt, gs, track, gnd, vr, sq, mil, emerg, seen }] }
 //   ais      = /ais/salish.json

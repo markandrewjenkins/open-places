@@ -11,6 +11,9 @@
 //     follow: true,                // pan to keep a selected vehicle in view (checked after each refresh); or () => boolean
 //     at: (v, key) => [lon, lat] | null,   // optional: draw a vehicle somewhere else than its report (Open Places'
 //                                  // Follow glides the followed bus between reports: civic-transit-stage.js)
+//     network: "all" | "active",   // "active": only routes running today (or with a vehicle out), thin and dull
+//     glide: false,                // true: every vehicle on its shape glides along it between reports (tglide.js),
+//                                  // redrawn every 0.5 s; off its shape (or none known) it stays at its report
 //   });
 //   L.moved()                      // redraw the vehicles' positions only (after `at` changed), cheap
 //   L.select(item | null)          // "v:<agency>:<vehicle>" | "r:<agency>:<routeId>" | null: draw it bold, dim the rest, fly to it
@@ -44,9 +47,10 @@ import { el, tipRow } from "../shared/ui.js";
 import { useVehicleIcons } from "./icons.js";
 import { isoId, isoOffset } from "./iso.js";
 import { MODE_NAME, meters } from "./transit.js";
-import { T, tip, allVehicles, routes, routeOf, histOf } from "./tcommon.js";
+import { T, tip, allVehicles, routes, routeOf, histOf, now as localNow } from "./tcommon.js";
 import { lineGeo, lineAt, snapAll, sliceLine } from "./motion.js";
 import { corridorData, onCorridor } from "./speed.js";
+import { glideOf } from "./tglide.js";
 
 export const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const defaultDark = () => (document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches);
@@ -85,6 +89,22 @@ export function vivid(hex, dark) {
   if (c.s >= 0.12) c.s = Math.max(c.s, 0.62);
   c.l = dark ? Math.min(0.72, Math.max(c.l, 0.6)) : Math.max(0.34, Math.min(c.l, 0.46));
   return c.formatHex();
+}
+/** the quiet network's colour (network: "active"): the route's hue, mostly greyed and kept mid-light, so dozens of
+ *  thin lines read as one muted web on either theme and a lit route stands well clear of it */
+export function dull(hex, dark) {
+  const c = d3.hsl(/^#[0-9a-f]{6}$/i.test(hex || "") ? hex : "#6b7280");
+  if (Number.isNaN(c.s)) c.s = 0;
+  if (Number.isNaN(c.h)) c.h = 0;
+  c.s = Math.min(c.s * 0.42, 0.34);
+  c.l = dark ? 0.56 : 0.5;
+  return c.formatHex();
+}
+/** routes with service on today's day type (before 4 am, last night's too) */
+function servesToday(r) {
+  const n = localNow(), days = [n.day];
+  if (n.min < 240) days.push(n.dow === 0 ? "sun" : n.dow === 6 ? "sat" : "weekday");
+  return r.d.some((d) => days.some((day) => (day === "weekday" ? (d.wd || []).some((x) => x > 0) : (d[day === "sat" ? "sa" : "su"] || 0) > 0)));
 }
 
 // ---------------------------------------------------------------- where a vehicle is on its route shape, and its heading
@@ -253,12 +273,17 @@ const WIDTH = {
   base: ["interpolate", ["linear"], ["zoom"], 9, ["+", 0.8, ["*", 0.5, ["get", "w"]]], 12, ["+", 1.2, ["*", 0.8, ["get", "w"]]], 15, ["+", 2, ["*", 1.2, ["get", "w"]]]],
 };
 const NET_A = (dark, quiet) => (dark ? (quiet ? 0.38 : 0.6) : quiet ? 0.5 : 0.8);
+// network: "active" draws only the routes running today, thinner and dull (see dull()), and quieter still while one is lit
+const W_DULL = ["interpolate", ["linear"], ["zoom"], 9, ["+", 0.6, ["*", 0.3, ["get", "w"]]], 12, ["+", 0.9, ["*", 0.5, ["get", "w"]]], 15, ["+", 1.5, ["*", 0.8, ["get", "w"]]]];
+const DULL_A = (dark, quiet) => (dark ? (quiet ? 0.3 : 0.5) : quiet ? 0.36 : 0.58);
+const GLIDE_MS = 500;
 const PATH = "tr-path";
 const LAYERS = ["tr-lines", "tr-lines-hit", "tr-line-case", "tr-line-sel", "tr-stops", "tr-cor-case", "tr-cor", "tr-veh", "tr-cams"];
 const SOURCES = ["tr-lines", "tr-stops", "tr-cor", "tr-veh", "tr-cams"];
 
-export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark = defaultDark, follow: doFollow = true, at = null } = {}) {
-  let sel = {}, hoverKey = null, corId = null, corKeys = new Set(), dead = false, flown = null;
+export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark = defaultDark, follow: doFollow = true, at = null, network = "all", glide = false, tipNote = null } = {}) {
+  let sel = {}, hoverKey = null, corId = null, corKeys = new Set(), dead = false, flown = null, netSig = "", movedAt = 0, glideT = 0;
+  const quiet = network === "active";
   useVehicleIcons(map);
   const path = tripPathLayers(map, PATH);
   const css = () => { const s = getComputedStyle(document.body); return { ink: s.getPropertyValue("--ink").trim() || (dark() ? "#f2f2f2" : "#222"), surface: s.getPropertyValue("--surface").trim() || (dark() ? "#16191d" : "#fff") }; };
@@ -266,22 +291,34 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
   const posOf = (v) => [v.lon, v.lat];
 
   // ---------------------------------------------------------------- data
-  const lineFeatures = () => { const d = dark(); return routes().flatMap((r) => r.d.filter((x) => x.line).map((x) => ({ type: "Feature",
-    properties: { key: rKey(r), dir: x.dir, c: pastel(r.color, d), cs: vivid(r.color, d), w: r.peakPerHour >= 4 ? 1 : 0 }, geometry: { type: "LineString", coordinates: x.line } }))); };
+  /** the routes drawn: all, or (network "active") those with service today, with a vehicle out now, or lit */
+  const shown = () => {
+    if (!quiet) return routes();
+    const out = new Set(allVehicles().map((v) => (v.r ? rKey(v.r) : ""))), f = focusKey();
+    return routes().filter((r) => out.has(rKey(r)) || rKey(r) === f || servesToday(r));
+  };
+  const lineFeatures = () => { const d = dark(), rs = shown(); netSig = rs.map(rKey).join(); return rs.flatMap((r) => r.d.filter((x) => x.line).map((x) => ({ type: "Feature",
+    properties: { key: rKey(r), dir: x.dir, c: quiet ? dull(r.color, d) : pastel(r.color, d), cs: vivid(r.color, d), w: r.peakPerHour >= 4 ? 1 : 0 }, geometry: { type: "LineString", coordinates: x.line } }))); };
+  /** the active set changed (a route's first bus came out, a route was lit): redraw the network once */
+  const syncNet = () => { if (quiet && map.getSource("tr-lines") && shown().map(rKey).join() !== netSig) map.getSource("tr-lines").setData({ type: "FeatureCollection", features: lineFeatures() }); };
+  /** where a bus is drawn while gliding along its route (glide on): tglide.js, from its report's place on the shape */
+  const glided = (v) => (glide ? glideOf(v, placeOf(v)) : null);
   const stopGeo = () => ({ type: "FeatureCollection", features: T.stops.flatMap((S) => S.list.map((s) => ({ type: "Feature", geometry: { type: "Point", coordinates: [s.lon, s.lat] }, properties: { key: `${s.agency}:${s.id}`, name: s.name } }))) });
   // every vehicle at its reported position, facing its reported bearing (else along its route shape there)
   function vehGeo() {
     const mb = map.getBearing();
     return { type: "FeatureCollection", features: allVehicles().filter((v) => v.lat != null && v.lon != null).map((v) => {
-      const [mode, livery] = spriteOf(v), key = vKey(v);
-      return { type: "Feature", geometry: { type: "Point", coordinates: (at && at(v, key)) || [v.lon, v.lat] },
-        properties: { key, rk: v.r ? rKey(v.r) : "", icon: isoId(mode, colorOf(v), faceBearing(v), mb, livery), sm: mode, mode: modeOf(v), r95: mode === "dd" ? 1 : 0, oc: corKeys.has(key) ? 1 : 0 } };
+      const [mode, livery] = spriteOf(v), key = vKey(v), gl = glided(v);
+      return { type: "Feature", geometry: { type: "Point", coordinates: (at && at(v, key)) || gl?.ll || [v.lon, v.lat] },
+        properties: { key, rk: v.r ? rKey(v.r) : "", icon: isoId(mode, colorOf(v), gl ? gl.brg : faceBearing(v), mb, livery), sm: mode, mode: modeOf(v), r95: mode === "dd" ? 1 : 0, oc: corKeys.has(key) ? 1 : 0 } };
     }) };
   }
   /** the selected vehicle's place on its shape (null: none selected, or no snap → its whole route is drawn bold) */
   const selPlace = () => { const v = selVehicle(); return v ? placeOf(v) : null; };
   function paintPath() {
-    const v = selVehicle(), p = v ? placeOf(v) : null, d = dark();
+    const v = selVehicle(), p0 = v ? placeOf(v) : null, d = dark();
+    // gliding: split where the bus is drawn, so what it has driven since its report fades behind it too
+    const gl = p0 && glided(v), p = gl && gl.g === p0.g ? { ...p0, c: gl.c } : p0;
     // bright = the route's own colour (vivid) ahead; behind it fades to the soft version, which stays legible above the
     // pastel network (wider and more opaque), so the whole trip reads as one route
     path.set(p && p.off ? { ...p, from: posOf(v) } : p, p ? { bright: vivid(v.r.color, d), dull: pastel(v.r.color, d, true), dullA: d ? 0.5 : 0.6, surface: css().surface } : null);
@@ -292,7 +329,7 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
     if (dead || !map.getStyle() || map.getSource("tr-lines")) return;
     const { ink, surface } = css(), d = dark();
     map.addSource("tr-lines", { type: "geojson", data: { type: "FeatureCollection", features: lineFeatures() } });
-    map.addLayer({ id: "tr-lines", type: "line", source: "tr-lines", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "c"], "line-width": WIDTH.base, "line-opacity": NET_A(d, false) } });
+    map.addLayer({ id: "tr-lines", type: "line", source: "tr-lines", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "c"], "line-width": quiet ? W_DULL : WIDTH.base, "line-opacity": (quiet ? DULL_A : NET_A)(d, false) } });
     map.addLayer({ id: "tr-lines-hit", type: "line", source: "tr-lines", paint: { "line-color": "#000", "line-width": 10, "line-opacity": 0 } });
     map.addLayer({ id: "tr-line-case", type: "line", source: "tr-lines", filter: ["==", ["get", "key"], ""], layout: { "line-cap": "round", "line-join": "round" },
       paint: { "line-color": surface, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 6, 15, 12], "line-opacity": 0.9 } });
@@ -326,13 +363,14 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
   }
   function apply() {
     if (!map.getLayer("tr-line-sel")) return;
+    syncNet();
     const f = focusKey(), v = selVehicle(), d = dark(), placed = !!(v && placeOf(v));
     // a selected vehicle placed on its shape gets the ahead / behind path instead of the whole route bold
     const dirOk = v?.r && v.dir != null && v.r.d.some((x) => x.dir === v.dir && x.line);
     const filt = !f || placed ? ["==", ["get", "key"], ""] : dirOk ? ["all", ["==", ["get", "key"], f], ["==", ["get", "dir"], v.dir]] : ["==", ["get", "key"], f];
     map.setFilter("tr-line-sel", filt); map.setFilter("tr-line-case", filt);
     // the rest of the network stays drawn as the soft pastel lines, a little quieter while something is picked
-    map.setPaintProperty("tr-lines", "line-opacity", NET_A(d, !!(f || v || corId)));
+    map.setPaintProperty("tr-lines", "line-opacity", (quiet ? DULL_A : NET_A)(d, !!(f || v || corId)));
     map.setPaintProperty("tr-veh", "icon-opacity", f ? ["case", ["==", ["get", "rk"], f], 1, 0.3] : v ? ["case", ["==", ["get", "key"], vKey(v)], 1, 0.3] : corId ? ["case", ["==", ["get", "oc"], 1], 1, 0.35] : 1);
   }
   /** after each refresh (and on select, rotate, restyle): sprites to their reported positions, the selected path re-split */
@@ -397,7 +435,7 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
     if (v?.r && hoverKey !== rKey(v.r)) { hoverKey = rKey(v.r); apply(); }
     const sp = v && speedOf(v), h = v && headOf(v), me = sel.k === "v" && p.key === `v:${sel.agency}:${sel.id}`;
     tip.show(e.originalEvent.clientX, e.originalEvent.clientY, (t) => t.append(el("div", { class: "t-title" }, v?.r ? `${v.r.name}${h ? ` → ${h}` : ""}` : `Route ${v?.route || "?"}`),
-      tipRow(v ? colorOf(v) : null, MODE_NAME[p.mode] || "Vehicle", sp ? `${Math.round(sp.kmh)} km/h reported` : ""), el("div", { class: "note" }, me ? "Click again to clear the selection" : "Click for its card and the route ahead of it")));
+      tipRow(v ? colorOf(v) : null, MODE_NAME[p.mode] || "Vehicle", sp ? `${Math.round(sp.kmh)} km/h reported` : ""), el("div", { class: "note" }, tipNote?.(p.key, me) ?? (me ? "Click again to clear the selection" : "Click for its card and the route ahead of it"))));   // tipNote: Open Places' follow gesture
   });
   on("mouseleave", "tr-veh", () => { map.getCanvas().style.cursor = ""; tip.hide(); if (hoverKey) { hoverKey = null; apply(); } });
   on("click", "tr-veh", (e) => {
@@ -430,7 +468,7 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
   window.addEventListener("transit-live", onLive);
 
   const api = {
-    moved() { if (!dead) map.getSource("tr-veh")?.setData(vehGeo()); },
+    moved() { if (dead) return; movedAt = Date.now(); map.getSource("tr-veh")?.setData(vehGeo()); if (glide && sel.k === "v") paintPath(); },
     update() { if (dead) return; if (corId) paintCorridor(); apply(); setVehicles(); follow(); },
     select(item) {
       sel = item ? parseItem(item) : {};
@@ -459,13 +497,15 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
     restyle() { if (map.getSource("tr-lines")) { map.getSource("tr-lines").setData({ type: "FeatureCollection", features: lineFeatures() }); apply(); paintPath(); } },
     stopsLoaded() { map.getSource("tr-stops")?.setData(stopGeo()); },
     destroy() {
-      dead = true;
+      dead = true; clearInterval(glideT);
       if (map.opRefit === refit) delete map.opRefit;
       window.removeEventListener("transit-live", onLive);
       for (const [type, layer, fn] of H) { if (fn) map.off(type, layer, fn); else map.off(type, layer); }
       if (map.getStyle()) { for (const id of LAYERS) if (map.getLayer(id)) map.removeLayer(id); path.remove(); for (const id of SOURCES) if (map.getSource(id)) map.removeSource(id); }
     },
   };
+  // gliding buses move on between reports: redraw every GLIDE_MS (less when a follow loop is already redrawing)
+  if (glide) glideT = setInterval(() => { if (!dead && !document.hidden && Date.now() - movedAt > GLIDE_MS * 0.7) api.moved(); }, GLIDE_MS);
   if (map.isStyleLoaded()) addLayers();
   return api;
 }

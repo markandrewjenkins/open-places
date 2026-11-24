@@ -47,3 +47,5 @@
 .go-key span { display: inline-flex; align-items: center; gap: 5px; }
 .go-key i { width: 10px; height: 10px; border-radius: 50%; }
 .go-rules { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--muted); }
+/* the verdicts are weather playability, not a course rating: said plainly under the list head */
+.go-only:not(.go-rules) { margin: -2px 0 0; font-size: 11.5px; color: var(--muted); font-style: italic; }

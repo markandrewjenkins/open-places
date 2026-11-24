@@ -6,14 +6,17 @@
 // so anchored ships that report only every few minutes stay on the map), and returns compact JSON. Requests share one
 // listen per Cloudflare location (timings below), so a hundred viewers cost the same as one.
 //
-//   GET /ais/salish.json      ships in the Salish Sea box (Juan de Fuca, Haro Strait, Vancouver, the Fraser, Seattle)
+//   GET /ais/salish.json      ships in the Salish Sea box (Juan de Fuca, Haro Strait, the San Juans, Vancouver, the Fraser,
+//                             Bellingham, Puget Sound to Olympia); each ship's previous fix rides along as pv: [lat, lon, age_s]
 //
 // Without the secret the route answers 200 { needs_key: true, ships: [] } (a 200, so pages don't log an error) and
 // the page keeps its no-key views.
 // Owner setup: workers/bct-relay/README.md, "Live ships (aisstream.io)".
 
 export const AIS_AREAS = {
-  salish: [[47.45, -124.10], [49.45, -122.20]],     // [[south, west], [north, east]] as aisstream wants [lat, lon] corners
+  // [[south, west], [north, east]] as aisstream wants [lat, lon] corners: the whole Salish Sea, from the mouth of Juan de
+  // Fuca (Neah Bay, Cape Flattery) to the south end of Puget Sound (Tacoma, Olympia), north to Howe Sound and the Fraser
+  salish: [[46.95, -124.80], [49.45, -122.15]],
 };
 // aisstream's community feed for this box is thin (about 2–3 position reports a second for ~250 ships), so how fresh
 // the map looks depends almost entirely on how many seconds of each minute the relay spends listening. Measured
@@ -72,6 +75,8 @@ export function mergeMessage(ships, m) {
     const lat = body.Latitude ?? meta.latitude, lon = body.Longitude ?? meta.longitude;
     // 91 / 181 are AIS's "position not available"; SOG 102.3 and COG 360 are "not available" too
     if (lat == null || lon == null || Math.abs(lat) > 90 || Math.abs(lon) > 180) return false;
+    // the previous fix, kept when the ship has moved at least ~10 m since: pages tell a moving ship from drift with it
+    if (s.lat != null && s.t && (Math.abs(lat - s.lat) * 110570 > 10 || Math.abs(lon - s.lon) * 111320 * Math.cos((lat * Math.PI) / 180) > 10)) s.pv = [s.lat, s.lon, s.t];
     Object.assign(s, { lat: num(lat), lon: num(lon), sog: body.Sog != null && body.Sog < 102 ? num(body.Sog, 1) : null,
       cog: body.Cog != null && body.Cog < 360 ? num(body.Cog, 0) : null,
       hdg: body.TrueHeading != null && body.TrueHeading < 360 ? body.TrueHeading : null, nav: body.NavigationalStatus ?? null, t: Math.floor(Date.now() / 1000) });
@@ -127,7 +132,9 @@ export function snapshot(area, ships, statics, heard, secs, error) {
   const list = Object.values(ships).filter((s) => s.lat != null);
   return { area, as_of_epoch: now, heard, listen_s: secs, count: list.length, keep_s: KEEP_S, fresh_s: FRESH_S, stale: !!error, error: error || undefined, credit: AIS_CREDIT,
     ships: list.map((s) => ({ mmsi: s.mmsi, name: s.name || null, type: s.type ?? null, len: s.len ?? null, dest: s.dest ?? null,
-      lat: s.lat, lon: s.lon, sog: s.sog, cog: s.cog, hdg: s.hdg, nav: s.nav, age_s: now - s.t })) };
+      lat: s.lat, lon: s.lon, sog: s.sog, cog: s.cog, hdg: s.hdg, nav: s.nav, age_s: now - s.t,
+      // previous fix [lat, lon, age_s], if within 15 min of this one (see mergeMessage)
+      ...(s.pv && s.t - s.pv[2] <= 900 ? { pv: [s.pv[0], s.pv[1], now - s.pv[2]] } : {}) })) };
 }
 
 /** one listen: { first, done }. first resolves with a snapshot after FIRST_MS (sooner on an error); done once the whole

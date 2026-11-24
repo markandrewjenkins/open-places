@@ -47,7 +47,7 @@ export const now = {
     const U = up(), np = nextPass(), h = heard();
     t.kpis([[`${U.length}`, `in the air within ${A.range} km · ${whenTxt()}`], [np ? fClock(np.pass.t) : "–", np ? `next pass · ${callsign(np)}` : "next close pass"],
       [h ? loudWord(h.db) : "–", h ? `you can probably hear ${callsign(h)}` : "nothing audible"]]);
-    t.status(isLive() ? `${feed().level === "live" ? "Live" : feed().level === "down" ? "Feed down" : "Delayed"} ${fTime(A.live.as_of)}` : A.live ? "Last logged poll" : "");
+    t.status(isLive() ? `${feed().level === "live" ? "Live" : feed().level === "down" ? "Feed down" : "Delayed"} ${fTime(A.live.as_of)}` : A.uncovered ? "No live aircraft" : "");
     radar(t.vis);
   },
   subs: [
@@ -62,10 +62,7 @@ export const now = {
       </div>` },
     { id: "types", title: "What's flying", short: "Types", class: "pane-ovt",
       view: () => renderTypes(),
-      html: `<div class="cx-row cols-2">
-        <div class="card cx-fill"><h3 class="cx-card-title">Right now, by airframe</h3><p class="note cx-card-sub" id="ov-t-sub"></p><div class="chart" id="ov-t-now"></div></div>
-        <div class="card cx-fill"><h3 class="cx-card-title">Most-seen types in the log</h3><p class="note cx-card-sub" id="ov-t-log-sub"></p><div class="chart" id="ov-t-log"></div></div>
-      </div>` },
+      html: `<div class="card cx-fill"><h3 class="cx-card-title">Right now, by airframe</h3><p class="note cx-card-sub" id="ov-t-sub"></p><div class="chart" id="ov-t-now"></div></div>` },
     { id: "log", title: "Spotter log", short: "Log", class: "pane-ovlog",
       view: () => renderLog(),
       html: `<div class="cx-row cols-13-1">
@@ -107,7 +104,7 @@ function drawer(item) {
       a.float ? dNote("A type flown on floats locally (Beaver, Otter or Twin Otter): likely a scheduled or charter floatplane.") : null,
       a.mil && !a.rare ? dNote("Listed as a military aircraft in the aggregator's database.") : null,
       a.emerg ? dNote(`Emergency status broadcast: ${a.emerg}.`) : null,
-      tr && tr.length > 2 ? dChart("ov-dr-alt", `Altitude since it appeared (${tr.length} reports)`) : dNote(isLive() ? "Its altitude trace builds up while the page stays open." : "No trace: this is the last logged poll."),
+      tr && tr.length > 2 ? dChart("ov-dr-alt", `Altitude since it appeared (${tr.length} reports)`) : dNote("Its altitude trace builds up while the page stays open."),
       !a.hex ? dNote("This aircraft's owner asked for limited display (FAA LADD / privacy address), so its callsign and identity are hidden.") : null,
       dHead("Look it up"),
       a.hex ? dLink(`https://adsb.lol/?icao=${a.hex}`, "Follow it on adsb.lol's map") : null,
@@ -160,7 +157,7 @@ function radar(host) {
       .style("fill", kindColor(a.kind)).style("stroke", "var(--surface)").style("stroke-width", 1.4).style("paint-order", "stroke");
   }
   g.append("circle").attr("cx", cx).attr("cy", cy).attr("r", 2.5).style("fill", "var(--ink)");
-  svg.append("text").attr("class", "axis-t").attr("x", 4).attr("y", ih).text(aircraft().length ? "colour = kind of flight" : "no aircraft yet");
+  svg.append("text").attr("class", "axis-t").attr("x", 4).attr("y", ih).text(aircraft().length ? "colour = kind of flight" : A.uncovered ? "no live aircraft here" : "no aircraft yet");
   svg.append("text").attr("class", "axis-t").attr("x", iw + 4).attr("y", ih).attr("text-anchor", "end").text(`ring ${rKm} km`);
 }
 
@@ -287,10 +284,10 @@ onTick(() => {
   const u = $("ov-upd");
   if (u) { u.textContent = liveStrip().upd; $("ov-state").textContent = liveStrip().label; $("ov-livedot").className = liveStrip().dot; }
 });
-/** the strip over the list: LIVE / DELAYED / FEED DOWN / RETRYING / LAST LOGGED POLL, and the newest report's age */
+/** the strip over the list: LIVE / DELAYED / FEED DOWN / RETRYING / NO LIVE AIRCRAFT, and the newest report's age */
 function liveStrip() {
   const f = feed();
-  if (!isLive()) return { label: backingOff() ? "RETRYING " : A.live ? "LAST LOGGED POLL " : "CONNECTING ", dot: "ov-dot off", upd: A.live ? fTime(A.live.as_of) : "–" };
+  if (!isLive()) return { label: A.uncovered ? "NO LIVE AIRCRAFT HERE " : backingOff() ? "RETRYING " : "CONNECTING ", dot: "ov-dot off", upd: "" };
   const label = f.level === "live" ? (A.liveErr ? "RETRYING " : "LIVE ") : f.level === "down" ? "FEED DOWN " : "DELAYED ";
   return { label, dot: f.level === "live" ? "ov-dot" : f.level === "down" ? "ov-dot off" : "ov-dot warn", upd: `updated ${agoS(f.age)}` };
 }
@@ -363,18 +360,7 @@ function renderTypes() {
   const by = d3.rollups(U, (v) => v, (a) => a.shape);
   renderBars("ov-t-now", SHAPES.map((s) => [SHAPE_LABEL[s], by.find((x) => x[0] === s)?.[1].length || 0, s,
     (by.find((x) => x[0] === s)?.[1] || []).map((a) => `${callsign(a)} (${a.type || "?"})`).join(", ") || "none"]), "--t-now", fmt0, 190);
-  const T = A.place.home ? A.data?.types : null;
-  if (!T?.length) {
-    $("ov-t-log-sub").textContent = A.place.home ? "The log is empty so far." : `The log covers Greater Victoria only.`;
-    $("ov-t-log").replaceChildren(el("p", { class: "note" }, A.place.home ? "Collecting." : "Switch the place to Greater Victoria to see the logged type mix, or see today's spotter log."));
-    return;
-  }
-  const c = A.data.coverage;
-  $("ov-t-log-sub").replaceChildren(`Distinct aircraft seen by type, ${fDayRange(c)}, by the logger (anonymised aircraft excluded). `, chipFor(c));
-  renderBars("ov-t-log", T.slice(0, 12).map(([t, n]) => [`${typeInfo(t).name}${t !== "?" ? ` (${t})` : ""}`, n, t]), "--t-busy", fmt0, 210);
 }
-const fDayRange = (c) => (c.first ? `${new Date(c.first).toLocaleDateString("en-CA", { month: "short", day: "numeric" })} – ${new Date(c.last).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}` : "–");
-const chipFor = (c) => el("span", { class: c.polls_ok >= 60 ? "ov-chip ok" : "ov-chip" }, `${fmt0(c.polls_ok)} poll${c.polls_ok === 1 ? "" : "s"}`);
 
 // ------------------------------------------------------------------ spotter log (this browser only)
 function renderLog() {

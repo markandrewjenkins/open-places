@@ -1,22 +1,24 @@
 // Air Traffic: page state, data loading, the live poller and small helpers shared by the topic modules.
 //
-// Live (ideas from the owner's NeonDeck "Vapor Trails" radar): every 10 s the page asks the relay for every aircraft
-// within 40 km of your spot (always the widest range, so switching 5 / 15 / 40 km is instant). tracker.js keeps each
-// aircraft by its address, holds one that drops out of a report for up to a minute (fading), and moves each one on
-// from its speed and track between reports (dead reckoning), so planes glide instead of jumping or flickering. A failed
-// request retries after 3 s, then 15 s doubling to 2 min (a 429 waits at least a minute); meanwhile the aircraft stay
-// on the map and the strip says how old the newest report is ("delayed" after 45 s, "down" after 5 min). Polling
-// pauses while the tab is hidden. Without the relay, Greater Victoria falls back to the pipeline's last logged
-// snapshot, labelled as such.
+// Live (ideas from the owner's NeonDeck "Vapor Trails" radar): the page asks the relay for every aircraft within 40 km
+// of your spot (always the widest range, so switching 5 / 15 / 40 km is instant). The relay serves live aircraft only
+// for its zones (Victoria & Vancouver, Phoenix) and a few named cities (src/shared/aircover.js), from shared snapshots
+// refreshed every 10 s to ~4 min (stretched to fit adsb.lol's daily allowance; every_s says which); elsewhere the page
+// shows airports and weather and says live aircraft aren't covered. tracker.js keeps each aircraft by its address, holds
+// one that drops out of a report (fading), and moves each one on from its speed and track between reports (dead
+// reckoning), all scaled to that clock, so planes glide instead of jumping or flickering. A failed request retries after
+// 3 s, then 15 s doubling to 2 min (a 429 waits at least a minute); meanwhile the aircraft stay on the map and the strip
+// says how old the newest report is. Polling pauses while the tab is hidden.
 //
 // Your spot is the place's centre, a point you pick on the map, or (only when you press the button) your device's
 // location. It stays in this browser: the relay is asked about a point rounded to 0.05° (about 5 km).
 import * as d3 from "d3";
 import { el, loadJSON, tooltip } from "../shared/ui.js";
-import { fetchPoint, fromHub, fetchWx, placeFromURL, distKm, bearingDeg, nearestAirports, airborne, phase, tidy, typeInfo, kindOf, sizeOf, rareOf,
+import { fetchPoint, fromHub, fetchWx, placeFromURL, distKm, bearingDeg, nearestAirports, airborne, phase, typeInfo, kindOf, sizeOf, rareOf,
   loudness, HEAR_DB, closestApproach, callsign, FETCH_NM } from "./feed.js";
 import { createTrack, ingest, aircraftOf, reckon, feedState, agoS, poller } from "./tracker.js";
 import { livePart, hubAirCovers } from "../shared/livehub.js";
+import { airCover, COVER_NOTE, everyText } from "../shared/aircover.js";
 
 const store = {
   get: (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
@@ -33,6 +35,7 @@ export const A = {
   track: createTrack(),  // tracker.js: aircraft by address, held and faded between reports
   fetchedAt: 0,          // ms, when the last report arrived
   liveErr: null,         // last live error (code "noroute" = relay not redeployed yet)
+  uncovered: false,      // the spot is outside the relay's zones and cities: no live aircraft (src/shared/aircover.js)
   backoff: 0, nextPoll: 0,
   wx: null, wxErr: null,
   trail: new Map(),      // hex → [[epoch s, lon, lat, alt], …] for this session (the altitude trace)
@@ -57,20 +60,13 @@ export const fKm = (km) => (km == null ? "–" : km < 10 ? `${km.toFixed(1)} km`
 export const fClock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 export const spotName = () => (A.spot.how === "device" ? "your location" : A.spot.how === "map" ? "your spot" : `${A.place.short}'s centre`);
 
-// honesty thresholds for logged figures (below these a figure is greyed and marked "collecting")
-export const MIN = { polls: 60, cellPolls: 20, days: 3, hours: 24 };
-export const thin = (n, min) => !(n >= min);
-export const chip = (n, min, unit = "polls") => (thin(n, min)
-  ? el("span", { class: "ov-chip", title: `collecting · ${fmt0(n || 0)} ${unit} so far (needs ${min})` }, `collecting · ${fmt0(n || 0)}/${fmt0(min)}`)
-  : el("span", { class: "ov-chip ok", title: `${fmt0(n)} ${unit}` }, `${fmt0(n)} ${unit}`));
-
 // ------------------------------------------------------------------ the aircraft list the views read
 /** everything fetched (out to 40 km) */
 export const allAircraft = () => (A.live?.aircraft || []);
 /** inside the chosen range */
 export const aircraft = () => allAircraft().filter((a) => a.km <= A.range);
 export const isLive = () => !!A.live?.live;
-export const whenTxt = () => (!A.live ? "loading" : isLive() ? `${feedState(A.track).level === "live" ? "live" : "delayed, as of"} ${fTime(A.live.as_of)}` : `logged ${fStamp(A.live.as_of)}`);
+export const whenTxt = () => (!A.live ? (A.uncovered ? "no live aircraft here" : "loading") : `${feedState(A.track).level === "live" ? "live" : "delayed, as of"} ${fTime(A.live.as_of)}`);
 const COMMON = () => (A.place.home ? ["DHC2", "DHC3"] : []);   // Harbour floatplanes: everyday in Victoria
 /** what it is, once per report: type, shape, kind, size, rarity, nearest aerodrome zone */
 export function enrich(a) {
@@ -191,7 +187,7 @@ export const today = () => spotterLog()[dayKey()] || {};
 
 // ------------------------------------------------------------------ loading
 let core = null;
-/** air.json (home: snapshot, busy hours, movements, METAR) + airports.json; world.json only away from home */
+/** air.json (home: aerodrome watch zones and the daily METAR / TAF copy) + airports.json; world.json only away from home */
 export function loadCore() {
   return (core ||= Promise.all([
     loadJSON("../data/air/air.json").catch(() => null),
@@ -199,9 +195,8 @@ export function loadCore() {
     A.place.home ? Promise.resolve(null) : loadJSON("../data/air/world.json"),
   ]).then(([data, airports, world]) => {
     Object.assign(A, { data, airports, world });
-    if (!A.live && A.place.home && data?.latest?.epoch) setSnapshot();
     if (!A.wx && A.place.home && data?.weather) A.wx = { ...data.weather, fetched: new Date(data.weather.fetched * 1000), live: false };
-    const gen = data ? `Logged data built ${new Date(data.generated).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" })}` : "";
+    const gen = data ? `Airport and weather data built ${new Date(data.generated).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" })}` : "";
     for (const id of ["generated", "generated-rail"]) { const n = $(id); if (n) n.textContent = gen; }
   }));
 }
@@ -211,10 +206,6 @@ let rw = null;
 /** runway centrelines of medium and large airports worldwide (OurAirports), loaded with the map */
 export const loadRunways = () => (rw ||= loadJSON("../data/air/runways.json").catch(() => null));
 
-function setSnapshot() {
-  const L = A.data.latest;
-  A.live = { as_of: new Date(L.epoch * 1000), aircraft: tidy(L.aircraft).map(enrich), source: "log", live: false };
-}
 
 // ------------------------------------------------------------------ the live poller
 const EVERY = 10000, WX_EVERY = 600000;
@@ -228,6 +219,7 @@ const emit = () => { for (const f of listeners) f(); A.ctx?.repaint?.(); window.
 
 /** a report from the relay: fold it into the track, then rebuild the list the views read */
 function onReport(j) {
+  if (j.raw?.uncovered) { A.uncovered = true; A.liveErr = null; poll?.stop(); poll = null; emit(); return; }   // the relay knows best
   A.fetchedAt = Date.now();
   ingest(A.track, j.raw, A.fetchedAt);
   A.live = { as_of: new Date(A.track.asOf * 1000), aircraft: aircraftOf(A.track), source: A.track.source, credit: A.track.credit, live: true, stale: A.track.stale };
@@ -250,7 +242,6 @@ function onFail(e, wait) {
   A.liveErr = e;
   A.backoff = wait; A.nextPoll = Date.now() + wait;
   if (e.code === "noroute" || e.code === "norelay") { poll?.stop(); poll = null; setTimeout(startPoll, 300000); }   // relay not redeployed: look again in 5 min
-  if (!A.live?.live && A.place.home && A.data?.latest?.epoch) setSnapshot();
   emit();
 }
 // In Greater Victoria (a spot whose circle fits the relay hub's aircraft circle) the page rides the hub's /live poll in
@@ -258,7 +249,10 @@ function onFail(e, wait) {
 // on a relay without the hub, it asks /air/point.json as before.
 let hub = null, noHub = false;
 function startPoll() {
-  poll?.stop(); hub?.stop(); hub = null;
+  poll?.stop(); hub?.stop(); hub = null; poll = null;
+  // outside the relay's zones and cities: no live aircraft, nothing to poll (the airports and weather still show)
+  A.uncovered = !airCover(A.spot.lat, A.spot.lon, FETCH_NM);
+  if (A.uncovered) { A.liveErr = null; emit(); return; }
   if (!noHub && hubAirCovers(A.spot.lat, A.spot.lon, FETCH_NM)) {
     hub = livePart("crd", "air", { fast: true,
       onData: (d, m) => onReport(fromHub(d, m, { lat: A.spot.lat, lon: A.spot.lon, r: FETCH_NM })),
@@ -266,7 +260,8 @@ function startPoll() {
       fallback: () => { noHub = true; hub = null; startPoll(); return null; } });
     return;
   }
-  poll = poller(() => fetchPoint({ lat: A.spot.lat, lon: A.spot.lon, r: FETCH_NM }), { every: EVERY, onResult: onReport, onError: onFail });
+  // a stretched relay clock (every_s up to ~4 min): ask about four times per clock, at most once a minute
+  poll = poller(() => fetchPoint({ lat: A.spot.lat, lon: A.spot.lon, r: FETCH_NM }), { every: () => Math.max(EVERY, Math.min(60000, (A.track.every || 0) * 250)), onResult: onReport, onError: onFail });
 }
 async function wxTick() {
   clearTimeout(wxTimer);
@@ -314,16 +309,19 @@ const srcName = () => (A.live?.source === "adsb_fi" ? "adsb.fi" : "adsb.lol");
 const retryIn = () => `retrying in ${Math.max(1, Math.round((A.nextPoll - Date.now()) / 1000))} s`;
 export const liveNote = () => {
   const f = feed();
-  if (isLive() && f.level === "live" && !A.liveErr) return `Live from ${srcName()} through the relay, updated ${agoS(f.age)}: a new report every 10 s, planes moved on from their speed and track in between, and one that drops out of a report kept (fading) for up to a minute.`;
+  if (A.uncovered) return `${COVER_NOTE} Airports, runways and flying weather still show here.`;
+  const pace = everyText(f.every) || "a new report every 10–30 s";
+  if (isLive() && f.level === "live" && !A.liveErr) return `Live from ${srcName()} through the relay, updated ${agoS(f.age)}: ${pace}, planes moved on from their speed and track in between, and one that drops out of a report kept (fading) for a while.`;
   if (isLive() && f.level !== "live") {
     const why = A.liveErr?.code === "stale" ? "the relay couldn't reach adsb.lol or adsb.fi and repeated its last good copy"
       : A.liveErr?.code === "429" ? "the feed says it's busy" : A.liveErr ? `the feed isn't answering (${A.liveErr.message})` : "no new report has arrived";
-    return `${f.level === "down" ? "Feed down" : "Feed delayed"}: newest report ${agoS(f.age)} (${fTime(A.live.as_of)}) because ${why}; ${A.liveErr ? retryIn() : "checking every 10 s"}. Aircraft stay where they were heading, fading${f.level === "down" ? "" : ", for up to a minute"}.`;
+    if (A.track.stale && /used up/.test(A.track.staleWhy || "")) return `Feed paused: adsb.lol's daily allowance for here is used up, so this is the last snapshot (${agoS(f.age)}, ${fTime(A.live.as_of)}); new positions after 00:00 UTC.`;
+    return `${f.level === "down" ? "Feed down" : "Feed delayed"}: newest report ${agoS(f.age)} (${fTime(A.live.as_of)}) because ${why}; ${A.liveErr ? retryIn() : "checking again soon"}. Aircraft stay where they were heading, fading.`;
   }
   if (isLive() && A.liveErr) return `One request failed (${A.liveErr.message}); ${retryIn()}. Newest report ${agoS(f.age)}.`;
   const why = A.liveErr?.code === "noroute" ? "The relay hasn't been redeployed with its air-traffic routes yet"
     : A.liveErr?.code === "norelay" ? "No relay is configured" : A.liveErr ? `The live feed isn't answering (${A.liveErr.message})` : "Connecting to the live feed";
-  return A.live ? `${why}, so this is the last logged poll (${fStamp(A.live.as_of)}).` : `${why}.${A.place.home ? "" : " Logged snapshots exist only for Greater Victoria."}`;
+  return `${why}.`;
 };
 
 // ------------------------------------------------------------------ small DOM helpers

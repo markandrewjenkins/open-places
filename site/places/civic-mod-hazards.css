@@ -111,3 +111,37 @@ a.hz-card .hz-card-n::after { content: " →"; color: var(--muted); font-weight:
 .hz-lg-ic { flex: none; fill: none; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
 .hz-lh { font: 800 14px/1 system-ui, "Segoe UI", sans-serif; width: 15px; text-align: center; }
 .hz-lg-box { width: 14px; height: 9px; border-radius: 2px; opacity: 0.6; }
+
+/* Atmospheric Rivers: the moisture band (arFieldLayer / arFieldPanel) */
+.arf-cv { position: absolute; left: 0; top: 0; pointer-events: none; }
+.arf-line { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 4px; font-size: 14.5px; line-height: 1.4; font-weight: 600; color: var(--ink); }
+.arf-dot { flex: none; width: 9px; height: 9px; margin-top: 6px; border-radius: 50%; background: var(--live, var(--good)); }
+.arf-line[data-ar="true"] .arf-dot { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in oklab, var(--warn) 25%, transparent); }
+.arf-sub { margin: 0 0 8px 17px; font-size: 13px; color: var(--ink-2, var(--muted)); }
+.arf-ctl { display: flex; align-items: center; gap: 8px; margin: 8px 0 2px; }
+.arf-ctl input[type="range"] { flex: 1; min-width: 0; accent-color: var(--m-ar, var(--accent-2)); cursor: pointer; }
+.arf-play, .arf-now { flex: none; height: 26px; min-width: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
+.arf-now[aria-pressed="true"] { background: color-mix(in oklab, var(--accent-2) 18%, var(--surface)); }
+.arf-tl { display: flex; justify-content: space-between; align-items: baseline; font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+.arf-tl b { font-size: 12.5px; color: var(--ink); }
+.arf-k { margin: 0 0 3px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.arf-ramp { position: relative; padding-bottom: 16px; }
+.arf-ramp > i { display: block; height: 10px; border-radius: 3px;
+  background: linear-gradient(90deg, rgba(70,140,210,.15) 0%, rgba(70,140,210,.35) 7%, rgba(70,190,215,.6) 25%, rgba(120,215,170,.7) 40%, rgba(240,205,95,.8) 55%, rgba(245,120,95,.85) 72%, rgba(225,70,150,.9) 93%); }
+.arf-ramp[data-theme-ramp="light"] > i { background: linear-gradient(90deg, rgba(50,120,200,.12) 0%, rgba(50,120,200,.3) 7%, rgba(20,150,190,.55) 25%, rgba(40,170,120,.65) 40%, rgba(225,160,30,.75) 55%, rgba(220,80,50,.8) 72%, rgba(190,30,120,.85) 93%); }
+.arf-ticks { position: absolute; left: 0; right: 0; top: 12px; height: 14px; }
+.arf-ticks span { position: absolute; transform: translateX(-50%); font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.arf-ticks span:last-child { transform: translateX(-80%); }
+.arf-k2 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 4px 0 2px; font-size: 11.5px; color: var(--muted); }
+.arf-sw { display: inline-block; width: 18px; height: 0; }
+.arf-sw-c { border-top: 2px dashed var(--ink-2, var(--ink)); opacity: .7; }
+.arf-sw-l { width: 12px; height: 10px; border: 1.5px solid var(--warn); background: color-mix(in oklab, var(--warn) 22%, transparent); border-radius: 2px; margin-left: 6px; }
+.arf-segs { display: grid; gap: 3px; margin: 2px 0 8px 17px; }
+.arf-seg { display: grid; grid-template-columns: 1fr 70px 38px; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2, var(--muted)); }
+.arf-seg small { color: var(--muted); }
+.arf-seg i { display: block; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--muted) var(--w), color-mix(in oklab, var(--ink) 8%, transparent) var(--w)); opacity: .7; }
+.arf-seg b { text-align: right; font-weight: 600; color: var(--ink); }
+.arf-seg[data-hit="true"] { color: var(--ink); font-weight: 600; }
+.arf-seg[data-hit="true"] i { background: linear-gradient(90deg, var(--warn) var(--w), color-mix(in oklab, var(--warn) 15%, transparent) var(--w)); opacity: 1; }
+.arf-seg[data-home="true"] span { text-decoration: underline; text-decoration-color: color-mix(in oklab, var(--ink) 30%, transparent); text-underline-offset: 3px; }
+.arf-pine { margin-top: -2px; }

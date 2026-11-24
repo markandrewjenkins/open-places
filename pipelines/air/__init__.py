@@ -1,1 +1,1 @@
-"""Air Traffic: local air traffic (live ADS-B around a place, airport weather and runways, busy hours from a log)."""
+"""Air Traffic: airports, runways, radio frequencies and airport weather (live aircraft come through the relay)."""

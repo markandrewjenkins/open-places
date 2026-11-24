@@ -16,7 +16,8 @@ import { addTransitLayers, rKey, vKey, placeOf, headOf, speedOf, vivid } from ".
 import { vehicleCard, vehicleTitle } from "../src/blink/tcards.js";
 import { speedCard } from "../src/blink/speed.js";
 import { departuresList } from "../src/blink/tnext.js";
-import { followButton, followHint, following, toggleFollow, stopFollow, glider, addRing, setRing, removeRing } from "./civic-follow.js";   // the white ring + Focus & follow
+import { glideOf } from "../src/blink/tglide.js";
+import { followButton, followHint, following, toggleFollow, stopFollow, followGestures, followTip, glider, addRing, setRing, removeRing } from "./civic-follow.js";   // the white ring + Focus & follow (double-click / right-click)
 
 const S = { core: null, L: null, mode: "", drawer: null, deps: null, r95: null, ag: null, pk: "", title: "", open: false, item: null, speed: null, map: null, clickKey: null, clickAt: 0, glide: null, gKey: null };
 const isDark = () => (document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches);
@@ -40,7 +41,7 @@ export const R95_BOX = [[-123.512, 48.417], [-123.363, 48.466]];
 // board and an open card are moved into the new frame, not rebuilt.
 function setDrawer(title, body) {
   S.title = title; S.open = !!body;
-  if (S.drawer) S.drawer.replaceChildren(...(body ? [body, el("div", { class: "civ-fp-foot" }, el("span", {}, S.item?.startsWith("v:") ? "Click it again to follow · Esc clears" : "Click it again on the map to deselect"), el("button", { type: "button", class: "civ-open civ-x", onclick: () => pick(null) }, "Close ×"))] : []));
+  if (S.drawer) S.drawer.replaceChildren(...(body ? [body, el("div", { class: "civ-fp-foot" }, el("span", {}, S.item?.startsWith("v:") ? "Double-click it on the map to follow · right-click stops · Esc clears" : "Click it again on the map to deselect"), el("button", { type: "button", class: "civ-open civ-x", onclick: () => pick(null) }, "Close ×"))] : []));
   frame();
 }
 function frame() {
@@ -60,9 +61,11 @@ function ring() {
   else setRing(m, RING, ringFilter());
 }
 // ------------------------------------------------------------------ Focus & follow a bus (civic-follow.js)
-// Buses report every ~20 s and tlayers draws each at its last report, so the followed bus is glided between reports:
-// dead-reckoned from its report by its reported speed and bearing (else the speed and direction between its last two
-// reports, tcommon.js histOf), blended into each new report, and drawn there (tlayers' `at` hook) as the map follows.
+// Buses report every ~20 s. On its route shape a bus is glided along the shape (tglide.js: snapped, moved by speed ×
+// time, held at its next stop), the same position tlayers draws for every bus (glide: true). Off its shape (a detour,
+// no shape) the followed bus is dead-reckoned instead: from its report by its reported speed and bearing (else the
+// speed and direction between its last two reports, tcommon.js histOf), blended into each new report, and drawn there
+// (tlayers' `at` hook) as the map follows.
 const R = Math.PI / 180;
 function motionOf(v) {
   const rep = speedOf(v)?.kmh, brg = v.bearing != null && v.bearing !== "" && !Number.isNaN(+v.bearing) ? +v.bearing : null;
@@ -77,6 +80,9 @@ function motionOf(v) {
 const busOf = (item) => allVehicles().find((x) => vKey(x) === item && x.lat != null) || null;
 function busAt(item) {
   const v = busOf(item); if (!v) return null;
+  // on its route shape: glided along it (tglide.js, the same position tlayers draws); else dead-reckoned below
+  const gl = glideOf(v, placeOf(v));
+  if (gl) { S.glide = null; S.gKey = item; return gl.ll; }
   if (S.gKey !== item || !S.glide) { S.glide = glider({ maxS: 25, blendMs: 1800 }); S.gKey = item; }
   const m = motionOf(v);
   S.glide.fix({ lon: v.lon, lat: v.lat, t: (v.ts ? v.ts * 1000 : Date.now()), kmh: m.kmh != null && m.kmh < 120 ? m.kmh : null, deg: m.deg });
@@ -87,11 +93,18 @@ function busFollow(item) {
   return { map: S.map, key: `bus:${item}`, name: t?.title || "the bus", minZoom: 14, where: () => busAt(item),
     seen: () => { const v = busOf(item); return v?.ts ? v.ts * 1000 : null; }, redraw: () => S.L?.moved(), redrawMs: 300, lostMs: 120000, giveUpMs: 600000 };
 }
-/** tlayers' onPick: a second click on the picked bus focuses and follows it (or stops); while following, clicks on
- *  route lines are ignored (only a vehicle click, ×, Esc, Stop or a drag changes things) */
+/** tlayers' onPick: a single click on the picked bus deselects it (after a short wait, so it can still become a
+ *  double-click, which follows it: civic-follow.js followGestures); while following, clicks on it or on route lines are
+ *  ignored (right-click, ×, Esc, Stop or a drag change things) */
 function mapPick(item) {
   const hit = S.clickKey && Date.now() - S.clickAt < 600 ? S.clickKey : null;
-  if (S.item?.startsWith("v:") && hit === S.item) { toggleFollow(busFollow(S.item)); return; }
+  if (hit && S.clickDetail >= 2) return;   // the second click of a double-click
+  if (S.item?.startsWith("v:") && hit === S.item) {
+    if (following(`bus:${S.item}`)) return;
+    const was = S.item; clearTimeout(S.deselT);
+    S.deselT = setTimeout(() => { if (S.item === was && !following(`bus:${was}`)) pick(null); }, 320);
+    return;
+  }
   if (following("bus:") && !hit) return;
   pick(item);
 }
@@ -117,7 +130,7 @@ function speed(rowId) {
   S.L?.select(null); S.L?.corridor(rowId);
   setDrawer("Road Speed", speedCard(rowId, { onPick: (it) => pick(it) }));
 }
-if (import.meta.env?.DEV) window.__trstage = { pick, get layers() { return S.L; }, allVehicles, placeOf, vKey };      // dev / headless tests only
+if (import.meta.env?.DEV) window.__trstage = { pick, get layers() { return S.L; }, get map() { return S.map; }, allVehicles, placeOf, vKey, glideOf, busAt, follow: (item) => toggleFollow(busFollow(item)) };      // dev / headless tests only
 const speedFromHash = () => /speed:([\w-]+)/.exec(decodeURIComponent(location.hash))?.[1] || null;
 
 /** the stage custom layer for a page: "transit" | "lstops" | "route95" */
@@ -127,12 +140,18 @@ export function transitLayer(mode) {
     S.mode = mode;
     // which vehicle a click is on (registered before tlayers' own handlers, so it runs first): mapPick tells a second
     // click on the picked bus from a click on its route line
-    const onClickRec = (e) => { const f = map.getLayer("tr-veh") ? map.queryRenderedFeatures(e.point, { layers: ["tr-veh"] })[0] : null; S.clickKey = f?.properties?.key || null; S.clickAt = Date.now(); };
+    const onClickRec = (e) => { const f = map.getLayer("tr-veh") ? map.queryRenderedFeatures(e.point, { layers: ["tr-veh"] })[0] : null; S.clickKey = f?.properties?.key || null; S.clickDetail = e.originalEvent?.detail || 1; S.clickAt = Date.now(); };
     map.on("click", onClickRec);
     // the followed bus is drawn where it is gliding to (busAt); tlayers' own edge-pan rests while we follow
     const L = addTransitLayers(map, { onPick: mapPick, dark: isDark, follow: () => !following("bus:"),
-      at: (v, key) => (S.gKey === key && following(`bus:${key}`) && S.glide ? S.glide.at() : null) });
+      network: mode === "transit" ? "active" : "all", glide: true,
+      at: (v, key) => (S.gKey === key && following(`bus:${key}`) && S.glide ? S.glide.at() : null),
+      tipNote: (key, me) => `${followTip(`bus:${key}`)}${following(`bus:${key}`) ? "" : me ? " · click to clear" : " · click for its card"}` });
     S.L = L; S.map = map;
+    // double-click a bus to follow it, right-click to stop (civic-follow.js); single clicks stay with tlayers / mapPick
+    const gest = followGestures(map, { layers: ["tr-veh"], prefix: "bus:", id: (p) => p.key, click: false, tip: false, radius: 8,
+      selected: () => (S.item?.startsWith("v:") ? S.item : null), select: (id) => { clearTimeout(S.deselT); if (S.item !== id) pick(id); },
+      follow: (id) => { clearTimeout(S.deselT); return busFollow(id); } });
     // the ring follows the fleet's layers (re-added after a style change) and each refresh
     const onLive = () => ring(), onStyle = () => setTimeout(ring, 0);
     addEventListener("transit-live", onLive); map.on("style.load", onStyle); map.on("idle", ring);
@@ -152,7 +171,7 @@ export function transitLayer(mode) {
     addEventListener("hashchange", onHash);
     return () => {
       removeEventListener("hashchange", onHash); removeEventListener("transit-live", onLive); map.off("style.load", onStyle); map.off("idle", ring);
-      map.off("click", onClickRec); removeEventListener("keydown", onKey);
+      map.off("click", onClickRec); removeEventListener("keydown", onKey); gest();
       stopFollow("bus:"); removeRing(map, RING);
       try { L.destroy(); } catch { /* gone with the style */ } if (S.L === L) { S.L = null; S.map = null; }
     };
@@ -291,7 +310,8 @@ export function transitPanels(mode, { r95Data = null } = {}) {
     }
     const out = [];
     if (mode === "transit") {
-      if (!S.deps) S.deps = el("div", { class: "civ-fp-body civ-trdeps" }, departuresList({ stops: 4, rows: 5, links: false }),
+      if (!S.deps) S.deps = el("div", { class: "civ-fp-body civ-trdeps" }, departuresList({ stops: 4, rows: 5, links: false,
+        onRoute: (r) => { const k = rKey(r); pick(S.item === k ? null : k); }, onRouteHover: (r) => S.L?.hover(r ? rKey(r) : null) }),
         el("div", { class: "civ-fp-foot" }, el("span", {}, "BC Transit open data · GTFS-Realtime via the relay")));
       if (!S.ag) S.ag = agencyPanel(ctx);
       S.ag.paint();

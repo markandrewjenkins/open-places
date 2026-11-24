@@ -6,6 +6,8 @@
 .air-strip.live .air-dot { background: var(--live, var(--ok, #1a7d44)); }
 .air-strip.delayed .air-dot { background: var(--warn, #a06c00); }
 .air-strip.delayed span, .air-strip.down span { color: var(--warn, #a06c00); }
+.air-strip small { font-size: 11px; font-weight: 500; letter-spacing: 0; color: var(--ink-2, var(--muted)); }
+.air-strip.uncovered .air-dot { background: var(--ink-3, var(--muted)); }
 .air-card { font-size: 13px; color: var(--ink); min-width: 200px; }
 .air-card-h { display: flex; align-items: baseline; gap: 6px; margin-bottom: 6px; }
 .air-card-h i { width: 10px; height: 10px; border-radius: 2px; flex: none; align-self: center; }

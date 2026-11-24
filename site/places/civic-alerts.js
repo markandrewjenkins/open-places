@@ -38,7 +38,7 @@ const LEVEL_NAME = { info: "Information", notice: "Notice", warn: "Warning" };
 //     again clears it (civic.js, "alerts on the map")
 //   - an alert about one thing with its own selection (a ship, an aircraft, a park advisory) links to #topic/leaf/<id>
 //     and the page selects it; clicking it again while it is the selection clears it by going to the leaf's own hash
-const ALERT_LINKS = ".civ-fd, .civ-al-i, .civ-al-new, .civ-al-top, .civ-brf, .civ-alert";
+const ALERT_LINKS = ".civ-fd, .civ-al-i, .civ-al-new, .civ-al-top, .civ-brf, .civ-alert, .civ-alpop-go";
 /** attach the alert an element stands for (any producer's shape: title, text/body, sev/level, geo, href, id) → node */
 export function tagAlert(node, alert) { if (node && alert) { node.opAlert = alert; node.dataset.alert = ""; } return node; }
 document.addEventListener("click", (e) => {
@@ -51,6 +51,44 @@ document.addEventListener("click", (e) => {
   e.preventDefault();
   location.hash = `#${parts.slice(0, 2).join("/")}`;
 }, true);
+// ------------------------------------------------------------------ new and important alerts (collectAlerts' list)
+// New: an alert pulses for its first 5 minutes: from its own issue time when that is under 5 min ago, else from when this
+// page first saw it. Those already there when a place's sources first all answer count as old (no pulse on every load).
+// Important (isImportant): opens the shell's one-time popup (civic.js): a warning-level weather alert here, any tsunami
+// alert, a strong nearby earthquake, an evacuation order close by, or a closure on a main route here.
+const NEW_MS = 5 * 60e3, firstSeen = new Map();
+let seenPlace = null, settled = false;
+export const alertKey = (x) => String(x.id || `${x.src || ""}|${x.title}`);
+export function markSeen(items, loading, place) {
+  if (place !== seenPlace) { seenPlace = place; settled = false; }
+  const now = Date.now();
+  for (const x of items) {
+    const k = alertKey(x); if (firstSeen.has(k)) continue;
+    const t0 = x.since ? +new Date(x.since) : NaN;
+    firstSeen.set(k, isFinite(t0) && t0 <= now && now - t0 < NEW_MS ? t0 : settled ? now : 0);
+  }
+  if (!loading) settled = true;
+}
+/** ms left of an alert's "new" pulse (0 = not new) */
+export function newLeft(x, now = Date.now()) { const t = firstSeen.get(alertKey(x)); return t ? Math.max(0, NEW_MS - (now - t)) : 0; }
+// Greater Victoria's main routes: the Trans-Canada (Hwy 1, the Malahat) and the Pat Bay Highway (17)
+const MAIN_ROUTE = /^Highway (1|17)\b|Trans-Canada|Malahat/i;
+export function isImportant(x) {
+  const t = String(x.title || "");
+  if (/^tsunami (warning|advisory|watch)/i.test(t)) return true;
+  if (x.evac) return !!(x.inside || x.km <= 30);
+  if (x.mag != null) return !!x.here && ((x.mag >= 6 && x.km <= 300) || (x.mag >= 5 && x.km <= 100));
+  if (x.closure) return !!x.here && (!!x.major || MAIN_ROUTE.test(x.road || ""));
+  return (x.src === "ECCC" || x.src === "NWS") && !!x.here && x.sev >= 3 && /warning/i.test(t);
+}
+const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const dayHour = (s) => { const d = new Date(s); if (isNaN(d)) return ""; const h = d.getHours(), m = d.getMinutes(); return `${WD[d.getDay()]} ${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "AM" : "PM"}`; };
+/** "Mon 3 PM – Wed 7 AM", "until Wed 7 AM", "since Mon 3 PM" (an earthquake: its time) */
+export function alertWhen(x) {
+  const s = x.since ? dayHour(x.since) : "", u = x.until ? dayHour(x.until) : "";
+  return s && u ? `${s} – ${u}` : u ? `until ${u}` : s ? (x.mag != null || /earthquake/i.test(x.title || "") ? s : `since ${s}`) : "";
+}
+
 // geometries are kept in memory for this page; small ones are also stored with the alert (sessionStorage stays small)
 const GEO = new Map();
 const geoSmall = (g) => { try { return JSON.stringify(g).length <= 6000; } catch { return false; } };

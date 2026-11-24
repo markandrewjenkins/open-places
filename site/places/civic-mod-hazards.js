@@ -151,6 +151,15 @@ const bcPerims = (ctx) => ttl("bc:perims", FIRE_TTL, () => arcGeo(`${BCWS}/BCWS_
   where: "FIRE_STATUS <> 'Out'", outFields: "FIRE_NUMBER,FIRE_SIZE_HECTARES,FIRE_STATUS,TRACK_DATE,FIRE_URL", maxAllowableOffset: "0.002" }), ctx);
 const bcEvac = (ctx) => ttl("bc:evac", FIRE_TTL, () => arcGeo(`${BCWS}/Evacuation_Orders_and_Alerts/FeatureServer/0`, {
   where: "1=1", outFields: "ORDER_ALERT_NAME,ORDER_ALERT_STATUS,EVENT_NAME,EVENT_TYPE,ISSUING_AGENCY,MULTI_SOURCED_HOMES,MULTI_SOURCED_POPULATION,DATE_MODIFIED", maxAllowableOffset: "0.001" }), ctx);
+/** evacuation orders within kmMax of the place (EMCR via BCWS; OGL-BC): the shell's alert list (collectAlerts) */
+export function evacOrders(ctx, kmMax = 100) {
+  const ev = bcEvac(ctx); if (!ev.data) return { err: ev.err, items: null };
+  const items = (ev.data.features || []).filter((f) => /order/i.test(f.properties.ORDER_ALERT_STATUS || ""))
+    .map((f) => { const p = f.properties, ll = safe(() => d3.geoCentroid(f)), inside = !!safe(() => inGeom(f.geometry, ctx.place.ll));
+      return { name: p.ORDER_ALERT_NAME || "Evacuation area", event: p.EVENT_NAME || p.EVENT_TYPE || "Emergency", inside, km: inside ? 0 : ll ? km(ll, ctx.place.ll) : Infinity, at: p.DATE_MODIFIED || null, geo: f.geometry }; })
+    .filter((x) => x.km <= kmMax);
+  return { items };
+}
 // BC Wildfire Service photos: the public wildfire-situation API lists each published incident's photos. The photos are
 // Crown copyright (gov.bc.ca/copyright: "may not be reproduced or redistributed without the prior written permission"),
 // so the page never shows them: it counts them and links to the fire's page, where BCWS shows them. One request per fire,
@@ -545,12 +554,12 @@ const PAT_TTL = 90 * 60e3; // the GFS runs every 6 h; the grid is the costly cal
 const DOMAINS = { west: { lat: [20, 60], lon: [-180, -120], view: [[-180, -7], [-110, 62]] }, east: { lat: [25, 60], lon: [-105, -45], view: [[-108, 14], [-40, 62]] } };
 const domainOf = (ctx) => (ctx.place.ll[0] < -100 ? "west" : "east");
 /** Open-Meteo on a 5° (latitude) by 10° (longitude) grid, 63 points (each counts as an Open-Meteo call), every 3 h, yesterday to 5 days ahead: sea-level pressure and water-vapour transport */
-// The grid is fetched only while Weather Patterns (or its insets, or the Weather summary) is open (it costs 63 Open-Meteo
+// The grid is fetched only while Weather Patterns (or El Niño / La Niña, or the Weather summary) is open; Atmospheric Rivers has its own finer grid (arGrid) (it costs 63 Open-Meteo
 // calls); elsewhere the alert check uses
 // whatever is already cached (memory or localStorage) and otherwise waits.
 const PEEK = { data: null, err: null, v: 0 };
 const patGrid = (ctx) => { const k = domainOf(ctx), D = DOMAINS[k], lats = d3.range(D.lat[0], D.lat[1] + 0.1, 5), lons = d3.range(D.lon[0], D.lon[1] + 0.1, 10);
-  if (!(ctx.route?.topic === "weather" && ["patterns", "ar", "enso", "summary"].includes(ctx.route.sub)) && !cache.has(`pat:grid2:${k}`)) {
+  if (!(ctx.route?.topic === "weather" && ["patterns", "enso", "summary"].includes(ctx.route.sub)) && !cache.has(`pat:grid2:${k}`)) {
     let kept = null; try { kept = JSON.parse(localStorage.getItem(`odp-hz:pat:grid2:${k}`) || "null"); } catch { /* storage off */ }
     if (!kept || Date.now() - kept.at >= PAT_TTL) return PEEK;
   }
@@ -1076,4 +1085,229 @@ export function ensoNowPanel(ctx) {
   else if (pr.length) out.push(`CPC's outlook keeps ${d.phase === "Neutral" ? "neutral conditions" : d.phase} most likely through ${pr.at(-1).s}${pr.at(-1).yr ? ` ${pr.at(-1).yr}` : ""}.`);
   if (e.next) out.push(`Next CPC update ${d3.timeFormat("%b %-d")(new Date(e.next + "T12:00:00"))}.`);
   return nowPanel("en-now", out, credit, e.links?.discussion);
+}
+
+// ================================================================== ATMOSPHERIC RIVERS: the moisture band on the map
+// The Atmospheric Rivers page (#weather/ar) draws the moisture field itself from its own Open-Meteo grid (arGrid: one
+// batched request for 204 points on a 2.5° × 5° grid, 17.5–57.5°N × 175–120°W, 3-hourly for 5 days, cached 90 min in memory
+// and localStorage; Weather Patterns' coarser 5° × 10° grid is too coarse to show a plume's width): estimated water-vapour
+// transport (IVT ≈ total column water vapour × 850 hPa wind, kg/m/s), smoothed (Catmull-Rom, clamped) into a soft raster, with
+// streaks drifting along the 850 hPa flow where the moisture is, the Pineapple Express's usual corridor from near Hawaii,
+// and the coast it lands on. A slider steps through the forecast. prefers-reduced-motion: still streaks, no autoplay.
+const AF = { t: null, gv: -1, playing: false, timer: 0, ctx: null, redraw: null };
+const LANDFALL = {   // the coast an AR lands on, per province / state (a rough strip from the shelf to the coast mountains)
+  bc: { name: "BC coast", ring: [[-134.2, 54.6], [-130.2, 55.3], [-127.4, 52.6], [-125.2, 50.6], [-123.0, 49.3], [-123.2, 48.25], [-125.0, 48.3], [-128.6, 50.3], [-131.6, 52.0], [-134.2, 54.6]] },
+  wa: { name: "Washington and Oregon coast", ring: [[-124.9, 48.5], [-123.3, 48.2], [-123.4, 46.0], [-123.6, 42.0], [-124.6, 42.0], [-124.4, 46.0], [-124.9, 48.5]] },
+  cal: { name: "California coast", ring: [[-124.4, 42.0], [-123.4, 42.0], [-122.0, 38.0], [-119.5, 34.4], [-117.1, 32.6], [-118.0, 32.6], [-121.0, 35.0], [-123.0, 37.8], [-124.4, 40.4], [-124.4, 42.0]] },
+};
+const AR_TTL = 90 * 60e3;
+/** the AR page's grid: { k, lats, lons, nr, nc, N, t, V (IVT estimate), W (850 hPa direction) } */
+const arGrid = (ctx) => { const lats = d3.range(17.5, 57.6, 2.5), lons = d3.range(-175, -119.9, 5), key = "ar:grid1";
+  return ttl(key, AR_TTL, () => keptJSON(key, AR_TTL, "https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
+    latitude: lats.flatMap((la) => lons.map(() => la)).join(","), longitude: lats.flatMap(() => lons).join(","), timezone: "GMT", forecast_days: "5", wind_speed_unit: "ms",
+    temporal_resolution: "hourly_3", hourly: "total_column_integrated_water_vapour,wind_speed_850hPa,wind_direction_850hPa" })).then((j) => {
+    const a = Array.isArray(j) ? j : [j], t = a[0].hourly.time.map((x) => new Date(`${x}Z`)), V = [], W = [];
+    for (let i = 0; i < t.length; i++) { V.push(a.map((x) => (x.hourly.total_column_integrated_water_vapour[i] ?? 0) * (x.hourly.wind_speed_850hPa[i] ?? 0))); W.push(a.map((x) => x.hourly.wind_direction_850hPa[i])); }
+    return { k: "west", lats, lons, nr: lats.length, nc: lons.length, N: a.length, t, V, W };
+  }), ctx); };
+const landfallOf = (ctx) => LANDFALL[provinceOf(ctx.place)?.id] || LANDFALL.bc;
+// the strip in segments, so the page can say which stretch of coast the plume hits (BC: north, central, south); others: one
+const SEGMENTS = {
+  bc: [{ id: "north", name: "North coast", where: "BC's north coast", near: "Prince Rupert and Haida Gwaii", ring: [[-134.2, 54.6], [-130.2, 55.3], [-127.5, 52.6], [-131.5, 52.1], [-134.2, 54.6]] },
+    { id: "central", name: "Central coast", where: "BC's central coast", near: "Bella Bella", ring: [[-131.5, 52.1], [-127.5, 52.6], [-125.6, 50.8], [-128.4, 50.25], [-131.5, 52.1]] },
+    { id: "south", name: "South Coast & Vancouver Island", where: "the South Coast and Vancouver Island", near: "Tofino", ring: [[-128.4, 50.25], [-125.6, 50.8], [-123.0, 49.3], [-123.2, 48.25], [-125.0, 48.3], [-128.4, 50.25]] }],
+};
+const segmentsOf = (ctx) => SEGMENTS[provinceOf(ctx.place)?.id] || [{ id: "all", name: landfallOf(ctx).name, where: `the ${landfallOf(ctx).name}`, near: "the coast", ring: landfallOf(ctx).ring }];
+/** sample points inside a segment (a 7 × 7 lattice over its box, kept where it falls inside) */
+const segPts = new Map();
+function pointsIn(seg) {
+  if (segPts.has(seg.id + seg.ring.length)) return segPts.get(seg.id + seg.ring.length);
+  const xs = seg.ring.map((q) => q[0]), ys = seg.ring.map((q) => q[1]), geo = { type: "Polygon", coordinates: [seg.ring] }, out = [];
+  for (let i = 0; i <= 6; i++) for (let j = 0; j <= 6; j++) { const q = [d3.min(xs) + ((d3.max(xs) - d3.min(xs)) * i) / 6, d3.min(ys) + ((d3.max(ys) - d3.min(ys)) * j) / 6]; if (inGeom(geo, q)) out.push(q); }
+  if (!out.length) out.push(ringMid(seg.ring));
+  segPts.set(seg.id + seg.ring.length, out); return out;
+}
+/** each segment's peak transport at time t: [{ …seg, v }] */
+const segVals = (g, t, ctx) => segmentsOf(ctx).map((sg) => ({ ...sg, v: Math.max(0, d3.max(pointsIn(sg), (q) => sample(g, g.V[t], Math.max(g.lons[0], q[0]), q[1])) || 0) }));
+/** the segment the place sits in (nearest by centre) */
+const homeSeg = (segs, ctx) => segs[d3.minIndex(segs, (sg) => km(ringMid(sg.ring), ctx.place.ll))];
+const ringMid = (r) => [d3.mean(r.slice(0, -1), (p) => p[0]), d3.mean(r.slice(0, -1), (p) => p[1])];
+/** the Pineapple Express's usual path: from the subtropics just west of Hawaii, bowing south, to the landfall coast */
+function corridor(ctx) {
+  const m = ringMid(landfallOf(ctx).ring), end = [m[0] - 1.5, m[1]], a = [-160.5, 19.5], c = [(a[0] + end[0]) / 2 - 2, (a[1] + end[1]) / 2 - 7];
+  return d3.range(0, 1.0001, 0.05).map((s) => [(1 - s) ** 2 * a[0] + 2 * (1 - s) * s * c[0] + s * s * end[0], (1 - s) ** 2 * a[1] + 2 * (1 - s) * s * c[1] + s * s * end[1]]);
+}
+// Catmull-Rom between grid cells (smooth, and close to the cell values); arr is row-major lat × lon
+const crs = (p0, p1, p2, p3, x) => p1 + 0.5 * x * (p2 - p0 + x * (2 * p0 - 5 * p1 + 4 * p2 - p3 + x * (3 * (p1 - p2) + p3 - p0)));
+function sample(g, arr, lon, lat) {
+  const fx = (lon - g.lons[0]) / (g.lons[1] - g.lons[0]), fy = (lat - g.lats[0]) / (g.lats[1] - g.lats[0]);
+  const c = Math.floor(fx), r = Math.floor(fy), x = fx - c, y = fy - r, at = (rr, cc) => arr[Math.max(0, Math.min(g.nr - 1, rr)) * g.nc + Math.max(0, Math.min(g.nc - 1, cc))] ?? 0;
+  const row = (rr) => crs(at(rr, c - 1), at(rr, c), at(rr, c + 1), at(rr, c + 2), x);
+  const q = [at(r, c), at(r, c + 1), at(r + 1, c), at(r + 1, c + 1)];
+  return Math.max(Math.min(...q), Math.min(Math.max(...q), crs(row(r - 1), row(r), row(r + 1), row(r + 2), y)));
+}
+const inDom = (g, lon, lat) => lon >= g.lons[0] && lon <= g.lons.at(-1) && lat >= g.lats[0] && lat <= g.lats.at(-1);
+// the soft ramp: nothing under 100 kg/m/s, a pale band from 150, the AR threshold (250) clearly visible, warm at 500+, hot at 750+
+const RAMP = { dark: [[100, [60, 120, 190, 0]], [170, [70, 140, 210, 70]], [250, [70, 190, 215, 125]], [400, [120, 215, 170, 150]], [550, [240, 205, 95, 170]], [750, [245, 120, 95, 190]], [1000, [225, 70, 150, 205]]],
+  light: [[100, [40, 100, 180, 0]], [170, [50, 120, 200, 60]], [250, [20, 150, 190, 115]], [400, [40, 170, 120, 140]], [550, [225, 160, 30, 160]], [750, [220, 80, 50, 180]], [1000, [190, 30, 120, 195]]] };
+function rampAt(v, dark) {
+  const R = RAMP[dark ? "dark" : "light"]; if (v <= R[0][0]) return R[0][1]; if (v >= R.at(-1)[0]) return R.at(-1)[1];
+  const k = R.findIndex((s) => s[0] >= v), [v0, c0] = R[k - 1], [v1, c1] = R[k], f = (v - v0) / (v1 - v0);
+  return c0.map((x, i) => x + (c1[i] - x) * f);
+}
+const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+const unMercY = (y) => (Math.atan(Math.exp(y)) * 360) / Math.PI - 90;
+/** the field at time index t as a PNG data URL laid over the grid's box (rows spaced in Mercator, as the map draws it) */
+function fieldImage(g, t, dark) {
+  const W = 480, H = 400, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const x2 = cv.getContext("2d"), img = x2.createImageData(W, H), y0 = mercY(g.lats.at(-1)), y1 = mercY(g.lats[0]), L0 = g.lons[0], L1 = g.lons.at(-1);
+  for (let j = 0; j < H; j++) { const lat = unMercY(y0 + ((y1 - y0) * (j + 0.5)) / H);
+    for (let i = 0; i < W; i++) { const lon = L0 + ((L1 - L0) * (i + 0.5)) / W, c = rampAt(Math.max(0, sample(g, g.V[t], lon, lat)), dark), o = (j * W + i) * 4;
+      img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = c[3]; } }
+  x2.putImageData(img, 0, 0);
+  return cv.toDataURL("image/png");
+}
+/** unit flow vectors (where the 850 hPa wind blows to) per grid cell, for time t */
+const flowUV = (g, t) => ({ u: g.W[t].map((d) => (d == null ? 0 : Math.sin(((d + 180) * Math.PI) / 180))), v: g.W[t].map((d) => (d == null ? 0 : Math.cos(((d + 180) * Math.PI) / 180))) });
+const afIdx = (g) => { if (AF.t == null || AF.gv !== +g.t[0] || AF.t >= g.t.length) { AF.t = nearestT(g, Date.now()); AF.gv = +g.t[0]; } return AF.t; };
+/** what the map shows at time t, in words: { ar, pine, landIvt, next, now } */
+function afState(g, t, ctx) {
+  const now = nearestT(g, Date.now()), segs = segVals(g, t, ctx), hit = segs.filter((x) => x.v >= 250), home = homeSeg(segs, ctx);
+  let next = null; for (let k = now; k < g.t.length; k++) { const sv = segVals(g, k, ctx).filter((x) => x.v >= 250); if (sv.length) { next = { k, segs: sv }; break; } }
+  return { segs, hit, home, ar: hit.length > 0, next, now };
+}
+const isDarkUI = () => { const t = document.documentElement.dataset.theme; return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; };
+
+/** custom stage layer: the field raster, the corridor and landfall, and the streak canvas → cleanup */
+export function arFieldLayer(map, ctx) {
+  AF.ctx = ctx;
+  const reduced = () => matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const below = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
+  let sig = "", g = null, uv = null, parts = [], raf = 0, last = 0, alive = true;
+  // corridor and landfall (vector)
+  const lf = landfallOf(ctx), cor = corridor(ctx), D0 = isDarkUI();
+  const geo = (segs) => fc([...segmentsOf(ctx).map((sg) => { const v = segs?.find((x) => x.id === sg.id)?.v ?? 0;
+      return { type: "Feature", geometry: { type: "Polygon", coordinates: [sg.ring] }, properties: { k: "land", hit: v >= 250, label: `${sg.name} ${f0(v)}` } }; }),
+    { type: "Feature", geometry: { type: "LineString", coordinates: cor }, properties: { k: "cor" } }]);
+  map.addSource("arf-geo", { type: "geojson", data: geo(null) });
+  map.addSource("arf-lab", { type: "geojson", data: fc([pt(cor[6], { label: "Pineapple Express path (typical)" }), pt([-157.5, 20.2], { label: "Hawaii" }), pt([-174.6, 57.2], { label: "Moisture field", a: "top-left" })]) });
+  const ink = D0 ? "#e8eef6" : "#1d2733", halo = D0 ? "rgba(10,16,26,0.85)" : "rgba(255,255,255,0.9)";
+  // a segment the plume reaches (250+) is filled and outlined in the warning colour; the others stay a faint outline
+  map.addLayer({ id: "arf-land", type: "fill", source: "arf-geo", filter: ["==", ["get", "k"], "land"], paint: { "fill-color": color("var(--warn)"), "fill-opacity": ["case", ["get", "hit"], 0.32, 0.04] } }, below);
+  map.addLayer({ id: "arf-land-l", type: "line", source: "arf-geo", filter: ["==", ["get", "k"], "land"], paint: { "line-color": ["case", ["get", "hit"], color("var(--warn)"), ink], "line-width": ["case", ["get", "hit"], 2, 1], "line-opacity": ["case", ["get", "hit"], 0.95, 0.45] } }, below);
+  map.addLayer({ id: "arf-land-t", type: "symbol", source: "arf-geo", filter: ["==", ["get", "k"], "land"], layout: { "text-field": ["get", "label"], "text-size": 11.5, "text-font": ["Noto Sans Regular"], "text-anchor": "right", "text-offset": [-1.2, 0], "text-allow-overlap": true },
+    paint: { "text-color": ink, "text-halo-color": halo, "text-halo-width": 1.4 } });
+  map.addLayer({ id: "arf-cor", type: "line", source: "arf-geo", filter: ["==", ["get", "k"], "cor"], layout: { "line-cap": "round" }, paint: { "line-color": ink, "line-width": 1.5, "line-opacity": 0.6, "line-dasharray": [2, 3] } });
+  map.addLayer({ id: "arf-lab", type: "symbol", source: "arf-lab", layout: { "text-field": ["get", "label"], "text-size": 12, "text-font": ["Noto Sans Regular"], "text-allow-overlap": true, "text-anchor": ["coalesce", ["get", "a"], "center"] },
+    paint: { "text-color": ink, "text-halo-color": halo, "text-halo-width": 1.4 } });
+  // the streak canvas: over the map canvas, under markers, popups and the panels
+  const box = map.getContainer(), cv = el("canvas", { class: "arf-cv", "aria-hidden": "true" }); map.getCanvasContainer().insertBefore(cv, map.getCanvas().nextSibling);
+  const x2 = cv.getContext("2d");
+  const size = () => { const r = box.getBoundingClientRect(); cv.width = Math.round(r.width); cv.height = Math.round(r.height); cv.style.width = `${cv.width}px`; cv.style.height = `${cv.height}px`; draw(true); };
+  const ro = new ResizeObserver(size);
+  const spawn = (p) => {
+    for (let n = 0; n < 40; n++) { const lon = g.lons[0] + Math.random() * (g.lons.at(-1) - g.lons[0]), lat = g.lats[0] + Math.random() * (g.lats.at(-1) - g.lats[0]), v = sample(g, g.V[AF.t], lon, lat);
+      if (v >= 170 && Math.random() < Math.min(1, v / 600)) { p.lon = lon; p.lat = lat; p.age = Math.floor(Math.random() * 60); p.v = v; return p; } }
+    p.lon = NaN; p.age = 0; return p;
+  };
+  function seed() { parts = []; if (!g) return; for (let n = 0; n < 420; n++) parts.push(spawn({})); }
+  const cosL = (lat) => Math.max(0.3, Math.cos((lat * Math.PI) / 180));
+  function step(p, k) {
+    const u = sample(g, uv.u, p.lon, p.lat), v = sample(g, uv.v, p.lon, p.lat), m = Math.hypot(u, v) || 1, s = k * (0.5 + Math.min(1.5, p.v / 400));
+    p.lon += ((u / m) * s) / cosL(p.lat); p.lat += (v / m) * s; p.v = sample(g, g.V[AF.t], p.lon, p.lat);
+  }
+  function draw(still) {
+    x2.clearRect(0, 0, cv.width, cv.height); if (!g || !uv) return;
+    const D = isDarkUI(), base = D ? "225,240,255" : "20,50,100", k = 0.09;
+    x2.lineCap = "round";
+    for (const p of parts) {
+      if (!still) { step(p, k); p.age++; if (!(p.age < 90) || !inDom(g, p.lon, p.lat) || p.v < 150 || Number.isNaN(p.lon)) { spawn(p); continue; } }
+      if (Number.isNaN(p.lon)) continue;
+      const u = sample(g, uv.u, p.lon, p.lat), v = sample(g, uv.v, p.lon, p.lat), m = Math.hypot(u, v) || 1, tail = 1.4;
+      const a = map.project([p.lon, p.lat]), b = map.project([p.lon - ((u / m) * tail) / cosL(p.lat), p.lat - (v / m) * tail]);
+      const al = Math.min(1, (p.v - 150) / 450) * (D ? 0.55 : 0.6) * (still ? 1 : Math.min(1, p.age / 12));
+      if (!(al > 0.02)) continue;
+      const gr = x2.createLinearGradient(b.x, b.y, a.x, a.y); gr.addColorStop(0, `rgba(${base},0)`); gr.addColorStop(1, `rgba(${base},${al.toFixed(3)})`);
+      x2.strokeStyle = gr; x2.lineWidth = 1.6; x2.beginPath(); x2.moveTo(b.x, b.y); x2.lineTo(a.x, a.y); x2.stroke();
+    }
+  }
+  const moving = () => !!g && !reduced() && !document.hidden && alive;
+  function loop(t) { raf = 0; if (!alive) return; if (t - last >= 33) { draw(false); last = t; } if (moving()) raf = requestAnimationFrame(loop); }   // about 30 fps
+  const kick = () => { if (!raf && moving()) raf = requestAnimationFrame(loop); else if (!moving()) draw(true); };
+  // the raster: redrawn when the grid, the time or the theme changes
+  function sync() {
+    const c = arGrid(AF.ctx || ctx); g = c.data; if (!g) return;
+    const t = afIdx(g), s = `${+g.t[0]}|${t}|${isDarkUI()}`;
+    if (s === sig) return; const fresh = !sig || sig.split("|")[0] !== s.split("|")[0] || sig.split("|")[1] !== s.split("|")[1]; sig = s; uv = flowUV(g, t);
+    const url = fieldImage(g, t, isDarkUI()), coords = [[g.lons[0], g.lats.at(-1)], [g.lons.at(-1), g.lats.at(-1)], [g.lons.at(-1), g.lats[0]], [g.lons[0], g.lats[0]]];
+    if (map.getSource("arf-img")) map.getSource("arf-img").updateImage({ url, coordinates: coords });
+    else { map.addSource("arf-img", { type: "image", url, coordinates: coords }); map.addLayer({ id: "arf-img", type: "raster", source: "arf-img", paint: { "raster-opacity": 0.9, "raster-fade-duration": 0, "raster-resampling": "linear" } }, "arf-land"); }
+    map.getSource("arf-geo")?.setData(geo(segVals(g, t, ctx)));
+    if (fresh || !parts.length) seed(); kick();
+  }
+  AF.redraw = () => { sync(); if (!moving()) draw(true); };
+  const onMove = () => { if (!moving()) draw(true); };
+  const vis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else kick(); };
+  const mq = matchMedia("(prefers-reduced-motion: reduce)"), onMq = () => kick();
+  map.on("move", onMove); document.addEventListener("visibilitychange", vis); mq.addEventListener?.("change", onMq);
+  const tick = setInterval(sync, 2000);
+  ro.observe(box); size(); sync();
+  return () => {
+    alive = false; cancelAnimationFrame(raf); clearInterval(tick); ro.disconnect(); map.off("move", onMove); document.removeEventListener("visibilitychange", vis); mq.removeEventListener?.("change", onMq); cv.remove();
+    AF.redraw = null; clearInterval(AF.timer); AF.timer = 0; AF.playing = false;
+    for (const id of ["arf-lab", "arf-cor", "arf-land-t", "arf-land-l", "arf-land", "arf-img"]) if (map.getLayer(id)) map.removeLayer(id);
+    for (const id of ["arf-lab", "arf-geo", "arf-img"]) if (map.getSource(id)) map.removeSource(id);
+  };
+}
+
+/** the area the field covers (the page's coverage outline) */
+export function arCoverage() {
+  return { feature: { type: "Feature", geometry: rect([-175, 17.5, -120, 57.5]), properties: {} }, label: "" };
+}
+/** Hawaii to the coast */
+export const arView = () => ({ center: [-147, 39], zoom: 3.6, bounds: [[-180, 15.5], [-116, 60.5]] });
+
+/** left panel: what the map shows, the time slider and the ramp */
+export function arFieldPanel(ctx, est = null) {
+  AF.ctx = ctx;
+  const c = arGrid(ctx), g = c.data, credit = "Open-Meteo GFS (CC BY 4.0): water vapour × 850 hPa wind, 2.5° × 5° grid, an estimate";
+  const body = el("div", { class: "civ-fp-body arf" });
+  if (!g) {
+    body.append(el("p", { class: "note civ-empty" }, c.err ? "The moisture grid didn't load (Open-Meteo may be busy). It tries again in 90 minutes." : "Loading the moisture field over the North Pacific…"), foot(credit));
+    return { id: "arf", title: "Moisture Band", place: "left", el: body };
+  }
+  const t = afIdx(g), st = afState(g, t, ctx), isNow = t === st.now, fT = d3.timeFormat("%a %-I %p"), here = ctx.place.name, when = isNow ? "now" : "at this time";
+  // the place's own number: the same estimate as What's Happening and the strip above (arEstimate), at the slider's time;
+  // the grid's value at the place only when that estimate hasn't loaded
+  const sr = est?.series?.length ? est.series[d3.minIndex(est.series, (q) => Math.abs(q.x - g.t[t]))] : null;
+  const pv = sr && Math.abs(sr.x - g.t[t]) < 3 * 36e5 ? sr.y : Math.max(0, sample(g, g.V[t], ctx.place.ll[0], ctx.place.ll[1]));
+  const lead = `${here}: ${f0(pv)} kg/m/s ${when}, ${pv >= 250 ? "above" : "below"} the 250 atmospheric-river threshold.`;
+  const top = st.hit.slice().sort((a, b) => b.v - a.v)[0], days = Math.max(1, Math.round((+g.t.at(-1) - Date.now()) / 864e5));
+  const homeHit = st.hit.some((x) => x.id === st.home.id);
+  const list = (a) => (a.length < 2 ? a[0] : `${a.slice(0, -1).join(", ")} and ${a.at(-1)}`);
+  const whereHit = st.segs.length > 1 && st.hit.length === st.segs.length ? "the whole BC coast" : list(st.hit.map((x) => x.where));
+  const coast = st.ar ? `A moisture plume is reaching ${whereHit} ${when} (up to ${f0(top.v)} kg/m/s near ${top.near})${homeHit || st.segs.length < 2 ? "." : `; ${st.home.where} gets up to ${f0(st.home.v)}.`}${homeHit && pv < 250 ? ` The most reaches the exposed outer coast; ${here} gets less.` : ""}`
+    : `No moisture plume is reaching the coast ${when}: up to ${f0(d3.max(st.segs, (x) => x.v))} kg/m/s at landfall.`;
+  const ahead = st.ar ? null : st.next ? `Next forecast to reach it: ${fT(g.t[st.next.k])}, ${st.next.segs.map((x) => x.where).join(" and ")}.` : `None is forecast to reach it in the next ${days} days.`;
+  // one Pineapple Express verdict for the page: the place's estimate (the KPI strip uses the same one)
+  const pine = est && !est.err ? (est.top?.pineapple ? "likely, with the next atmospheric river here" : "no") : "…";
+  const rows = st.segs.length > 1 ? el("div", { class: "arf-segs" }, ...st.segs.map((x) => el("div", { class: "arf-seg", "data-hit": String(x.v >= 250), "data-home": String(x.id === st.home.id) },
+    el("span", {}, x.name, x.id === st.home.id ? el("small", {}, ` · ${ctx.place.short || here}`) : null), el("i", { style: `--w:${Math.min(100, (x.v / 1000) * 100).toFixed(0)}%` }), el("b", {}, f0(x.v))))) : null;
+  const set = (k) => { AF.t = Math.max(0, Math.min(g.t.length - 1, k)); AF.redraw?.(); ctx.refresh?.(); };
+  const range = el("input", { type: "range", min: "0", max: String(g.t.length - 1), step: "1", value: String(t), "aria-label": "Forecast time", oninput: (e) => set(+e.target.value) });
+  const play = el("button", { type: "button", class: "arf-play", "aria-pressed": String(AF.playing), "aria-label": AF.playing ? "Pause" : "Play the forecast",
+    onclick: () => { AF.playing = !AF.playing; clearInterval(AF.timer); AF.timer = 0;
+      if (AF.playing) AF.timer = setInterval(() => { if (AF.playing) set(AF.t + 1 >= g.t.length ? st.now : AF.t + 1); }, 900);
+      ctx.refresh?.(); } }, AF.playing ? "❚❚" : "▶");
+  const nowBtn = el("button", { type: "button", class: "arf-now", "aria-pressed": String(isNow), onclick: () => set(st.now) }, "Now");
+  const ramp = el("div", { class: "arf-ramp", "data-theme-ramp": isDarkUI() ? "dark" : "light" }, el("i"),
+    el("div", { class: "arf-ticks" }, ...[["150", 0.07], ["250", 0.25], ["500", 0.5], ["750", 0.72], ["1,000+", 0.93]].map(([s, x]) => el("span", { style: `left:${x * 100}%` }, s))));
+  body.append(...[el("p", { class: "arf-line", "data-ar": String(pv >= 250) }, el("i", { class: "arf-dot" }), lead), el("p", { class: "arf-sub" }, coast), ahead ? el("p", { class: "arf-sub" }, ahead) : null, rows,
+    el("p", { class: "arf-sub arf-pine" }, `Pineapple Express at ${here}: ${pine}.`),
+    el("div", { class: "arf-ctl" }, play, range, nowBtn),
+    el("div", { class: "arf-tl" }, el("span", {}, fT(g.t[0])), el("b", {}, isNow ? `Now · ${fT(g.t[t])}` : fT(g.t[t])), el("span", {}, fT(g.t.at(-1)))),
+    el("p", { class: "arf-k" }, "Water-vapour transport (kg/m/s)"), ramp,
+    el("p", { class: "arf-k2" }, el("i", { class: "arf-sw arf-sw-c" }), "Pineapple Express path (typical)", el("i", { class: "arf-sw arf-sw-l" }), "Coast hit (250+)", el("span", {}, " · streaks follow the 850 hPa wind")),
+    foot(`${credit} · fetched ${d3.timeFormat("%-I:%M %p")(c.got || new Date()).toLowerCase()}`)].filter(Boolean));
+  return { id: "arf", title: "Moisture Band", place: "left", el: body };
 }

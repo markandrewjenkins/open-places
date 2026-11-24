@@ -17,13 +17,15 @@ import {
 } from "./civic-data.js";
 import { get as cached } from "./civic-data.js";
 import { withFreshness } from "./civic-sources.js";   // live / stale / down from each feed's age
+import { markSeen, newLeft, isImportant, alertWhen, tagAlert } from "./civic-alerts.js";   // Right Now: new and important alerts
 import { hubSetFor, hubAirCovers } from "../src/shared/livehub.js";   // which places the relay's live hub serves
+import { airCoverNm, COVER_NOTE as AIR_COVER_NOTE } from "../src/shared/aircover.js";   // Air Traffic: where live aircraft exist
 import { REGIONS, UNCOVERED, SPOTLIGHT_PLACES, regionForPlace, regionAt } from "../src/blink/regions.js";
 import * as TR from "../src/blink/transit.js";
-import { fetchPoint, nearestAirports, typeInfo, airborne, callsign, fAlt, distKm as airKm, glyphPath, kindOf, kindColor, sizeOf, rareOf, closestApproach, compass as airCompass, lookupRoute, routeFits } from "../src/air/feed.js";
-import { followButton, followHint, toggleFollow, stopFollow } from "./civic-follow.js";   // Focus & follow the selected aircraft (Air Traffic page)
+import { nearestAirports, typeInfo, airborne, callsign, fAlt, distKm as airKm, glyphPath, kindColor, sizeOf, compass as airCompass, lookupRoute, routeFits } from "../src/air/feed.js";
+import { followButton, followHint, startFollow, stopFollow, followGestures } from "./civic-follow.js";   // Focus & follow an aircraft (Air Traffic page): click / double-click / right-click
 import { addTrail, remember, historyOf, relayTrack, mergeTracks, greatCircle, ahead as aheadOf } from "./civic-trail.js";   // its wake + probable route
-import { airFeed, feedText as airFeedText, feedReason as airFeedReason, addAirLayers, feedStrip as airStrip, overheadList as airList, aircraftCard as airCard, idOf as airId } from "../src/air/layer.js";   // Air traffic: shared feed + map layer
+import { airFeed, feedText as airFeedText, feedReason as airFeedReason, addAirLayers, feedStrip as airStrip, overheadList as airList, aircraftCard as airCard, idOf as airId, coverNote as airCoverNote } from "../src/air/layer.js";   // Air traffic: shared feed + map layer
 import * as R from "./civic-mod-roads.js";   // Traffic (events, cameras) + Malahat (DriveBC)
 import { busSummary, crdWide, inCRDBox, crdCams, NEAR_KM } from "./civic-mod-traffic.js";   // Traffic: bus speeds, Greater Victoria-wide events and cameras
 import * as RS from "./civic-mod-roadsigns.js";   // road-event signs (Vehicle Traffic: map, strip, list)
@@ -696,7 +698,7 @@ export function collectAlerts(ctx) {
   const qw = quakesWeek(ctx); checked.push(["USGS earthquakes", qw.data ? LIVE : qw.err ? "error" : "…"]);
   for (const f of qw.data?.features || []) {
     const pr = f.properties, d = km(f.geometry.coordinates.slice(0, 2), p.ll), age = Date.now() - pr.time;
-    if (pr.mag >= 4.5 && d <= 300 && age < 48 * 36e5) out.push({ sev: pr.mag >= 6 ? 3 : 2, title: `M${pr.mag.toFixed(1)} earthquake, ${Math.round(d)} km away`, where: pr.place, until: null, since: pr.time, text: pr.tsunami ? "The tsunami centres flagged it: check Tsunami Status." : "Felt reports and aftershocks on the earthquakes page.", src: "USGS", kind: LIVE, level: p.level === "muni" ? "muni" : "region", here: true, scaleName: "Nearby", href: "#hazard/quakes", id: `usgs:${f.id}`, geo: { type: "Point", coordinates: f.geometry.coordinates.slice(0, 2) }, zoom: 8.5 });
+    if (pr.mag >= 4.5 && d <= 300 && age < 48 * 36e5) out.push({ sev: pr.mag >= 6 ? 3 : 2, title: `M${pr.mag.toFixed(1)} earthquake, ${Math.round(d)} km away`, where: pr.place, until: null, since: pr.time, text: pr.tsunami ? "The tsunami centres flagged it: check Tsunami Status." : "Felt reports and aftershocks on the earthquakes page.", src: "USGS", kind: LIVE, level: p.level === "muni" ? "muni" : "region", here: true, scaleName: "Nearby", mag: pr.mag, km: d, href: "#hazard/quakes", id: `usgs:${f.id}`, geo: { type: "Point", coordinates: f.geometry.coordinates.slice(0, 2) }, zoom: 8.5 });
   }
   const qm = quakesMonth(ctx);
   for (const f of qm.data?.features || []) {
@@ -706,7 +708,11 @@ export function collectAlerts(ctx) {
   // road closures nearby (DriveBC, BC only)
   if (isBC(ctx)) {
     const ev = roadEvents(ctx, 50); checked.push(["DriveBC road events", ev && !ev.err ? LIVE : ev?.err ? "error" : "…"]);
-    for (const x of (ev && !ev.err ? ev : []).filter((x) => evClosed(x.e)).slice(0, 2)) out.push({ sev: 2, title: `${R.hwy(evRoad(x.e))} closed`, where: `${Math.round(x.km)} km away`, since: x.e.created || x.e.updated, src: "DriveBC", kind: LIVE, level: x.km <= 15 ? (p.level === "muni" ? "muni" : p.level) : "region", here: x.km <= 15, scaleName: "Vehicle Traffic", text: x.e.description, href: "#getting-around/roads", id: `drivebc:${x.e.id}:closed`, geo: x.e.geography || null, zoom: 14 });
+    for (const x of (ev && !ev.err ? ev : []).filter((x) => evClosed(x.e)).slice(0, 2)) out.push({ sev: 2, title: `${R.hwy(evRoad(x.e))} closed`, where: `${Math.round(x.km)} km away`, since: x.e.created || x.e.updated, src: "DriveBC", kind: LIVE, level: x.km <= 15 ? (p.level === "muni" ? "muni" : p.level) : "region", here: x.km <= 15, scaleName: "Vehicle Traffic", text: x.e.description, closure: true, road: evRoad(x.e), km: x.km, major: x.e.severity === "MAJOR", href: "#getting-around/roads", id: `drivebc:${x.e.id}:closed`, geo: x.e.geography || null, zoom: 14 });
+    // evacuation orders within 100 km (EMCR, through civic-mod-hazards.js)
+    const eo = HZ.evacOrders(ctx); checked.push(["EMCR evacuation orders", eo.items ? LIVE : eo.err ? "error" : "…"]);
+    for (const o of eo.items || []) out.push({ sev: o.inside || o.km <= 30 ? 3 : 2, title: `Evacuation order: ${o.event}`, where: o.inside ? `${o.name} · covers ${here}` : `${o.name} · ${Math.round(o.km)} km away`, since: o.at, src: "EMCR", kind: LIVE,
+      level: o.km <= 15 ? (p.level === "muni" ? "muni" : p.level) : "region", here: o.km <= 50, scaleName: "Evacuations", evac: true, inside: o.inside, km: o.km, href: "#hazard/hazards", id: `evac:${o.name}`, geo: o.geo, zoom: 10 });
   }
   // atmospheric river estimate (west-coast provinces/states)
   if (["bc", "wa", "cal"].includes(prov?.id) || (p.anywhere && p.ll[0] < -115)) {
@@ -718,8 +724,37 @@ export function collectAlerts(ctx) {
   if (prov && ["bc", "wa", "cal"].includes(prov.id)) { const t = CL.tsunamiData(ctx, prov.id); checked.push(["Tsunami (NWS / NTWC)", t?.nwsOk ? LIVE : t ? DATA : "…"]);
     if (t && t.level >= 1) out.push({ sev: t.level >= 3 ? 3 : 2, title: `Tsunami ${["", "watch", "advisory", "warning"][t.level]}`, where: t.nws[0]?.areaDesc?.split(";")[0] || `${prov.short} coast · NTWC region`, text: "Follow local officials; details on Tsunami Status.", src: t.nws.length ? "NWS" : "NTWC", kind: LIVE, level: "province", here: true, scaleName: prov.short, href: "#hazard/tsunami" }); }
   out.sort((a, b) => b.sev - a.sev || LEVELS.findIndex((l) => l.id === a.level) - LEVELS.findIndex((l) => l.id === b.level));
-  const at = weather(ll(ctx), ctx).at || qw.at;
-  return { items: out, checked, at, loading: checked.some(([, k]) => k === "…") };
+  const at = weather(ll(ctx), ctx).at || qw.at, loading = checked.some(([, k]) => k === "…");
+  markSeen(out, loading, p.id);
+  return { items: out, checked, at, loading };
+}
+
+// Right Now: one card per alert (title; where, when, source; a line of detail), the same title from the same source folded
+// into one, grouped Warnings / Watches & Advisories / For Information, the important ones first in each group. A click fits
+// the map to it (civic-alerts.js tagAlert); a new one pulses for its first 5 minutes.
+function alertGroups(items) {
+  const cards = [];
+  for (const x of items) {
+    const k = `${x.title}|${x.src}`, c = cards.find((c) => c.k === k || (x.id && c.ids.has(x.id)));
+    if (c) { c.n++; if (x.where && !c.wheres.includes(x.where)) c.wheres.push(x.where); if (x.id) c.ids.add(x.id); }
+    else cards.push({ k, x, n: 1, wheres: x.where ? [x.where] : [], ids: new Set(x.id ? [x.id] : []) });
+  }
+  const field = (k, v) => el("div", {}, el("small", {}, k), el("span", { title: v }, v));
+  const card = ({ x, n, wheres }) => {
+    const left = newLeft(x), a = el("a", { class: `civ-alert civ-ac${left ? " civ-pulse" : ""}`, href: x.href, "data-sev": x.sev, "data-imp": isImportant(x) ? "" : null },
+      el("div", { class: "civ-ac-h" }, el("i", { class: "civ-sev", "data-sev": x.sev }), el("b", { title: x.title }, x.title),
+        n > 1 ? el("span", { class: "civ-ac-n", title: `${n} alerts folded together` }, `×${n}`) : null, left ? el("em", { class: "civ-ac-new" }, "New") : null,
+        el("em", { class: "civ-tag", "data-kind": x.kind }, x.kind)),
+      el("div", { class: "civ-ac-m" }, field("Where", wheres.join(" · ") || x.scaleName || "–"), field("When", alertWhen(x) || "Now"), field("Source", x.src)),
+      x.text ? el("p", { class: "civ-ac-t" }, x.text.split("\n").filter(Boolean).slice(0, 2).join(" ").slice(0, 260)) : null);
+    if (left) a.style.setProperty("--pulse-n", String(Math.ceil(left / 2400)));
+    return tagAlert(a, x);
+  };
+  const tier = (s) => (s >= 3 ? 3 : s === 2 ? 2 : 1);
+  return [[3, "Warnings"], [2, "Watches & Advisories"], [1, "For Information"]].flatMap(([sv, name]) => {
+    const cs = cards.filter((c) => tier(c.x.sev) === sv).sort((a, b) => isImportant(b.x) - isImportant(a.x));
+    return cs.length ? [el("h4", { class: "civ-ac-g", "data-sev": sv }, name, el("span", {}, `${cs.length}`)), ...cs.map(card)] : [];
+  });
 }
 
 export const alerts = mod({
@@ -730,7 +765,7 @@ export const alerts = mod({
   kpis: (d) => [["Active here", `${d.items.filter((x) => x.sev >= 2).length}`, "warnings, watches, closures"], ["For info", `${d.items.filter((x) => x.sev < 2).length}`], ["Sources checked", `${d.checked.length}`]],
   // right column: the Alert Feed (what changed this session, filled by civic-alerts.js into #alerts-feed) over the sources
   html: `<div class="civ-pane civ-alerts-pane">
-    <div class="card cx-fill"><h3 class="cx-card-title">Active Alerts</h3><div class="chart civ-alchart" id="alerts-chart"></div><div class="cx-grow civ-scroll" id="alerts-list"></div></div>
+    <div class="card cx-fill civ-ac-card"><h3 class="cx-card-title">Active Alerts</h3><div class="cx-grow civ-scroll" id="alerts-list"></div></div>
     <div class="civ-side">
       <div class="card cx-fill"><h3 class="cx-card-title">Alert Feed</h3><div class="cx-grow civ-scroll" id="alerts-feed"></div></div>
       <div class="card cx-fill"><h3 class="cx-card-title">Sources Checked</h3><div class="cx-grow civ-scroll" id="alerts-src"></div>
@@ -739,20 +774,9 @@ export const alerts = mod({
   </div>`,
   view: (host, ctx) => {
     const d = collectAlerts(ctx);
-    const L = $("alerts-list"), ch = $("alerts-chart");
-    ch.hidden = !d.items.length;
-    if (d.items.length) {
-      const lv = [["muni", "Here"], ["region", "Region"], ["province", "Province / state"], ["country", "Country"], ["world", "World"]];
-      const at = (x) => (lv.some(([k]) => k === x.level) ? x.level : "muni");
-      C.stackBars(ch, lv.map(([k, label]) => ({ label, vals: [3, 2, 1].map((sv) => d.items.filter((x) => at(x) === k && (sv === 1 ? x.sev <= 1 : x.sev === sv)).length) })).filter((r) => d3.sum(r.vals)),
-        [{ name: "Warning", c: "bad" }, { name: "Watch / advisory", c: "warn" }, { name: "Information", c: "s3" }], { fmt: (v) => `${v}`, max: 5 });
-    }
+    const L = $("alerts-list");
     if (!d.items.length) L.replaceChildren(el("p", { class: "civ-clear" }, d.loading ? "Checking…" : `All clear for ${ctx.place.name}.`), el("p", { class: "note" }, "Warnings, watches, closures and nearby earthquakes land here as soon as a source posts them."));
-    else L.replaceChildren(...d.items.map((x) => el("a", { class: "civ-alert", href: x.href, "data-sev": x.sev },
-      el("div", { class: "civ-alert-h" }, el("i", { class: "civ-sev", "data-sev": x.sev }), el("b", {}, x.title), el("em", { class: "civ-tag", "data-kind": x.kind }, x.kind)),
-      el("div", { class: "civ-alert-s" }, [x.where, x.until ? `until ${fWhen(x.until)}` : null, `${x.src} · ${x.scaleName}`].filter(Boolean).join(" · ")),
-      x.text ? el("p", { class: "civ-alert-t" }, x.text.split("\n").filter(Boolean).slice(0, 2).join(" ").slice(0, 260)) : null)));
-    if (d.items.length) [...L.querySelectorAll(":scope > .civ-alert")].forEach((n, i) => { n.opAlert = d.items[i]; n.dataset.alert = ""; });   // a click fits the map to it (civic-alerts.js tagAlert)
+    else L.replaceChildren(...alertGroups(d.items));
     rowsList("alerts-src", d.checked.map(([n, k]) => [n, k === "…" ? "checking" : k === LIVE || k === MOCK ? "" : k, 0, { tag: k === LIVE || k === MOCK ? k : null }]));
   },
 });
@@ -986,20 +1010,22 @@ export const route95 = mod({
 });
 
 // ------------------------------------------------------------------ air traffic (Air Traffic)
-// Any place: aircraft within 40 km of it from adsb.lol through the relay (ODbL), coloured by kind of flight and sized by
-// weight class as on the Air Traffic radar, the next close pass and any rare aircraft, plus the nearest airports
-// (OurAirports). Greater Victoria adds the logged busy hours and YYJ / harbour movements, and falls back to the last
-// logged poll until the relay answers. The page is the map stage below: aircraft, airports (click one for its card) and the panel.
-// The feed is the page's (src/air/layer.js airFeed): the same 22 nm circle, so tile and page share the relay's cached
-// snapshot and agree on the count (40 km, the page's widest ring); polled every 30 s with retries and backoff; aircraft
-// held (fading) for a minute when they drop out of a report and moved on along their track between reports; and the
-// status says "Delayed" / "Feed down" from the newest report's age instead of flipping to "No feed" on one failure.
+// Places the relay covers (src/shared/aircover.js: the Victoria & Vancouver and Phoenix zones, and a few named cities):
+// aircraft within 40 km from adsb.lol through the relay (ODbL), coloured by kind of flight and sized by weight class as on
+// the Air Traffic radar, the next close pass and any rare aircraft, plus the nearest airports (OurAirports). Elsewhere:
+// the airports and a short note that live aircraft aren't covered there (no feed is polled).
+// The page is the map stage below: aircraft, airports (click one for its card) and the panel.
+// The feed is the page's (src/air/layer.js airFeed): the same circle, so tile and page share the relay's snapshot and
+// agree on the count (40 km, the page's widest ring). The relay's zones refresh about every 30 s to 4 min (stretched to
+// fit adsb.lol's daily allowance); aircraft are moved on along their track between reports and held (fading) when they
+// drop out, scaled to that clock, and the status says "Delayed" / "Feed down" from the newest report's age.
 const AIR_NM = 22, AIR_KM = 40;
 const airIsCRD = (p) => chainOf(p).some((n) => n.id === "crd");
 /** the feed's circle (nm): in Greater Victoria the relay's hub already holds every aircraft within 46 nm of 48.5,-123.5,
  *  so the feed takes the widest circle around the place that fits inside it (no extra upstream calls: livehub.js cuts it
- *  from the same snapshot); elsewhere 22 nm from /air/point.json. Tiles and alerts still count within AIR_KM. */
-const airNmFor = (lat, lon, place) => { if (!hubSetFor(place)) return AIR_NM; for (let nm = 40; nm > AIR_NM; nm -= 2) if (hubAirCovers(lat, lon, nm)) return nm; return AIR_NM; };
+ *  from the same snapshot); elsewhere in a zone up to 40 nm (cut from the zone's snapshot, also free), else 22 nm (a
+ *  city, or nothing). Tiles and alerts still count within AIR_KM. */
+const airNmFor = (lat, lon, place) => { if (!hubSetFor(place)) return airCoverNm(lat, lon, 40, AIR_NM); for (let nm = 40; nm > AIR_NM; nm -= 2) if (hubAirCovers(lat, lon, nm)) return nm; return AIR_NM; };
 const airMapKm = (p) => airNmFor(p.ll[1], p.ll[0], p) * 1.852;
 let airW = null;   // { key, feed, seen }: one live feed, for the place on screen; dropped 2 min after nobody asks
 export function airWatch(lat, lon, crd, ctx) {
@@ -1018,25 +1044,19 @@ setInterval(() => { if (airW && Date.now() - airW.seen > 120000) { airW.feed.sto
 const airNeed = (ctx) => {
   const p = ctx.place, [lon, lat] = p.ll, crd = airIsCRD(p);
   const feed = airWatch(lat, lon, crd, ctx), fs = feed.state();
-  const snap = crd ? file("air/air.json", ctx) : null;
   const ap = crd ? file("air/airports.json", ctx) : file("air/world.json", ctx);
-  if ((fs.level === "connecting" && !fs.err) || (crd && !snap.data && !snap.err) || (!ap.data && !ap.err)) return null;
-  let list = null, kind = LIVE, asOf = null;
-  const R = AIR_KM;
-  if (fs.level !== "connecting") { list = feed.list().filter((a) => !/^C/.test(a.cat || "") && a.km <= R); asOf = new Date(feed.track().asOf * 1000); }
-  else {
-    if (snap?.data?.latest?.epoch) { list = snap.data.latest.aircraft; kind = DATA; asOf = new Date(snap.data.latest.epoch * 1000); }
-    else kind = MOCK;
-    const kx = 111.32 * Math.cos((lat * Math.PI) / 180);
-    list = (list || []).filter((a) => !/^C/.test(a.cat || "")).map((a) => {
-      const e = (a.lon - lon) * kx, n = (a.lat - lat) * 110.57;
-      return { ...a, km: Math.hypot(e, n), kind: kindOf(a), rare: rareOf(a, crd ? ["DHC2", "DHC3"] : []), pass: airborne(a) ? closestApproach(e, n, a.gs, a.track) : null };
-    }).filter((a) => a.km <= R);
-  }
+  if ((fs.level === "connecting" && !fs.err) || (!ap.data && !ap.err)) return null;
+  // kind: LIVE (the relay's feed, live or behind), DATA (no live aircraft here: outside the relay's zones and cities),
+  // MOCK (the relay hasn't answered yet: nothing to show)
+  let list = [], kind = LIVE, asOf = null;
+  const R = AIR_KM, uncovered = fs.level === "uncovered";
+  if (uncovered) kind = DATA;
+  else if (fs.level !== "connecting") { list = feed.list().filter((a) => !/^C/.test(a.cat || "") && a.km <= R); asOf = new Date(feed.track().asOf * 1000); }
+  else kind = MOCK;
   const airports = !ap.data ? [] : crd
     ? ap.data.airports.filter((x) => /large|medium/.test(x.type) || x.icao === "CYWH").map((x) => ({ id: x.iata || x.icao || x.ident, name: x.name, km: airKm(lat, lon, x.lat, x.lon) })).sort((a, b) => a.km - b.km)
     : nearestAirports(ap.data, lat, lon, 5, 200).map((x) => ({ id: x.iata || x.ident, name: x.name, km: x.km, lat: x.lat, lon: x.lon }));
-  return { p, lat, lon, R, list, up: list.filter(airborne), kind, asOf, airports, crd, busy: snap?.data?.busy, cov: snap?.data?.coverage, err: null, fs: kind === LIVE ? fs : null };
+  return { p, lat, lon, R, list, up: list.filter(airborne), kind, asOf, airports, crd, uncovered, err: null, fs: kind === LIVE ? fs : null };
 };
 const airSrc = (d) => (d?.fs?.source === "adsb_fi" ? "adsb.fi" : "adsb.lol");
 // the map stage (civic-stage.js): the Air Traffic page's own aircraft layer (silhouettes, contrails, fading when held or
@@ -1094,13 +1114,15 @@ function airFollow(id) {
   const a = airStage.layer?.aircraft().find((x) => airId(x) === id);
   return { map: airStage.map, key: `air:${id}`, name: a ? callsign(a) : id, minZoom: 10.5, where: () => airStage.layer?.where(id) || null,
     seen: () => { const x = airStage.layer?.aircraft().find((y) => airId(y) === id); return x ? Date.now() - (x.age ?? 0) * 1000 : null; },
-    redraw: () => airStage.layer?.update(), redrawMs: 250, lostMs: 90000, giveUpMs: 300000 };
+    // the zone can refresh only every ~4 min (every_s): "lost signal" waits for two and a half clocks, at least 90 s
+    redraw: () => airStage.layer?.update(), redrawMs: 250, lostMs: () => Math.max(90000, (airEveryS() * 2.5 + 30) * 1000), giveUpMs: () => Math.max(300000, airEveryS() * 5000) };
 }
-/** a click on an aircraft (map, list, airport card): select it; on the selected one, focus and follow it (or stop) */
-function airClick(id, ctx, opts) {
-  if (id && id === airStage.sel && airStage.map) toggleFollow(airFollow(id));
-  else airPick(id, ctx, opts);
-}
+/** the relay's clock for the aircraft on screen (s), 30 until a report says */
+const airEveryS = () => airStage.layer?.feed?.every?.() || airW?.feed.every?.() || 30;
+/** select an aircraft (map, list, airport card); never toggles it off (a single click on the selected one does that) */
+function airClick(id, ctx, opts) { if (id && id !== airStage.sel) airPick(id, ctx, opts); }
+/** focus on an aircraft and follow it (a double-click on the map or in the list) */
+function airFollowNow(id, ctx) { airClick(id, ctx); if (airStage.map) startFollow(airFollow(id)); }
 /** { line, label, text } or null: the selected aircraft's probable route: a great circle to the destination its callsign's
  *  usual route names (adsbdb.com, looked up for the selected aircraft only and never stored; trusted only when the aircraft
  *  is near that route, routeFits), else 5 minutes along its track */
@@ -1131,8 +1153,11 @@ function airStageLayer(map, ctx) {
   airStage.apt = addAirfields(map, { prefix: "apt", center: [lon, lat], km: R + 20, beforeId: ["air-vte", "air-vt", "air-hear", "air-parked", "st-place-p"],
     color: () => cssVar("--m-airtraffic") || "#8b7cf6", ink: () => cssVar("--ink-2") || "#9aa6b8", halo: () => cssVar("--surface") || "rgba(0,0,0,0.6)", above: ["air-ac", "air-parked"], popupClass: "civ-pop", onPick: (p) => airPickApt(p.icao || p.iata || p.code, ctx) });
   airStage.apt.select(airStage.poi);
-  airStage.layer = addAirLayers(map, { feed, rangeKm: AIR_KM, filter: (a) => a.km == null || a.km <= R, beforeId: map.getLayer("st-place-p") ? "st-place-p" : undefined,
-    onSelect: (a) => airClick(airId(a), ctx) });
+  airStage.layer = addAirLayers(map, { feed, rangeKm: AIR_KM, filter: (a) => a.km == null || a.km <= R, beforeId: map.getLayer("st-place-p") ? "st-place-p" : undefined });
+  // click selects, double-click follows, right-click stops, hover names it (civic-follow.js followGestures)
+  const gest = followGestures(map, { layers: ["air-ac", "air-parked"], prefix: "air:", selected: () => airStage.sel, select: (id) => airClick(id, ctx),
+    deselect: () => airPick(null, ctx), follow: (id) => airFollow(id),
+    name: (id) => { const a = airStage.layer?.aircraft().find((x) => airId(x) === id); return a ? `${callsign(a)}${a.tname ? ` · ${a.tname}` : ""}` : id; } });
   // Esc deselects (and so stops following), unless the user is typing
   const onKey = (e) => { if (e.key === "Escape" && airStage.sel && !/input|textarea|select/i.test(e.target?.tagName || "")) airPick(null, ctx); };
   addEventListener("keydown", onKey);
@@ -1155,7 +1180,7 @@ function airStageLayer(map, ctx) {
   const tick = setInterval(() => { if (!document.hidden && airStage.sel) wake(); }, 2000);   // the wake keeps up with the moving aircraft
   // the hub paces adsb.lol to its daily allowance whatever the page asks; 10 s only while this page is open
   feed.setEvery(10000);
-  return () => { feed.off(fly); clearInterval(tick); trail.remove(); stopFollow("air:"); removeEventListener("keydown", onKey); if (airStage.wake === wake) airStage.wake = null;
+  return () => { gest(); feed.off(fly); clearInterval(tick); trail.remove(); stopFollow("air:"); removeEventListener("keydown", onKey); if (airStage.wake === wake) airStage.wake = null;
     feed.setEvery(30000); airStage.layer?.destroy(); airStage.layer = null; airStage.apt?.destroy(); airStage.apt = null; airStage.map = null; };
 }
 function airStagePanel(ctx) {
@@ -1168,7 +1193,7 @@ function airStagePanel(ctx) {
   const local = file("air/airports.json", ctx).data, world = file("air/world.json", ctx).data;
   const apt = airStage.poi && (local || world) ? airportFacts({ icao: /^[A-Z]{4}$/.test(airStage.poi) ? airStage.poi : "", iata: /^[A-Z0-9]{3}$/.test(airStage.poi) ? airStage.poi : "", name: airStage.poi }, local, world) : null;
   return el("div", { class: "civ-fp-body" },
-    d.fs ? airStrip(d.fs) : el("p", { class: "note" }, d.kind === DATA ? `Last logged poll, ${hhmm(d.asOf)}: the live feed is connecting or retrying.` : "Live aircraft need the relay; retrying."),
+    d.fs ? airStrip(d.fs) : d.uncovered ? airCoverNote() : el("p", { class: "note" }, "Live aircraft need the relay; retrying."),
     sel ? el("div", { class: "air-selcard" }, airCard(sel, { place: ctx.place.short }),
       airStage.map ? el("div", { class: "air-selfollow" }, followButton(airFollow(airId(sel)))) : null,
       airStage.map ? followHint(`air:${airId(sel)}`) : null,
@@ -1177,8 +1202,8 @@ function airStagePanel(ctx) {
       : airStage.sel ? el("p", { class: "note" }, `Aircraft ${airStage.sel} isn't in the live feed right now.`) : null,
     apt ? el("div", { class: "air-selcard" }, airportCard(apt, wide, { onClose: () => airPickApt(null, ctx), onPick: (a) => airClick(airId(a), ctx, { fly: true }), idOf: airId, sel: airStage.sel, color: (a) => kindColor(a.kind || "other") }))
       : airStage.poi && (local || world) ? el("p", { class: "note" }, `Airport ${airStage.poi} isn't in the airport list.`) : null,
-    apt ? null : airList(wide.filter(airborne), { limit: sel ? 5 : 8, selected: airStage.sel, onPick: (a) => airClick(airId(a), ctx, { fly: true }), range: R }),
-    el("p", { class: "note" }, `${d.kind === LIVE ? `${airSrc(d)} through the relay` : "adsb.lol, logged"} · within ${Math.round(R)} km · select an airport for its traffic · airports © OpenStreetMap (ODbL), OurAirports (public domain)`));
+    apt || d.uncovered ? null : airList(wide.filter(airborne), { limit: sel ? 5 : 8, selected: airStage.sel, onPick: (a) => airClick(airId(a), ctx, { fly: true }), onFollow: (a) => airFollowNow(airId(a), ctx), range: R }),
+    el("p", { class: "note" }, `${d.uncovered ? "Airports only" : `${airSrc(d)} through the relay · within ${Math.round(R)} km`} · select an airport${d.uncovered ? " for its details" : " for its traffic"} · airports © OpenStreetMap (ODbL), OurAirports (public domain)`));
 }
 const airWord = (d) => (d?.fs?.level === "down" ? "feed down" : d?.fs?.level === "delayed" ? "delayed" : "live");
 const airLow = (d) => d.up.filter((a) => a.alt != null).sort((a, b) => a.alt - b.alt)[0];
@@ -1208,7 +1233,7 @@ function airRadar(host, d) {
       .on("pointerleave", () => tip.hide());
   }
   svg.append("circle").attr("cx", cx).attr("cy", cy).attr("r", 2).style("fill", "var(--ink)");
-  if (d.kind === MOCK) svg.append("text").attr("class", "axis-t").attr("x", cx).attr("y", cy + 14).attr("text-anchor", "middle").text("live feed not reachable");
+  if (d.kind === MOCK || d.uncovered) svg.append("text").attr("class", "axis-t").attr("x", cx).attr("y", cy + 14).attr("text-anchor", "middle").text(d.uncovered ? "no live aircraft here" : "live feed not reachable");
 }
 /** where Air Traffic opens: the nearest major airport with scheduled flights inside the search circle, plus every
  *  aerodrome with scheduled service at most a little further away than it (Langford: YYJ and the Victoria Harbour water
@@ -1235,37 +1260,40 @@ export const airtraffic = mod({
   // the view: the place's airports (airViewBox), fitted inside the floating panels; until their list loads, the feed's whole circle
   stage: { layout: "map", dz: -0.8, layers: airStageLayer, panels: (ctx) => [{ id: "air", title: "Aircraft Nearby", place: "left", el: airStagePanel(ctx) }],
     // the dotted outline: the circle the aircraft are fetched and drawn in (airMapKm), around the place
-    coverage: (ctx) => { const R = airMapKm(ctx.place); return { feature: airCircle(ctx.place.ll, R, { id: "cov:air", title: "Aircraft search area" }), label: `Aircraft search area · ${Math.round(R)} km` }; },
+    coverage: (ctx) => { const R = airMapKm(ctx.place), none = airNeed(ctx)?.uncovered;
+      return { feature: airCircle(ctx.place.ll, R, { id: "cov:air", title: none ? "Airports nearby" : "Aircraft search area" }), label: none ? `Airports within ${Math.round(R)} km · no live aircraft here` : `Aircraft search area · ${Math.round(R)} km` }; },
     view: (ctx) => { const box = airViewBox(ctx);
       if (box) return { center: [(box[0][0] + box[1][0]) / 2, (box[0][1] + box[1][1]) / 2], zoom: 11, bounds: box };
       const [lon, lat] = ctx.place.ll, R = airMapKm(ctx.place), dy = (0.62 * R) / 110.57, dx = (0.95 * R) / (111.32 * Math.cos((lat * Math.PI) / 180));
       return { center: [lon, lat], zoom: 9, bounds: [[lon - dx, lat - dy], [lon + dx, lat + dy]] }; } },
   status: (ctx) => { const d = airNeed(ctx); const k = d?.kind || LIVE, lv = d?.fs?.level;
+    if (d?.uncovered) return { kind: DATA, text: "No live aircraft", long: `${AIR_COVER_NOTE} Nearest airports from OurAirports (public domain).` };
     // behind or down: say since when and why (civic-sources.js shows "Delayed · 4 min ago · adsb.lol rate-limited …")
     const fs = airWatch(ctx.place.ll[1], ctx.place.ll[0], airIsCRD(ctx.place), ctx).state(), why = airFeedReason(fs);
     if (d && (k !== LIVE || lv === "delayed" || lv === "down") && (fs.err || lv !== "live")) {
       const since = fs.asOf ? fs.asOf * 1000 : d.asOf ? +d.asOf : undefined, down = k !== LIVE || lv === "down";
       return { kind: down ? "down" : "stale", text: down ? "Feed down" : "Delayed", since, reason: why,
-        long: `${k === DATA ? "Showing the last logged poll (air/air.json). " : "Aircraft are moved on along their track and fade. "}adsb.lol positions (ODbL) through the relay; it retries on its own.` };
+        long: `${fs.err?.budget ? "The last snapshot of the day: adsb.lol's daily allowance for here is used up until 00:00 UTC. " : "Aircraft are moved on along their track and fade. "}adsb.lol positions (ODbL) through the relay; it retries on its own.` };
     }
-    return { kind: k, text: k === LIVE ? (lv === "down" ? "Feed down" : lv === "delayed" ? "Delayed" : "Live") : k === DATA ? "Logged" : "No feed",
-      long: k === LIVE ? `${airFeedText(d?.fs)} ${airSrc(d)} aircraft positions (${airSrc(d) === "adsb.fi" ? "adsb.fi open data, non-commercial" : "ODbL"}) through the relay every 30 s, moved on along their track between reports; airports from OurAirports (public domain)`
-        : k === DATA ? "Last logged poll (air/air.json) while the live feed connects or retries; adsb.lol data (ODbL)"
+    const ev = fs.every || 30;
+    return { kind: k, text: k === LIVE ? (lv === "down" ? "Feed down" : lv === "delayed" ? "Delayed" : "Live") : "No feed",
+      long: k === LIVE ? `${airFeedText(d?.fs)} ${airSrc(d)} aircraft positions (${airSrc(d) === "adsb.fi" ? "adsb.fi open data, non-commercial" : "ODbL"}) through the relay, new positions every ${ev < 90 ? `${Math.round(ev)} s` : `${Math.round(ev / 60)} min`}, moved on along their track between reports; airports from OurAirports (public domain)`
         : "Live aircraft need the relay's air routes (adsb.lol has no CORS); retrying. Nearest airports from OurAirports are real" }; },
-  source: (ctx) => { const d = airNeed(ctx); return d?.kind === LIVE ? `${airSrc(d)} · ${airWord(d)}` : d?.kind === DATA ? "adsb.lol · last logged poll" : "OurAirports · aircraft need the relay"; },
-  badge: (d) => (d.kind === MOCK ? "—" : `${d.up.length}`),
+  source: (ctx) => { const d = airNeed(ctx); return d?.uncovered ? "OurAirports · no live aircraft here" : d?.kind === LIVE ? `${airSrc(d)} · ${airWord(d)}` : "OurAirports · aircraft need the relay"; },
+  badge: (d) => (d.kind !== LIVE ? "—" : `${d.up.length}`),
   tileKpis: (d) => { const low = airLow(d), ap = d.airports[0], np = airNext(d);
+    if (d.uncovered) return [["—", "no live aircraft here"], [ap ? ap.id : "—", ap ? `nearest airport · ${Math.round(ap.km)} km` : "no airport nearby"]];
     return [[d.kind === MOCK ? "—" : `${d.up.length}`, `in the air within ${Math.round(d.R)} km`],
       np ? [airClock(np.pass.t), `next pass · ${callsign(np)}`] : [low ? fAlt(low.alt) : "—", low ? `lowest · ${typeInfo(low.type, low.cat).name}` : "lowest"],
       [ap ? ap.id : "—", ap ? `nearest airport · ${Math.round(ap.km)} km` : "no airport nearby"]]; },
   kpis: (d) => { const low = airLow(d), np = airNext(d), rare = d.list.filter((a) => a.rare).sort((a, b) => a.rare.rank - b.rare.rank)[0];
-    return [["In the air", d.kind === MOCK ? "—" : `${d.up.length}`, `within ${Math.round(d.R)} km${d.asOf ? `, ${d.kind === LIVE ? airWord(d) : "logged"} ${hhmm(d.asOf)}` : ""}`],
+    if (d.uncovered) return [["In the air", "—", "no live aircraft here"], ["Nearest airport", d.airports[0]?.id || "—", d.airports[0] ? `${d.airports[0].name}, ${Math.round(d.airports[0].km)} km` : ""]];
+    return [["In the air", d.kind === MOCK ? "—" : `${d.up.length}`, `within ${Math.round(d.R)} km${d.asOf ? `, ${airWord(d)} ${hhmm(d.asOf)}` : ""}`],
       np ? ["Next pass", airClock(np.pass.t), `${callsign(np)} within ${np.pass.d.toFixed(1)} km ${airCompass(np.pass.brg)} of the centre`]
         : ["Lowest", low ? fAlt(low.alt) : "—", low ? `${callsign(low)} · ${typeInfo(low.type, low.cat).name}` : ""],
       rare ? ["Rare", rare.rare.name, `${callsign(rare)} · ${Math.round(rare.km)} km away`] : null,
       ["Nearest airport", d.airports[0]?.id || "—", d.airports[0] ? `${d.airports[0].name}, ${Math.round(d.airports[0].km)} km` : ""],
-      d.kind === LIVE && airMapKm(d.p) > d.R + 1 ? ["On the map", `${airWatch(d.lat, d.lon, d.crd).list().filter((a) => airborne(a) && !/^C/.test(a.cat || "") && a.km <= airMapKm(d.p)).length}`, `in the air within ${Math.round(airMapKm(d.p))} km`] : null,
-      d.crd && d.cov ? ["Logged", `${f0(d.cov.polls_ok)} poll${d.cov.polls_ok === 1 ? "" : "s"}`, "busy hours for Greater Victoria"] : null].filter(Boolean); },
+      d.kind === LIVE && airMapKm(d.p) > d.R + 1 ? ["On the map", `${airWatch(d.lat, d.lon, d.crd).list().filter((a) => airborne(a) && !/^C/.test(a.cat || "") && a.km <= airMapKm(d.p)).length}`, `in the air within ${Math.round(airMapKm(d.p))} km`] : null].filter(Boolean); },
   mini: (host, d) => airRadar(host, d),
   // alerts (civic-alerts.js), live positions only: an emergency squawk, a military aircraft (adsb.lol's database flag), a
   // helicopter or aircraft below ~1,500 ft within 8 km (fixed-wing only when no airport is within 8 km), a rare or giant
@@ -1779,7 +1807,7 @@ export const ALL = [alerts, ...BASICS, ...SPECIALS];
 // The rail order is most-useful-to-most-people first; `h` starts a rail section.
 export const TOPICS = [
   { id: "now", title: "Right now", color: "var(--m-alerts)", h: "Every day", badgeFrom: "alerts", leaves: [alerts, natalerts] },
-  { id: "weather", title: "Weather", color: "var(--m-weather)", badgeFrom: "weather", fixed: true, leaves: [wx, aq, unusual, outlook, patterns, ar, enso], insets: { ar: "patterns", enso: "patterns" } },
+  { id: "weather", title: "Weather", color: "var(--m-weather)", badgeFrom: "weather", fixed: true, leaves: [wx, aq, unusual, patterns, outlook, ar, enso], insets: { ar: "patterns", enso: "patterns" } },
   // fixed: tabs keep this order (not re-sorted by scale). insets: a leaf with no tab of its own, opened from a button on
   // its parent page (Route 95 inside Transit, the Malahat inside Traffic); its tab shows only while it is open.
   { id: "getting-around", title: "Getting around", color: "var(--m-transit)", badgeFrom: "transit", fixed: true,

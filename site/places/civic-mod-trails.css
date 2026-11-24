@@ -76,3 +76,8 @@
 .trx-text h5 { margin: 8px 0 4px; font-size: 12.5px; color: var(--ink); }
 .trx-text a, .trx-links a { color: var(--accent); }
 .trx-links { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; }
+/* a picked trail (trailDetail): park-wide advisories marked, a posted closure in the status line */
+.trx-tag.trx-wide { margin-left: 4px; font-size: 9.5px; vertical-align: 1px; white-space: nowrap; }
+.trx-tfacts { margin-bottom: 8px; }
+.trx-tfacts dd small { color: var(--muted); }
+.trx-tfacts dd.trx-shut { color: var(--bad); font-weight: 600; }

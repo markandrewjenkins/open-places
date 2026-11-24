@@ -6,8 +6,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611220/20261121 21:00:00/20261122 04:00:00",
-   "feed_start": "20261120",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270103",
    "bbox": [
     -123.75,
@@ -23,14 +23,14 @@
    "days": {
     "weekday": "2026-11-27",
     "sat": "2026-11-28",
-    "sun": "2026-11-22"
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 85448,
     "stops": 481590
    },
    "static_only": false,
-   "built": "2026-11-22T21:05+00:00"
+   "built": "2026-11-24T01:47+00:00"
   },
   "nanaimo": {
    "name": "BC Transit · Nanaimo",
@@ -38,8 +38,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20261219",
    "bbox": [
     -124.674,
@@ -53,16 +53,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-27",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 26687,
     "stops": 145524
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:47+00:00"
   },
   "kelowna": {
    "name": "BC Transit · Kelowna",
@@ -70,8 +70,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20261219",
    "bbox": [
     -119.778,
@@ -85,16 +85,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-27",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 26995,
     "stops": 151977
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:47+00:00"
   },
   "kamloops": {
    "name": "BC Transit · Kamloops",
@@ -102,8 +102,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270103",
    "bbox": [
     -120.421,
@@ -117,16 +117,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-16",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-23",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 26549,
     "stops": 109534
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:47+00:00"
   },
   "fraser-valley": {
    "name": "BC Transit · Central Fraser Valley · Chilliwack · Agassiz-Harrison · Hope",
@@ -134,8 +134,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270102",
    "bbox": [
     -122.471,
@@ -149,16 +149,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
+    "weekday": "2026-11-27",
     "sat": "2026-11-28",
-    "sun": "2026-11-22"
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 33025,
-    "stops": 168212
+    "stops": 169059
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:47+00:00"
   },
   "comox-valley": {
    "name": "BC Transit · Comox Valley",
@@ -166,8 +166,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270331",
    "bbox": [
     -125.134,
@@ -181,16 +181,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-27",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 13771,
     "stops": 46196
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:47+00:00"
   },
   "cowichan-valley": {
    "name": "BC Transit · Cowichan Valley",
@@ -198,8 +198,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20261231",
    "bbox": [
     -124.172,
@@ -213,16 +213,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-27",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 25758,
     "stops": 88587
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:47+00:00"
   },
   "campbell-river": {
    "name": "BC Transit · Campbell River",
@@ -230,8 +230,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270905",
    "bbox": [
     -125.284,
@@ -245,16 +245,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-16",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-23",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 8532,
     "stops": 46835
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:47+00:00"
   },
   "port-alberni": {
    "name": "BC Transit · Port Alberni",
@@ -262,8 +262,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270331",
    "bbox": [
     -124.85,
@@ -277,16 +277,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-16",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-23",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 3231,
     "stops": 23756
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:47+00:00"
   },
   "squamish": {
    "name": "BC Transit · Squamish",
@@ -294,8 +294,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270614",
    "bbox": [
     -123.157,
@@ -309,16 +309,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-27",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 5621,
     "stops": 22853
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:47+00:00"
   },
   "whistler": {
    "name": "BC Transit · Whistler",
@@ -326,8 +326,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270417",
    "bbox": [
     -123.043,
@@ -341,16 +341,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-23",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 13470,
     "stops": 41268
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:47+00:00"
   },
   "pemberton": {
    "name": "BC Transit · Pemberton Valley",
@@ -358,8 +358,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20271126",
    "bbox": [
     -122.961,
@@ -373,16 +373,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-23",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 4841,
-    "stops": 6554
+    "stops": 6638
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:47+00:00"
   },
   "sunshine-coast": {
    "name": "BC Transit · Sunshine Coast",
@@ -390,8 +390,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270510",
    "bbox": [
     -123.91,
@@ -405,16 +405,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-27",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 6974,
     "stops": 52364
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:47+00:00"
   },
   "powell-river": {
    "name": "BC Transit · Powell River",
@@ -422,8 +422,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270103",
    "bbox": [
     -124.729,
@@ -437,16 +437,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-17",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-24",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 10393,
     "stops": 32929
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:47+00:00"
   },
   "salt-spring": {
    "name": "BC Transit · Salt Spring Island",
@@ -454,8 +454,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270430",
    "bbox": [
     -123.569,
@@ -469,16 +469,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-16",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-23",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 7226,
     "stops": 6944
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "west-coast": {
    "name": "BC Transit · West Coast (Tofino · Ucluelet)",
@@ -486,8 +486,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270404",
    "bbox": [
     -125.909,
@@ -501,16 +501,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-16",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-23",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 3204,
     "stops": 7151
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "mount-waddington": {
    "name": "BC Transit · Mount Waddington",
@@ -518,8 +518,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20271231",
    "bbox": [
     -127.585,
@@ -533,15 +533,15 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-16",
-    "sat": "2026-11-21"
+    "weekday": "2026-11-23",
+    "sat": "2026-11-28"
    },
    "bytes": {
     "network": 7246,
     "stops": 9270
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "vernon": {
    "name": "BC Transit · Vernon · Shuswap",
@@ -549,8 +549,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20271231",
    "bbox": [
     -119.395,
@@ -564,16 +564,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-27",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 15607,
     "stops": 56818
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "south-okanagan": {
    "name": "BC Transit · South Okanagan-Similkameen (Penticton)",
@@ -581,8 +581,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270906",
    "bbox": [
     -119.868,
@@ -597,15 +597,15 @@
    ],
    "days": {
     "weekday": "2026-11-27",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 27019,
     "stops": 65599
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "west-kootenay": {
    "name": "BC Transit · West Kootenay (Nelson · Trail · Castlegar)",
@@ -613,8 +613,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270331",
    "bbox": [
     -118.08,
@@ -628,15 +628,15 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21"
+    "weekday": "2026-11-27",
+    "sat": "2026-11-28"
    },
    "bytes": {
     "network": 37092,
     "stops": 84106
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "east-kootenay": {
    "name": "BC Transit · East Kootenay (Cranbrook · Kimberley · Elk Valley · Columbia Valley)",
@@ -644,8 +644,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Edmonton",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270627",
    "bbox": [
     -116.076,
@@ -659,16 +659,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-27",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 13976,
     "stops": 32338
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "creston-valley": {
    "name": "BC Transit · Creston Valley",
@@ -676,8 +676,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261116",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261123",
    "feed_end": "20271231",
    "bbox": [
     -116.554,
@@ -691,14 +691,14 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-17"
+    "weekday": "2026-11-24"
    },
    "bytes": {
     "network": 2351,
     "stops": 3899
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "revelstoke": {
    "name": "BC Transit · Revelstoke",
@@ -706,8 +706,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20271126",
    "bbox": [
     -118.228,
@@ -721,16 +721,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-16",
+    "weekday": "2026-12-02",
     "sat": "2026-11-28",
     "sun": "2026-11-29"
    },
    "bytes": {
-    "network": 3348,
-    "stops": 12604
+    "network": 3356,
+    "stops": 12603
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "merritt": {
    "name": "BC Transit · Merritt",
@@ -738,8 +738,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20271231",
    "bbox": [
     -120.883,
@@ -753,16 +753,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-16",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-23",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 2856,
     "stops": 11308
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "ashcroft": {
    "name": "BC Transit · Ashcroft · Cache Creek · Clinton",
@@ -770,8 +770,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261118",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261125",
    "feed_end": "20271231",
    "bbox": [
     -121.58,
@@ -785,14 +785,14 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-18"
+    "weekday": "2026-11-25"
    },
    "bytes": {
     "network": 3026,
     "stops": 1085
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "clearwater": {
    "name": "BC Transit · Clearwater",
@@ -800,8 +800,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261116",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261123",
    "feed_end": "20271231",
    "bbox": [
     -120.107,
@@ -815,14 +815,14 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-16"
+    "weekday": "2026-11-23"
    },
    "bytes": {
     "network": 3435,
     "stops": 1691
    },
    "static_only": false,
-   "built": "2026-11-17T00:14+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "100-mile-house": {
    "name": "BC Transit · 100 Mile House",
@@ -830,8 +830,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261116",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261123",
    "feed_end": "20271231",
    "bbox": [
     -121.374,
@@ -845,14 +845,14 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-16"
+    "weekday": "2026-11-23"
    },
    "bytes": {
     "network": 2016,
     "stops": 2729
    },
    "static_only": false,
-   "built": "2026-11-17T00:15+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "williams-lake": {
    "name": "BC Transit · Williams Lake",
@@ -860,8 +860,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20271231",
    "bbox": [
     -122.166,
@@ -875,15 +875,15 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-17",
-    "sat": "2026-11-21"
+    "weekday": "2026-11-24",
+    "sat": "2026-11-28"
    },
    "bytes": {
     "network": 3162,
     "stops": 10015
    },
    "static_only": false,
-   "built": "2026-11-17T00:15+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "quesnel": {
    "name": "BC Transit · Quesnel",
@@ -891,30 +891,30 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20271231",
    "bbox": [
-    -122.528,
-    52.957,
-    -121.566,
-    53.106
+    -123.581,
+    52.94,
+    -122.429,
+    52.989
    ],
    "routes": 7,
-   "stops": 135,
+   "stops": 128,
    "modes": [
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-19",
-    "sat": "2026-11-21"
+    "weekday": "2026-11-25",
+    "sat": "2026-11-28"
    },
    "bytes": {
-    "network": 10225,
-    "stops": 23408
+    "network": 9302,
+    "stops": 22473
    },
    "static_only": false,
-   "built": "2026-11-17T00:15+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "prince-george": {
    "name": "BC Transit · Prince George · Bulkley-Nechako",
@@ -922,8 +922,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270102",
    "bbox": [
     -127.164,
@@ -937,16 +937,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-27",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 24738,
     "stops": 86659
    },
    "static_only": false,
-   "built": "2026-11-17T00:15+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "smithers": {
    "name": "BC Transit · Smithers",
@@ -954,8 +954,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20261231",
    "bbox": [
     -127.333,
@@ -969,15 +969,15 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-16",
-    "sat": "2026-11-21"
+    "weekday": "2026-11-23",
+    "sat": "2026-11-28"
    },
    "bytes": {
     "network": 3299,
     "stops": 3238
    },
    "static_only": false,
-   "built": "2026-11-17T00:15+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "skeena": {
    "name": "BC Transit · Terrace · Kitimat · Hazeltons",
@@ -985,8 +985,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270626",
    "bbox": [
     -128.672,
@@ -1000,16 +1000,16 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-27",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
     "network": 32036,
     "stops": 46863
    },
    "static_only": false,
-   "built": "2026-11-17T00:15+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "prince-rupert": {
    "name": "BC Transit · Prince Rupert · Port Edward",
@@ -1017,8 +1017,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20270626",
    "bbox": [
     -130.352,
@@ -1032,15 +1032,15 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21"
+    "weekday": "2026-11-27",
+    "sat": "2026-11-28"
    },
    "bytes": {
     "network": 4971,
     "stops": 19092
    },
    "static_only": false,
-   "built": "2026-11-17T00:15+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "fort-st-john": {
    "name": "BC Transit · Fort St. John",
@@ -1048,8 +1048,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Dawson_Creek",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261114",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261121",
    "feed_end": "20271231",
    "bbox": [
     -120.873,
@@ -1063,15 +1063,15 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-16",
-    "sat": "2026-11-21"
+    "weekday": "2026-11-23",
+    "sat": "2026-11-28"
    },
    "bytes": {
     "network": 2873,
     "stops": 12831
    },
    "static_only": false,
-   "built": "2026-11-17T00:15+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "dawson-creek": {
    "name": "BC Transit · Dawson Creek",
@@ -1079,8 +1079,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Dawson_Creek",
-   "version": "202611160/20261115 21:00:00/20261116 04:00:00",
-   "feed_start": "20261116",
+   "version": "202611230/20261122 21:00:00/20261123 04:00:00",
+   "feed_start": "20261123",
    "feed_end": "20271231",
    "bbox": [
     -120.255,
@@ -1094,14 +1094,14 @@
     "bus"
    ],
    "days": {
-    "weekday": "2026-11-16"
+    "weekday": "2026-11-23"
    },
    "bytes": {
     "network": 1728,
     "stops": 7268
    },
    "static_only": false,
-   "built": "2026-11-17T00:15+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "king-county": {
    "name": "King County Metro",
@@ -1109,8 +1109,8 @@
    "credit": "Transit scheduling, geographic, and real-time data provided by permission of King County.",
    "terms": "https://kingcounty.gov/en/dept/metro/rider-tools/mobile-and-web-apps",
    "tz": "America/Los_Angeles",
-   "version": "FAL26-161.5",
-   "feed_start": "20261029",
+   "version": "FAL26-161.6",
+   "feed_start": "20261123",
    "feed_end": "20270326",
    "bbox": [
     -122.413,
@@ -1119,23 +1119,23 @@
     47.775
    ],
    "routes": 142,
-   "stops": 6271,
+   "stops": 6268,
    "modes": [
     "bus",
     "ferry",
     "tram"
    ],
    "days": {
-    "weekday": "2026-11-18",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-12-02",
+    "sat": "2026-11-28",
+    "sun": "2026-11-29"
    },
    "bytes": {
-    "network": 145110,
-    "stops": 1045873
+    "network": 145111,
+    "stops": 1045300
    },
    "static_only": false,
-   "built": "2026-11-17T00:15+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "ttc": {
    "name": "TTC",
@@ -1210,9 +1210,9 @@
    "credit": "Contains data from the City of Edmonton Open Data Terms of Use.",
    "terms": "https://www.edmonton.ca/sites/default/files/public-files/assets/Web-version2.1-OpenDataAgreement.pdf",
    "tz": "America/Edmonton",
-   "version": "261023_1059",
-   "feed_start": "20261023",
-   "feed_end": "20261212",
+   "version": "261116_1306",
+   "feed_start": "20261116",
+   "feed_end": "20270206",
    "bbox": [
     -113.877,
     53.285,
@@ -1220,22 +1220,22 @@
     53.694
    ],
    "routes": 240,
-   "stops": 6318,
+   "stops": 6372,
    "modes": [
     "bus",
     "tram"
    ],
    "days": {
-    "weekday": "2026-11-17",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-23",
+    "sat": "2026-12-05",
+    "sun": "2026-11-29"
    },
    "bytes": {
-    "network": 206971,
-    "stops": 1099107
+    "network": 206740,
+    "stops": 1102402
    },
    "static_only": false,
-   "built": "2026-11-17T00:15+00:00"
+   "built": "2026-11-24T01:48+00:00"
   },
   "mbta": {
    "name": "MBTA",
@@ -1243,17 +1243,17 @@
    "credit": "Data provided by MassDOT / MBTA under the MassDOT Developers License Agreement.",
    "terms": "https://www.mass.gov/files/documents/2017/10/27/develop_license_agree_0.pdf",
    "tz": "America/New_York",
-   "version": "Fall 2026, 2026-11-19T01:01:13+00:00, version D",
-   "feed_start": "20261112",
+   "version": "Fall 2026, 2026-11-23T21:36:57+00:00, version D",
+   "feed_start": "20261116",
    "feed_end": "20261212",
    "bbox": [
-    -71.358,
+    -71.391,
     42.12,
     -70.856,
     42.573
    ],
-   "routes": 184,
-   "stops": 7288,
+   "routes": 186,
+   "stops": 7303,
    "modes": [
     "bus",
     "ferry",
@@ -1262,16 +1262,16 @@
     "tram"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-12-04",
+    "sat": "2026-12-05",
+    "sun": "2026-12-06"
    },
    "bytes": {
-    "network": 185918,
-    "stops": 1196019
+    "network": 191412,
+    "stops": 1198344
    },
    "static_only": false,
-   "built": "2026-11-19T22:03+00:00"
+   "built": "2026-11-24T01:49+00:00"
   },
   "sacrt": {
    "name": "SacRT",
@@ -1374,6 +1374,6 @@
    "built": "2026-11-20T22:07+00:00"
   }
  },
- "generated": "2026-11-22T21:05+00:00",
+ "generated": "2026-11-24T01:49+00:00",
  "note": "Built by pipelines/blink/static.py from each agency's open GTFS. bbox = [west, south, east, north]."
 }

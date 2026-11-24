@@ -70,6 +70,15 @@ function trim(a) {
 
 // ------------------------------------------------------------------ upstream health (per isolate)
 const health = new Map();      // src → { until: ms, fails: n }
+// The key as stored can carry what came with it when copied: spaces or a line break, quotes, a "x-api-key:" or
+// "Bearer " label. Only the key itself is sent. If adsb.lol refuses it (401/403), calls go keyless for 10 minutes (the
+// shared per-IP allowance) instead of resting adsb.lol, and the error names the key so the owner can re-enter it.
+let keyBadUntil = 0;
+export function adsbKey(env) {
+  let k = String(env?.ADSBLOL_API_KEY || "").trim();
+  k = k.replace(/^(x-api-key|api[ _-]?key|key|bearer)(\s*[:=]\s*|\s+)/i, "").replace(/^["'`]+|["'`]+$/g, "").trim();
+  return /^[!-~]+$/.test(k) ? k : "";
+}
 const resting = (src) => (health.get(src)?.until || 0) > Date.now();
 function failed(src, e) {
   const h = health.get(src) || { until: 0, fails: 0 };
@@ -88,12 +97,12 @@ async function upstream(src, url, headers, signal) {
   if (!up.ok) throw Object.assign(new Error(`${src} returned ${up.status}`), { status: up.status });
   const j = await up.json();
   if (!Array.isArray(j.ac || j.aircraft)) throw new Error(`${src} sent no aircraft list`);
-  return { j, src, ms: Date.now() - t0 };
+  return { j, src, ms: Date.now() - t0, keyed: !!headers?.["x-api-key"] };
 }
 
 /** adsb.lol first; adsb.fi joins after HEDGE_MS or as soon as adsb.lol fails; the first good answer wins */
 function race(lat, lon, r, env, stats) {
-  const key = env?.ADSBLOL_API_KEY ? { "x-api-key": env.ADSBLOL_API_KEY } : {};
+  const k = adsbKey(env), key = k && keyBadUntil <= Date.now() ? { "x-api-key": k } : {};
   const order = [
     { src: "adsb_lol", url: `https://api.adsb.lol/v2/point/${lat}/${lon}/${r}`, headers: key },
     { src: "adsb_fi", url: `https://opendata.adsb.fi/api/v3/lat/${lat}/lon/${lon}/dist/${Math.min(r, 250)}`, headers: {} },
@@ -111,19 +120,22 @@ function race(lat, lon, r, env, stats) {
     const fail = () => { settled = true; clearTimeout(hedge); clearTimeout(deadline); reject(Object.assign(new Error(errors.join("; ") || "no upstream answered"), { status: errors.length && errors.every((m) => /429/.test(m)) ? 429 : 502 })); };
     const next = () => {
       if (settled || started >= list.length) return;
-      const u = list[started++];
+      let u = list[started++];
       if (u.again && (busy.has(u.src) || resting(u.src))) { if (started < list.length) next(); else if (!pending) fail(); return; }
       busy.add(u.src); pending++;
       if (stats) stats[u.src] = (stats[u.src] || 0) + 1;   // calls actually made, per upstream (the hub's daily budget)
       clearTimeout(hedge);
       if (started < list.length) hedge = setTimeout(next, HEDGE_MS);
+      if (u.again && keyBadUntil > Date.now()) u = { ...u, headers: {} };   // the retry goes keyless once the key was refused
       upstream(u.src, u.url, u.headers, ctl.signal).then((x) => {
         worked(u.src);
         if (settled) return;
         settled = true; clearTimeout(hedge); clearTimeout(deadline); ctl.abort();
         resolve(x);
       }, (e) => {
-        if (!(settled && e.name === "AbortError")) { failed(u.src, e); errors.push(`${u.src}: ${e.message || e}`); }
+        if (u.headers["x-api-key"] && (e.status === 401 || e.status === 403)) {   // the key was refused, not adsb.lol itself
+          keyBadUntil = Date.now() + 600000; errors.push(`${u.src}: key refused (${e.status}); keyless for 10 min`);
+        } else if (!(settled && e.name === "AbortError")) { failed(u.src, e); errors.push(`${u.src}: ${e.message || e}`); }
         pending--; busy.delete(u.src);
         if (settled) return;
         if (started < list.length) next();
@@ -145,10 +157,12 @@ export function snapPoint(lat0, lon0, r0) {
 /** one upstream answer for a snapped circle, trimmed: the body /air/point.json serves (also used by the hub, hub.js).
  *  `stats`, if given, counts the calls made per upstream ({ adsb_lol: 1, adsb_fi: 1 }). */
 export async function fetchPoint(lat, lon, r, env, stats) {
-  const { j, src, ms } = await race(lat, lon, r, env, stats);
+  const { j, src, ms, keyed } = await race(lat, lon, r, env, stats);
   const list = (j.ac || j.aircraft || []).map(trim).filter(Boolean);
   const now = j.now > 1e11 ? j.now / 1000 : j.now || Date.now() / 1000;
-  return { as_of_epoch: Math.floor(now), lat, lon, r_nm: r, count: list.length, source: src, upstream_ms: ms, aircraft: list, credit: AIR_CREDIT[src] };
+  return { as_of_epoch: Math.floor(now), lat, lon, r_nm: r, count: list.length, source: src, upstream_ms: ms,
+    // whether this answer used the adsb.lol key (never the key itself): used / refused (keyless for now) / unused / none
+    key: keyed ? "used" : !adsbKey(env) ? "none" : keyBadUntil > Date.now() ? "refused" : "unused", aircraft: list, credit: AIR_CREDIT[src] };
 }
 
 const inflight = new Map();    // key → Promise of a body: concurrent viewers in one isolate share one upstream call

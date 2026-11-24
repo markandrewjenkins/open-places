@@ -151,5 +151,680 @@
   "credit": "Mike",
   "page": "https://www.inaturalist.org/observations/8410145",
   "source": "iNaturalist"
+ },
+ "otree:oak-tree": {
+  "what": "tree",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/44825543/small.jpeg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/44825543/medium.jpeg",
+  "license": "CC BY",
+  "credit": "Ed Alverson",
+  "page": "https://www.inaturalist.org/photos/44825543",
+  "source": "iNaturalist"
+ },
+ "otree:oak-tree-bare": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6d/Oregon_white_oak_imported_from_iNaturalist_photo_65323285_on_5_February_2024.jpg/330px-Oregon_white_oak_imported_from_iNaturalist_photo_65323285_on_5_February_2024.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6d/Oregon_white_oak_imported_from_iNaturalist_photo_65323285_on_5_February_2024.jpg/330px-Oregon_white_oak_imported_from_iNaturalist_photo_65323285_on_5_February_2024.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC0",
+  "credit": "iNaturalist observer (photo 65323285)",
+  "page": "https://commons.wikimedia.org/wiki/File:Oregon_white_oak_imported_from_iNaturalist_photo_65323285_on_5_February_2024.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "otree:arb-tree": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/Arbutus_menziesii_3208s.JPG/330px-Arbutus_menziesii_3208s.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/Arbutus_menziesii_3208s.JPG/330px-Arbutus_menziesii_3208s.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 3.0",
+  "credit": "Walter Siegmund",
+  "page": "https://commons.wikimedia.org/wiki/File:Arbutus_menziesii_3208s.JPG",
+  "source": "Wikimedia Commons"
+ },
+ "btree:yoshino": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Cherry_tree_%28Prunus_x_yedoensis_%27Awanui%27%29_in_full_flower_in_Aston_Norwood_Gardens.jpg/330px-Cherry_tree_%28Prunus_x_yedoensis_%27Awanui%27%29_in_full_flower_in_Aston_Norwood_Gardens.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Cherry_tree_%28Prunus_x_yedoensis_%27Awanui%27%29_in_full_flower_in_Aston_Norwood_Gardens.jpg/330px-Cherry_tree_%28Prunus_x_yedoensis_%27Awanui%27%29_in_full_flower_in_Aston_Norwood_Gardens.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "Public domain",
+  "credit": "Pseudopanax at English Wikipedia",
+  "page": "https://commons.wikimedia.org/wiki/File:Cherry_tree_(Prunus_x_yedoensis_%27Awanui%27)_in_full_flower_in_Aston_Norwood_Gardens.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:kanzan": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/Kanzan_Cherry_Tree.jpg/330px-Kanzan_Cherry_Tree.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/Kanzan_Cherry_Tree.jpg/330px-Kanzan_Cherry_Tree.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Escuadro",
+  "page": "https://commons.wikimedia.org/wiki/File:Kanzan_Cherry_Tree.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:ukon": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Prunus_Serrulata_%27Ukon%27_-_Celles_%28Hainaut%29_1.JPG/330px-Prunus_Serrulata_%27Ukon%27_-_Celles_%28Hainaut%29_1.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Prunus_Serrulata_%27Ukon%27_-_Celles_%28Hainaut%29_1.JPG/330px-Prunus_Serrulata_%27Ukon%27_-_Celles_%28Hainaut%29_1.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY 3.0",
+  "credit": "Jean-Pol GRANDMONT",
+  "page": "https://commons.wikimedia.org/wiki/File:Prunus_Serrulata_%27Ukon%27_-_Celles_(Hainaut)_1.JPG",
+  "source": "Wikimedia Commons"
+ },
+ "btree:amanogawa": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Prunus_%27Amanogawa%27_at_Myddelton_House%2C_Enfield%2C_London%2C_England_03.jpg/330px-Prunus_%27Amanogawa%27_at_Myddelton_House%2C_Enfield%2C_London%2C_England_03.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Prunus_%27Amanogawa%27_at_Myddelton_House%2C_Enfield%2C_London%2C_England_03.jpg/330px-Prunus_%27Amanogawa%27_at_Myddelton_House%2C_Enfield%2C_London%2C_England_03.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Acabashi",
+  "page": "https://commons.wikimedia.org/wiki/File:Prunus_%27Amanogawa%27_at_Myddelton_House,_Enfield,_London,_England_03.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:weeping": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Weeping_Cherry_in_Arlington_National_Cemetery_%2816624656114%29.jpg/330px-Weeping_Cherry_in_Arlington_National_Cemetery_%2816624656114%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Weeping_Cherry_in_Arlington_National_Cemetery_%2816624656114%29.jpg/330px-Weeping_Cherry_in_Arlington_National_Cemetery_%2816624656114%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "Public domain",
+  "credit": "Arlington National Cemetery",
+  "page": "https://commons.wikimedia.org/wiki/File:Weeping_Cherry_in_Arlington_National_Cemetery_(16624656114).jpg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:sargent": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c3/Prunus_sargentii_in_Central_Park%2C_New_York_City_April.jpg/330px-Prunus_sargentii_in_Central_Park%2C_New_York_City_April.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c3/Prunus_sargentii_in_Central_Park%2C_New_York_City_April.jpg/330px-Prunus_sargentii_in_Central_Park%2C_New_York_City_April.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY 3.0",
+  "credit": "Moni3",
+  "page": "https://commons.wikimedia.org/wiki/File:Prunus_sargentii_in_Central_Park,_New_York_City_April.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:jpcherry": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Cerisier_du_Japon_Prunus_serrulata.jpg/330px-Cerisier_du_Japon_Prunus_serrulata.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Cerisier_du_Japon_Prunus_serrulata.jpg/330px-Cerisier_du_Japon_Prunus_serrulata.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 3.0",
+  "credit": "Myrabella",
+  "page": "https://commons.wikimedia.org/wiki/File:Cerisier_du_Japon_Prunus_serrulata.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:purpleplum": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/Prunus_cerasifera_Nigra_tree.jpg/330px-Prunus_cerasifera_Nigra_tree.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/Prunus_cerasifera_Nigra_tree.jpg/330px-Prunus_cerasifera_Nigra_tree.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Rasbak",
+  "page": "https://commons.wikimedia.org/wiki/File:Prunus_cerasifera_Nigra_tree.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:cherryplum": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Leipzig_lub_2025-03-22_img01.jpg/330px-Leipzig_lub_2025-03-22_img01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Leipzig_lub_2025-03-22_img01.jpg/330px-Leipzig_lub_2025-03-22_img01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY 4.0",
+  "credit": "Lukas Beck",
+  "page": "https://commons.wikimedia.org/wiki/File:Leipzig_lub_2025-03-22_img01.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:apricot": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Prunus_Mume_%E7%B4%85%E5%8D%83%E9%B3%A5_%28137559529%29.jpeg/330px-Prunus_Mume_%E7%B4%85%E5%8D%83%E9%B3%A5_%28137559529%29.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Prunus_Mume_%E7%B4%85%E5%8D%83%E9%B3%A5_%28137559529%29.jpeg/330px-Prunus_Mume_%E7%B4%85%E5%8D%83%E9%B3%A5_%28137559529%29.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY 3.0",
+  "credit": "Chihiro H",
+  "page": "https://commons.wikimedia.org/wiki/File:Prunus_Mume_%E7%B4%85%E5%8D%83%E9%B3%A5_(137559529).jpeg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:wildcherry": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/Cherry_trees_-_Sasbach_01.jpg/330px-Cherry_trees_-_Sasbach_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/Cherry_trees_-_Sasbach_01.jpg/330px-Cherry_trees_-_Sasbach_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 3.0",
+  "credit": "H. Zell",
+  "page": "https://commons.wikimedia.org/wiki/File:Cherry_trees_-_Sasbach_01.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:birdcherry": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/Padus_avium_flowers.JPG/330px-Padus_avium_flowers.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/Padus_avium_flowers.JPG/330px-Padus_avium_flowers.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Maasaak",
+  "page": "https://commons.wikimedia.org/wiki/File:Padus_avium_flowers.JPG",
+  "source": "Wikimedia Commons"
+ },
+ "btree:fruitcherry": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/33/Flowering_Cherry_Tree%2C_Stoke_Park_-_geograph.org.uk_-_385272.jpg/330px-Flowering_Cherry_Tree%2C_Stoke_Park_-_geograph.org.uk_-_385272.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/33/Flowering_Cherry_Tree%2C_Stoke_Park_-_geograph.org.uk_-_385272.jpg/330px-Flowering_Cherry_Tree%2C_Stoke_Park_-_geograph.org.uk_-_385272.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 2.0",
+  "credit": "Colin Smith",
+  "page": "https://commons.wikimedia.org/wiki/File:Flowering_Cherry_Tree,_Stoke_Park_-_geograph.org.uk_-_385272.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:plum": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/75/Flowering_plum_orchard_in_Bemmel.jpg/330px-Flowering_plum_orchard_in_Bemmel.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/75/Flowering_plum_orchard_in_Bemmel.jpg/330px-Flowering_plum_orchard_in_Bemmel.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC0",
+  "credit": "Cultureel Gelderland",
+  "page": "https://commons.wikimedia.org/wiki/File:Flowering_plum_orchard_in_Bemmel.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:paperbark": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Muscliff%2C_Tibetan_cherry_tree_in_the_arboretum_-_geograph.org.uk_-_735033.jpg/330px-Muscliff%2C_Tibetan_cherry_tree_in_the_arboretum_-_geograph.org.uk_-_735033.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Muscliff%2C_Tibetan_cherry_tree_in_the_arboretum_-_geograph.org.uk_-_735033.jpg/330px-Muscliff%2C_Tibetan_cherry_tree_in_the_arboretum_-_geograph.org.uk_-_735033.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 2.0",
+  "credit": "Chris Downer",
+  "page": "https://commons.wikimedia.org/wiki/File:Muscliff,_Tibetan_cherry_tree_in_the_arboretum_-_geograph.org.uk_-_735033.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:cherry": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Rail_tracks_and_cherry_trees_in_Ashino_Park.jpg/330px-Rail_tracks_and_cherry_trees_in_Ashino_Park.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Rail_tracks_and_cherry_trees_in_Ashino_Park.jpg/330px-Rail_tracks_and_cherry_trees_in_Ashino_Park.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "掬茶",
+  "page": "https://commons.wikimedia.org/wiki/File:Rail_tracks_and_cherry_trees_in_Ashino_Park.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:akebono": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Cherry_tree_%28Prunus_x_yedoensis_%27Awanui%27%29_in_full_flower_in_Aston_Norwood_Gardens.jpg/330px-Cherry_tree_%28Prunus_x_yedoensis_%27Awanui%27%29_in_full_flower_in_Aston_Norwood_Gardens.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Cherry_tree_%28Prunus_x_yedoensis_%27Awanui%27%29_in_full_flower_in_Aston_Norwood_Gardens.jpg/330px-Cherry_tree_%28Prunus_x_yedoensis_%27Awanui%27%29_in_full_flower_in_Aston_Norwood_Gardens.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "Public domain",
+  "credit": "Pseudopanax at English Wikipedia",
+  "page": "https://commons.wikimedia.org/wiki/File:Cherry_tree_(Prunus_x_yedoensis_%27Awanui%27)_in_full_flower_in_Aston_Norwood_Gardens.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "btree:higan": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/Prunus_subhirtella_Autumnalis_12zz.jpg/330px-Prunus_subhirtella_Autumnalis_12zz.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/Prunus_subhirtella_Autumnalis_12zz.jpg/330px-Prunus_subhirtella_Autumnalis_12zz.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Photo by David J. Stang",
+  "page": "https://commons.wikimedia.org/wiki/File:Prunus_subhirtella_Autumnalis_12zz.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:liquidambar styraciflua": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Liquidambar_styraciflua_50D_5326.jpg/330px-Liquidambar_styraciflua_50D_5326.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Liquidambar_styraciflua_50D_5326.jpg/330px-Liquidambar_styraciflua_50D_5326.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "SAplants",
+  "page": "https://commons.wikimedia.org/wiki/File:Liquidambar_styraciflua_50D_5326.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:acer palmatum": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Acer_Palmatum_Japanese_Maple_Tree_autumn_Newton_Massachusetts.jpg/330px-Acer_Palmatum_Japanese_Maple_Tree_autumn_Newton_Massachusetts.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Acer_Palmatum_Japanese_Maple_Tree_autumn_Newton_Massachusetts.jpg/330px-Acer_Palmatum_Japanese_Maple_Tree_autumn_Newton_Massachusetts.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "EgorovaSvetlana",
+  "page": "https://commons.wikimedia.org/wiki/File:Acer_Palmatum_Japanese_Maple_Tree_autumn_Newton_Massachusetts.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:ginkgo biloba": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/A_golden_Ginkgo_biloba_in_autumn.jpg/330px-A_golden_Ginkgo_biloba_in_autumn.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/A_golden_Ginkgo_biloba_in_autumn.jpg/330px-A_golden_Ginkgo_biloba_in_autumn.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "Public domain",
+  "credit": "Benjamin Ceci",
+  "page": "https://commons.wikimedia.org/wiki/File:A_golden_Ginkgo_biloba_in_autumn.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:parrotia persica": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/0_Parrotia_persica_-_Parc_de_Mariemont_%281%29.JPG/330px-0_Parrotia_persica_-_Parc_de_Mariemont_%281%29.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/0_Parrotia_persica_-_Parc_de_Mariemont_%281%29.JPG/330px-0_Parrotia_persica_-_Parc_de_Mariemont_%281%29.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 3.0",
+  "credit": "Jean-Pol GRANDMONT",
+  "page": "https://commons.wikimedia.org/wiki/File:0_Parrotia_persica_-_Parc_de_Mariemont_(1).JPG",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:nyssa sylvatica": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/Nyssa_sylvatica_JPG1a.jpg/330px-Nyssa_sylvatica_JPG1a.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/Nyssa_sylvatica_JPG1a.jpg/330px-Nyssa_sylvatica_JPG1a.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 3.0",
+  "credit": "Jean-Pol GRANDMONT",
+  "page": "https://commons.wikimedia.org/wiki/File:Nyssa_sylvatica_JPG1a.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:acer saccharum": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Acer_saccharum_%2822211646508%29.jpg/330px-Acer_saccharum_%2822211646508%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Acer_saccharum_%2822211646508%29.jpg/330px-Acer_saccharum_%2822211646508%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY 2.0",
+  "credit": "James St. John",
+  "page": "https://commons.wikimedia.org/wiki/File:Acer_saccharum_(22211646508).jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:oxydendrum arboreum": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/36/Oxydendrum_arboreum_46zz.jpg/330px-Oxydendrum_arboreum_46zz.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/36/Oxydendrum_arboreum_46zz.jpg/330px-Oxydendrum_arboreum_46zz.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Photo by David J. Stang",
+  "page": "https://commons.wikimedia.org/wiki/File:Oxydendrum_arboreum_46zz.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:cercidiphyllum japonicum": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/22/2026-10-23_16_01_57_A_Katsura_tree_changing_color_in_autumn_along_Mountain_View_Road_at_Perry_Drive_in_the_Mountainview_section_of_Ewing_Township%2C_Mercer_County%2C_New_Jersey.jpg/330px-thumbnail.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/22/2026-10-23_16_01_57_A_Katsura_tree_changing_color_in_autumn_along_Mountain_View_Road_at_Perry_Drive_in_the_Mountainview_section_of_Ewing_Township%2C_Mercer_County%2C_New_Jersey.jpg/330px-thumbnail.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Famartin",
+  "page": "https://commons.wikimedia.org/wiki/File:2026-10-23_16_01_57_A_Katsura_tree_changing_color_in_autumn_along_Mountain_View_Road_at_Perry_Drive_in_the_Mountainview_section_of_Ewing_Township,_Mercer_County,_New_Jersey.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:quercus coccinea": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/20151023Quercus_coccinea.jpg/330px-20151023Quercus_coccinea.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/20151023Quercus_coccinea.jpg/330px-20151023Quercus_coccinea.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC0",
+  "credit": "AnRo0002",
+  "page": "https://commons.wikimedia.org/wiki/File:20151023Quercus_coccinea.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:acer griseum": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/%27Acer_griseum%27_Beale_Arboretum_West_Lodge_Park_Hadley_Wood_Enfield_London.jpg/330px-%27Acer_griseum%27_Beale_Arboretum_West_Lodge_Park_Hadley_Wood_Enfield_London.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/%27Acer_griseum%27_Beale_Arboretum_West_Lodge_Park_Hadley_Wood_Enfield_London.jpg/330px-%27Acer_griseum%27_Beale_Arboretum_West_Lodge_Park_Hadley_Wood_Enfield_London.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Acabashi",
+  "page": "https://commons.wikimedia.org/wiki/File:%27Acer_griseum%27_Beale_Arboretum_West_Lodge_Park_Hadley_Wood_Enfield_London.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:acer ginnala": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/2023-10-20_16_34_46_Small_tree_changing_color_in_autumn_along_Westwood_Drive_in_the_Mountainview_section_of_Ewing_Township%2C_Mercer_County%2C_New_Jersey.jpg/330px-2023-10-20_16_34_46_Small_tree_changing_color_in_autumn_along_Westwood_Drive_in_the_Mountainview_section_of_Ewing_Township%2C_Mercer_County%2C_New_Jersey.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/2023-10-20_16_34_46_Small_tree_changing_color_in_autumn_along_Westwood_Drive_in_the_Mountainview_section_of_Ewing_Township%2C_Mercer_County%2C_New_Jersey.jpg/330px-2023-10-20_16_34_46_Small_tree_changing_color_in_autumn_along_Westwood_Drive_in_the_Mountainview_section_of_Ewing_Township%2C_Mercer_County%2C_New_Jersey.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Famartin",
+  "page": "https://commons.wikimedia.org/wiki/File:2023-10-20_16_34_46_Small_tree_changing_color_in_autumn_along_Westwood_Drive_in_the_Mountainview_section_of_Ewing_Township,_Mercer_County,_New_Jersey.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:acer circinatum": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/Vine_maples_in_front_of_the_historic_Longmire_Administration_Building._%283bd43687-0191-4004-91fa-9c717ddca2c3%29.jpeg/330px-Vine_maples_in_front_of_the_historic_Longmire_Administration_Building._%283bd43687-0191-4004-91fa-9c717ddca2c3%29.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/Vine_maples_in_front_of_the_historic_Longmire_Administration_Building._%283bd43687-0191-4004-91fa-9c717ddca2c3%29.jpeg/330px-Vine_maples_in_front_of_the_historic_Longmire_Administration_Building._%283bd43687-0191-4004-91fa-9c717ddca2c3%29.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "Public domain",
+  "credit": "NPS Photo",
+  "page": "https://commons.wikimedia.org/wiki/File:Vine_maples_in_front_of_the_historic_Longmire_Administration_Building._(3bd43687-0191-4004-91fa-9c717ddca2c3).jpeg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:cornus florida": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/06/%E3%83%8F%E3%83%8A%E3%83%9F%E3%82%BA%E3%82%AD_%E4%B8%AD%E5%A4%AE%E5%85%AC%E5%9C%92%E6%9D%B1%E5%81%B4%E5%85%A5%E5%8F%A3%E8%BF%91%E8%BE%BA_%E7%86%8A%E8%B0%B7%E5%B8%82_Oct_13%2C_2026.jpg/330px-%E3%83%8F%E3%83%8A%E3%83%9F%E3%82%BA%E3%82%AD_%E4%B8%AD%E5%A4%AE%E5%85%AC%E5%9C%92%E6%9D%B1%E5%81%B4%E5%85%A5%E5%8F%A3%E8%BF%91%E8%BE%BA_%E7%86%8A%E8%B0%B7%E5%B8%82_Oct_13%2C_2026.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/06/%E3%83%8F%E3%83%8A%E3%83%9F%E3%82%BA%E3%82%AD_%E4%B8%AD%E5%A4%AE%E5%85%AC%E5%9C%92%E6%9D%B1%E5%81%B4%E5%85%A5%E5%8F%A3%E8%BF%91%E8%BE%BA_%E7%86%8A%E8%B0%B7%E5%B8%82_Oct_13%2C_2026.jpg/330px-%E3%83%8F%E3%83%8A%E3%83%9F%E3%82%BA%E3%82%AD_%E4%B8%AD%E5%A4%AE%E5%85%AC%E5%9C%92%E6%9D%B1%E5%81%B4%E5%85%A5%E5%8F%A3%E8%BF%91%E8%BE%BA_%E7%86%8A%E8%B0%B7%E5%B8%82_Oct_13%2C_2026.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY 4.0",
+  "credit": "Nori Norisa",
+  "page": "https://commons.wikimedia.org/wiki/File:%E3%83%8F%E3%83%8A%E3%83%9F%E3%82%BA%E3%82%AD_%E4%B8%AD%E5%A4%AE%E5%85%AC%E5%9C%92%E6%9D%B1%E5%81%B4%E5%85%A5%E5%8F%A3%E8%BF%91%E8%BE%BA_%E7%86%8A%E8%B0%B7%E5%B8%82_Oct_13,_2026.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:cornus kousa": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Longwood_2012_10_20_1055_%288673883282%29.jpg/330px-Longwood_2012_10_20_1055_%288673883282%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Longwood_2012_10_20_1055_%288673883282%29.jpg/330px-Longwood_2012_10_20_1055_%288673883282%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 2.0",
+  "credit": "Harvey Barrison from Massapequa, NY, USA",
+  "page": "https://commons.wikimedia.org/wiki/File:Longwood_2012_10_20_1055_(8673883282).jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:pyrus calleryana": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Callery_Pear_Tree_0618.jpg/330px-Callery_Pear_Tree_0618.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Callery_Pear_Tree_0618.jpg/330px-Callery_Pear_Tree_0618.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Chris Light",
+  "page": "https://commons.wikimedia.org/wiki/File:Callery_Pear_Tree_0618.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:stewartia": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Stewartia_pseudocamellia_2017-10-15_02.jpg/330px-Stewartia_pseudocamellia_2017-10-15_02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Stewartia_pseudocamellia_2017-10-15_02.jpg/330px-Stewartia_pseudocamellia_2017-10-15_02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Agnieszka Kwiecień, Nova",
+  "page": "https://commons.wikimedia.org/wiki/File:Stewartia_pseudocamellia_2017-10-15_02.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:larix": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/European_Larch_%28Larix_decidua%29_trees_%288257163733%29.jpg/330px-European_Larch_%28Larix_decidua%29_trees_%288257163733%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/European_Larch_%28Larix_decidua%29_trees_%288257163733%29.jpg/330px-European_Larch_%28Larix_decidua%29_trees_%288257163733%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 2.0",
+  "credit": "Peter O'Connor aka anemoneprojectors from Stevenage, United Kingdom",
+  "page": "https://commons.wikimedia.org/wiki/File:European_Larch_(Larix_decidua)_trees_(8257163733).jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:metasequoia glyptostroboides": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Metasequoia_glyptostroboides_mature_habit.jpg/330px-Metasequoia_glyptostroboides_mature_habit.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Metasequoia_glyptostroboides_mature_habit.jpg/330px-Metasequoia_glyptostroboides_mature_habit.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Willow Coville",
+  "page": "https://commons.wikimedia.org/wiki/File:Metasequoia_glyptostroboides_mature_habit.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:taxodium distichum": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/aa/Taxodium_distichum_Fastigiatum_4.JPG/330px-Taxodium_distichum_Fastigiatum_4.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/aa/Taxodium_distichum_Fastigiatum_4.JPG/330px-Taxodium_distichum_Fastigiatum_4.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 3.0",
+  "credit": "Crusier",
+  "page": "https://commons.wikimedia.org/wiki/File:Taxodium_distichum_Fastigiatum_4.JPG",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:zelkova serrata": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Zelkova_serrata_Autumn.jpg/330px-Zelkova_serrata_Autumn.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Zelkova_serrata_Autumn.jpg/330px-Zelkova_serrata_Autumn.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC0",
+  "credit": "Luck097",
+  "page": "https://commons.wikimedia.org/wiki/File:Zelkova_serrata_Autumn.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:rhus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/RhusTyphinaAutumn3.jpg/330px-RhusTyphinaAutumn3.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/RhusTyphinaAutumn3.jpg/330px-RhusTyphinaAutumn3.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY 2.5",
+  "credit": "Taken by Fanghong",
+  "page": "https://commons.wikimedia.org/wiki/File:RhusTyphinaAutumn3.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:fraxinus americana": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e5/2015-09-26_09_17_36_White_Ash_with_foliage_beginning_to_change_color_for_autumn_along_Wiley_Post_Way_in_Salt_Lake_City%2C_Utah.jpg/330px-2015-09-26_09_17_36_White_Ash_with_foliage_beginning_to_change_color_for_autumn_along_Wiley_Post_Way_in_Salt_Lake_City%2C_Utah.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e5/2015-09-26_09_17_36_White_Ash_with_foliage_beginning_to_change_color_for_autumn_along_Wiley_Post_Way_in_Salt_Lake_City%2C_Utah.jpg/330px-2015-09-26_09_17_36_White_Ash_with_foliage_beginning_to_change_color_for_autumn_along_Wiley_Post_Way_in_Salt_Lake_City%2C_Utah.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Famartin",
+  "page": "https://commons.wikimedia.org/wiki/File:2015-09-26_09_17_36_White_Ash_with_foliage_beginning_to_change_color_for_autumn_along_Wiley_Post_Way_in_Salt_Lake_City,_Utah.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:quercus rubra": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/06/Quercus_rubra_and_Platanus_orientalis_in_Golden_Valley_Tree_Park%2C_May_2022.jpg/330px-Quercus_rubra_and_Platanus_orientalis_in_Golden_Valley_Tree_Park%2C_May_2022.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/06/Quercus_rubra_and_Platanus_orientalis_in_Golden_Valley_Tree_Park%2C_May_2022.jpg/330px-Quercus_rubra_and_Platanus_orientalis_in_Golden_Valley_Tree_Park%2C_May_2022.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Calistemon",
+  "page": "https://commons.wikimedia.org/wiki/File:Quercus_rubra_and_Platanus_orientalis_in_Golden_Valley_Tree_Park,_May_2022.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:fagus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/58/Beech_tree_in_autumn_-_geograph.org.uk_-_7641577.jpg/330px-Beech_tree_in_autumn_-_geograph.org.uk_-_7641577.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/58/Beech_tree_in_autumn_-_geograph.org.uk_-_7641577.jpg/330px-Beech_tree_in_autumn_-_geograph.org.uk_-_7641577.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 2.0",
+  "credit": "DS Pugh",
+  "page": "https://commons.wikimedia.org/wiki/File:Beech_tree_in_autumn_-_geograph.org.uk_-_7641577.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:betula": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e5/Birch_with_autumn_foliage_in_Drakenbergsparken_02.jpg/330px-Birch_with_autumn_foliage_in_Drakenbergsparken_02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e5/Birch_with_autumn_foliage_in_Drakenbergsparken_02.jpg/330px-Birch_with_autumn_foliage_in_Drakenbergsparken_02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "ThibautRe",
+  "page": "https://commons.wikimedia.org/wiki/File:Birch_with_autumn_foliage_in_Drakenbergsparken_02.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:liriodendron tulipifera": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/Liriodendron_tulipifera_JPG5a.jpg/330px-Liriodendron_tulipifera_JPG5a.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/Liriodendron_tulipifera_JPG5a.jpg/330px-Liriodendron_tulipifera_JPG5a.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY 3.0",
+  "credit": "Jean-Pol GRANDMONT",
+  "page": "https://commons.wikimedia.org/wiki/File:Liriodendron_tulipifera_JPG5a.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:acer campestre": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/76/20131018Acer_campestre_Hockenheim.jpg/330px-20131018Acer_campestre_Hockenheim.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/76/20131018Acer_campestre_Hockenheim.jpg/330px-20131018Acer_campestre_Hockenheim.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC0",
+  "credit": "AnRo0002",
+  "page": "https://commons.wikimedia.org/wiki/File:20131018Acer_campestre_Hockenheim.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:acer saccharinum": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/20131111Acer_saccharinum.jpg/330px-20131111Acer_saccharinum.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/20131111Acer_saccharinum.jpg/330px-20131111Acer_saccharinum.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC0",
+  "credit": "AnRo0002",
+  "page": "https://commons.wikimedia.org/wiki/File:20131111Acer_saccharinum.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:sorbus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/%27Sorbus_pohuashanensis%27_Rowan_-_Beale_Arboretum_-_West_Lodge_Park_-_Hadley_Wood_-_Enfield_London.jpg/330px-%27Sorbus_pohuashanensis%27_Rowan_-_Beale_Arboretum_-_West_Lodge_Park_-_Hadley_Wood_-_Enfield_London.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/%27Sorbus_pohuashanensis%27_Rowan_-_Beale_Arboretum_-_West_Lodge_Park_-_Hadley_Wood_-_Enfield_London.jpg/330px-%27Sorbus_pohuashanensis%27_Rowan_-_Beale_Arboretum_-_West_Lodge_Park_-_Hadley_Wood_-_Enfield_London.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Acabashi",
+  "page": "https://commons.wikimedia.org/wiki/File:%27Sorbus_pohuashanensis%27_Rowan_-_Beale_Arboretum_-_West_Lodge_Park_-_Hadley_Wood_-_Enfield_London.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:carpinus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/2021-10-28_Autumn_leaves_01.JPG/330px-2021-10-28_Autumn_leaves_01.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/2021-10-28_Autumn_leaves_01.JPG/330px-2021-10-28_Autumn_leaves_01.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Bärbel Miemietz",
+  "page": "https://commons.wikimedia.org/wiki/File:2021-10-28_Autumn_leaves_01.JPG",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:cotinus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Smoke_tree_in_Autumn.jpg/330px-Smoke_tree_in_Autumn.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Smoke_tree_in_Autumn.jpg/330px-Smoke_tree_in_Autumn.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 3.0",
+  "credit": "Folgerj",
+  "page": "https://commons.wikimedia.org/wiki/File:Smoke_tree_in_Autumn.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:acer platanoides": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Acer_platanoides_-_geograph.org.uk_-_993499.jpg/330px-Acer_platanoides_-_geograph.org.uk_-_993499.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Acer_platanoides_-_geograph.org.uk_-_993499.jpg/330px-Acer_platanoides_-_geograph.org.uk_-_993499.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 2.0",
+  "credit": "Jonathan Billinger",
+  "page": "https://commons.wikimedia.org/wiki/File:Acer_platanoides_-_geograph.org.uk_-_993499.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:gleditsia triacanthos": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e2/2023-10-04_14_02_17_Honey_Locust_trees_changing_color_in_autumn_near_the_intersection_of_Mercer_County_Route_535_%28East_State_Street_Extension%29_and_Mercer_County_Route_652_%28Nottingham_Way%29_in_Hamilton_Township%2C_Mercer_County%2C_New_Jersey.jpg/330px-thumbnail.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e2/2023-10-04_14_02_17_Honey_Locust_trees_changing_color_in_autumn_near_the_intersection_of_Mercer_County_Route_535_%28East_State_Street_Extension%29_and_Mercer_County_Route_652_%28Nottingham_Way%29_in_Hamilton_Township%2C_Mercer_County%2C_New_Jersey.jpg/330px-thumbnail.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Famartin",
+  "page": "https://commons.wikimedia.org/wiki/File:2023-10-04_14_02_17_Honey_Locust_trees_changing_color_in_autumn_near_the_intersection_of_Mercer_County_Route_535_(East_State_Street_Extension)_and_Mercer_County_Route_652_(Nottingham_Way)_in_Hamilton_Township,_Mercer_County,_New_Jersey.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:tilia": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Autumn_linden_tree.jpg/330px-Autumn_linden_tree.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Autumn_linden_tree.jpg/330px-Autumn_linden_tree.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "Public domain",
+  "credit": "Unknown authorUnknown author",
+  "page": "https://commons.wikimedia.org/wiki/File:Autumn_linden_tree.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:ulmus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/-2021-11-02_Elm_tree_%28Ulmus%29%2C_Beech_Avenue%2C_Bourne%2C_Lincolnshire.jpg/330px--2021-11-02_Elm_tree_%28Ulmus%29%2C_Beech_Avenue%2C_Bourne%2C_Lincolnshire.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/-2021-11-02_Elm_tree_%28Ulmus%29%2C_Beech_Avenue%2C_Bourne%2C_Lincolnshire.jpg/330px--2021-11-02_Elm_tree_%28Ulmus%29%2C_Beech_Avenue%2C_Bourne%2C_Lincolnshire.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 2.0",
+  "credit": "Bob Harvey",
+  "page": "https://commons.wikimedia.org/wiki/File:-2021-11-02_Elm_tree_(Ulmus),_Beech_Avenue,_Bourne,_Lincolnshire.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:fraxinus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/2020-10-23_11_56_46_An_Ash_tree_in_autumn_along_White_Barn_Lane_in_the_Franklin_Farm_section_of_Oak_Hill%2C_Fairfax_County%2C_Virginia.jpg/330px-2020-10-23_11_56_46_An_Ash_tree_in_autumn_along_White_Barn_Lane_in_the_Franklin_Farm_section_of_Oak_Hill%2C_Fairfax_County%2C_Virginia.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/2020-10-23_11_56_46_An_Ash_tree_in_autumn_along_White_Barn_Lane_in_the_Franklin_Farm_section_of_Oak_Hill%2C_Fairfax_County%2C_Virginia.jpg/330px-2020-10-23_11_56_46_An_Ash_tree_in_autumn_along_White_Barn_Lane_in_the_Franklin_Farm_section_of_Oak_Hill%2C_Fairfax_County%2C_Virginia.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Famartin",
+  "page": "https://commons.wikimedia.org/wiki/File:2020-10-23_11_56_46_An_Ash_tree_in_autumn_along_White_Barn_Lane_in_the_Franklin_Farm_section_of_Oak_Hill,_Fairfax_County,_Virginia.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:fraxinus pennsylvanica": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Fraxinus_pennsylvanica_tree.jpg/330px-Fraxinus_pennsylvanica_tree.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Fraxinus_pennsylvanica_tree.jpg/330px-Fraxinus_pennsylvanica_tree.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY 3.0 us",
+  "credit": "Steven Katovich, USDA Forest Service",
+  "page": "https://commons.wikimedia.org/wiki/File:Fraxinus_pennsylvanica_tree.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:juglans": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Juglans_regia_autumn_2009.jpg/330px-Juglans_regia_autumn_2009.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Juglans_regia_autumn_2009.jpg/330px-Juglans_regia_autumn_2009.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 3.0",
+  "credit": "JLPC",
+  "page": "https://commons.wikimedia.org/wiki/File:Juglans_regia_autumn_2009.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:populus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Poplar_Sunset_Douar_Chiker_Morocco_Nov25_A7CR_09360.jpg/330px-Poplar_Sunset_Douar_Chiker_Morocco_Nov25_A7CR_09360.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Poplar_Sunset_Douar_Chiker_Morocco_Nov25_A7CR_09360.jpg/330px-Poplar_Sunset_Douar_Chiker_Morocco_Nov25_A7CR_09360.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "This Photo was taken by Timothy A. Gonsalves.  Feel free to use my photos, but please mention me as the author.  I would much appreciate if you send me an email tagooty@yahoo.com or write on my talk page, for my information.  Please contact me before commercial use.\n\n\n\nPlease do not upload an edited image here without consulting me.  I would like to make corrections only at my own source to ensure that the changes improve the image and are preserved.Otherwise you may upload an edited image with a new name. Please use one of the templates derivative or extract.",
+  "page": "https://commons.wikimedia.org/wiki/File:Poplar_Sunset_Douar_Chiker_Morocco_Nov25_A7CR_09360.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:salix": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/Willow_tree_autumn.JPG/330px-Willow_tree_autumn.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/Willow_tree_autumn.JPG/330px-Willow_tree_autumn.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 3.0",
+  "credit": "Magdalena Šajinovićová",
+  "page": "https://commons.wikimedia.org/wiki/File:Willow_tree_autumn.JPG",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:crataegus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Hawthorns_in_Oneux.jpg/330px-Hawthorns_in_Oneux.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Hawthorns_in_Oneux.jpg/330px-Hawthorns_in_Oneux.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Pierre-Jacques DESPA",
+  "page": "https://commons.wikimedia.org/wiki/File:Hawthorns_in_Oneux.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:magnolia": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Star_Magnolia_in_Autumn.JPG/330px-Star_Magnolia_in_Autumn.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Star_Magnolia_in_Autumn.JPG/330px-Star_Magnolia_in_Autumn.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "KentuckyKevin",
+  "page": "https://commons.wikimedia.org/wiki/File:Star_Magnolia_in_Autumn.JPG",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:quercus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Oak_in_Tohogne_autumn_2017.jpg/330px-Oak_in_Tohogne_autumn_2017.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Oak_in_Tohogne_autumn_2017.jpg/330px-Oak_in_Tohogne_autumn_2017.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Pierre-Jacques Despa",
+  "page": "https://commons.wikimedia.org/wiki/File:Oak_in_Tohogne_autumn_2017.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:quercus garryana": {
+  "what": "tree",
+  "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/44825543/small.jpeg",
+  "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/44825543/medium.jpeg",
+  "license": "CC BY",
+  "credit": "Ed Alverson",
+  "page": "https://www.inaturalist.org/photos/44825543",
+  "source": "iNaturalist"
+ },
+ "ftree:acer": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Acer_Palmatum_Japanese_Maple_Tree_autumn_Newton_Massachusetts.jpg/330px-Acer_Palmatum_Japanese_Maple_Tree_autumn_Newton_Massachusetts.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Acer_Palmatum_Japanese_Maple_Tree_autumn_Newton_Massachusetts.jpg/330px-Acer_Palmatum_Japanese_Maple_Tree_autumn_Newton_Massachusetts.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "EgorovaSvetlana",
+  "page": "https://commons.wikimedia.org/wiki/File:Acer_Palmatum_Japanese_Maple_Tree_autumn_Newton_Massachusetts.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:cornus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Longwood_2012_10_20_1054_%288672787575%29.jpg/330px-Longwood_2012_10_20_1054_%288672787575%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4f/Longwood_2012_10_20_1054_%288672787575%29.jpg/330px-Longwood_2012_10_20_1054_%288672787575%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 2.0",
+  "credit": "Harvey Barrison from Massapequa, NY, USA",
+  "page": "https://commons.wikimedia.org/wiki/File:Longwood_2012_10_20_1054_(8672787575).jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:aesculus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Horse-chestnut_tree_in_autumn%2C_Trondheim%2C_Norway.jpg/330px-Horse-chestnut_tree_in_autumn%2C_Trondheim%2C_Norway.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Horse-chestnut_tree_in_autumn%2C_Trondheim%2C_Norway.jpg/330px-Horse-chestnut_tree_in_autumn%2C_Trondheim%2C_Norway.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "JNB",
+  "page": "https://commons.wikimedia.org/wiki/File:Horse-chestnut_tree_in_autumn,_Trondheim,_Norway.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:platanus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/45/Western_gate_to_Plashet_Park_with_plane_trees_-_geograph.org.uk_-_289695.jpg/330px-Western_gate_to_Plashet_Park_with_plane_trees_-_geograph.org.uk_-_289695.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/45/Western_gate_to_Plashet_Park_with_plane_trees_-_geograph.org.uk_-_289695.jpg/330px-Western_gate_to_Plashet_Park_with_plane_trees_-_geograph.org.uk_-_289695.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 2.0",
+  "credit": "BasilC",
+  "page": "https://commons.wikimedia.org/wiki/File:Western_gate_to_Plashet_Park_with_plane_trees_-_geograph.org.uk_-_289695.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:catalpa": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2b/20141023Catalpa_bignonioides.jpg/330px-20141023Catalpa_bignonioides.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2b/20141023Catalpa_bignonioides.jpg/330px-20141023Catalpa_bignonioides.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC0",
+  "credit": "AnRo0002",
+  "page": "https://commons.wikimedia.org/wiki/File:20141023Catalpa_bignonioides.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:ailanthus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d6/2014-11-02_13_09_20_Tree_of_Heaven_during_autumn_along_Lower_Ferry_Road_in_Ewing%2C_New_Jersey.JPG/330px-2014-11-02_13_09_20_Tree_of_Heaven_during_autumn_along_Lower_Ferry_Road_in_Ewing%2C_New_Jersey.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d6/2014-11-02_13_09_20_Tree_of_Heaven_during_autumn_along_Lower_Ferry_Road_in_Ewing%2C_New_Jersey.JPG/330px-2014-11-02_13_09_20_Tree_of_Heaven_during_autumn_along_Lower_Ferry_Road_in_Ewing%2C_New_Jersey.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Famartin",
+  "page": "https://commons.wikimedia.org/wiki/File:2014-11-02_13_09_20_Tree_of_Heaven_during_autumn_along_Lower_Ferry_Road_in_Ewing,_New_Jersey.JPG",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:morus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Morus_Australis_191019.jpg/330px-Morus_Australis_191019.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Morus_Australis_191019.jpg/330px-Morus_Australis_191019.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Nikolay Kr",
+  "page": "https://commons.wikimedia.org/wiki/File:Morus_Australis_191019.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:castanea": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/2025-11-20_12_09_31_A_Chestnut_tree_in_autumn_along_Perry_Drive_in_the_Mountainview_section_of_Ewing_Township%2C_Mercer_County%2C_New_Jersey.jpg/330px-2025-11-20_12_09_31_A_Chestnut_tree_in_autumn_along_Perry_Drive_in_the_Mountainview_section_of_Ewing_Township%2C_Mercer_County%2C_New_Jersey.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/2025-11-20_12_09_31_A_Chestnut_tree_in_autumn_along_Perry_Drive_in_the_Mountainview_section_of_Ewing_Township%2C_Mercer_County%2C_New_Jersey.jpg/330px-2025-11-20_12_09_31_A_Chestnut_tree_in_autumn_along_Perry_Drive_in_the_Mountainview_section_of_Ewing_Township%2C_Mercer_County%2C_New_Jersey.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 4.0",
+  "credit": "Famartin",
+  "page": "https://commons.wikimedia.org/wiki/File:2025-11-20_12_09_31_A_Chestnut_tree_in_autumn_along_Perry_Drive_in_the_Mountainview_section_of_Ewing_Township,_Mercer_County,_New_Jersey.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:alnus": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/Alnus_glutinosa_008.jpg/330px-Alnus_glutinosa_008.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/Alnus_glutinosa_008.jpg/330px-Alnus_glutinosa_008.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY-SA 2.5",
+  "credit": "Nikanos",
+  "page": "https://commons.wikimedia.org/wiki/File:Alnus_glutinosa_008.jpg",
+  "source": "Wikimedia Commons"
+ },
+ "ftree:acer rubrum": {
+  "what": "tree",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/Acer_rubrum_%28red_maple_tree_in_fall_colors%29_%28Newark_campus_of_Ohio_State_University%2C_Newark%2C_Ohio%2C_USA%29_%2820_October_2015%29_5_%2821725731643%29.jpg/330px-Acer_rubrum_%28red_maple_tree_in_fall_colors%29_%28Newark_campus_of_Ohio_State_University%2C_Newark%2C_Ohio%2C_USA%29_%2820_October_2015%29_5_%2821725731643%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/Acer_rubrum_%28red_maple_tree_in_fall_colors%29_%28Newark_campus_of_Ohio_State_University%2C_Newark%2C_Ohio%2C_USA%29_%2820_October_2015%29_5_%2821725731643%29.jpg/330px-Acer_rubrum_%28red_maple_tree_in_fall_colors%29_%28Newark_campus_of_Ohio_State_University%2C_Newark%2C_Ohio%2C_USA%29_%2820_October_2015%29_5_%2821725731643%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "license": "CC BY 2.0",
+  "credit": "James St. John",
+  "page": "https://commons.wikimedia.org/wiki/File:Acer_rubrum_(red_maple_tree_in_fall_colors)_(Newark_campus_of_Ohio_State_University,_Newark,_Ohio,_USA)_(20_October_2015)_5_(21725731643).jpg",
+  "source": "Wikimedia Commons"
  }
 }

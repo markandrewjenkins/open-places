@@ -216,7 +216,7 @@ export const MAL_EVENTS = { id: "malev", title: "Corridor events", icon: "car", 
       const closed = R.evClosed(x.e);
       return pt(ll, { id: x.e.id, title: `Hwy 1 · ${closed ? "Closed" : cap(String(x.e.event_type || "event").toLowerCase().replaceAll("_", " "))}`, body: R.firstLine(x.e.description),
         sev: closed ? 3 : x.live ? 2 : 0, icon: RS.signId(x.e, x.live || closed),
-        meta: `DriveBC · ${x.live ? "in effect now" : "scheduled, not in effect now"} · ${x.at.toFixed(1)} km from West Shore Pkwy` });
+        meta: `${RS.signNote(x.e, x.live || closed)} · DriveBC · ${x.at.toFixed(1)} km from West Shore Pkwy` });
     }));
   } };
 export const MAL_CAMS = { id: "malcams", title: "Cameras", icon: "camera", color: "var(--ink)", kind: "icon", optional: true, image: camImage, iconSize: CAM_SIZE,

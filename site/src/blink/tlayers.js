@@ -8,8 +8,11 @@
 //     onPick(item | null),         // a click asks to select something, or (clicking the selection again) to clear it
 //     onStop(stopKey),             // a stop was clicked ("agency:stopId")
 //     dark: () => boolean,         // the page's theme (softens route colours for it); default: prefers-color-scheme
-//     follow: true,                // pan to keep a selected vehicle in view (checked after each refresh)
+//     follow: true,                // pan to keep a selected vehicle in view (checked after each refresh); or () => boolean
+//     at: (v, key) => [lon, lat] | null,   // optional: draw a vehicle somewhere else than its report (Open Places'
+//                                  // Follow glides the followed bus between reports: civic-transit-stage.js)
 //   });
+//   L.moved()                      // redraw the vehicles' positions only (after `at` changed), cheap
 //   L.select(item | null)          // "v:<agency>:<vehicle>" | "r:<agency>:<routeId>" | null: draw it bold, dim the rest, fly to it
 //   L.corridor(rowId | null)       // "hwy1-inbound": highlight that road coloured by stretch, its cameras and buses; fit to it
 //   L.update()                     // after new vehicle data (tcommon.js fires "transit-live"; L listens itself as well)
@@ -254,7 +257,7 @@ const PATH = "tr-path";
 const LAYERS = ["tr-lines", "tr-lines-hit", "tr-line-case", "tr-line-sel", "tr-stops", "tr-cor-case", "tr-cor", "tr-veh", "tr-cams"];
 const SOURCES = ["tr-lines", "tr-stops", "tr-cor", "tr-veh", "tr-cams"];
 
-export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark = defaultDark, follow: doFollow = true } = {}) {
+export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark = defaultDark, follow: doFollow = true, at = null } = {}) {
   let sel = {}, hoverKey = null, corId = null, corKeys = new Set(), dead = false, flown = null;
   useVehicleIcons(map);
   const path = tripPathLayers(map, PATH);
@@ -271,7 +274,7 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
     const mb = map.getBearing();
     return { type: "FeatureCollection", features: allVehicles().filter((v) => v.lat != null && v.lon != null).map((v) => {
       const [mode, livery] = spriteOf(v), key = vKey(v);
-      return { type: "Feature", geometry: { type: "Point", coordinates: [v.lon, v.lat] },
+      return { type: "Feature", geometry: { type: "Point", coordinates: (at && at(v, key)) || [v.lon, v.lat] },
         properties: { key, rk: v.r ? rKey(v.r) : "", icon: isoId(mode, colorOf(v), faceBearing(v), mb, livery), sm: mode, mode: modeOf(v), r95: mode === "dd" ? 1 : 0, oc: corKeys.has(key) ? 1 : 0 } };
     }) };
   }
@@ -350,7 +353,7 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
   // keep a selected vehicle in view after a refresh: when its new report is near the edge of the free area (the map
   // between the page's panels), pan to it
   function follow() {
-    if (!doFollow) return;
+    if (!(typeof doFollow === "function" ? doFollow() : doFollow)) return;
     const v = selVehicle(); if (!v) return;
     const p = map.project(posOf(v)), c = map.getCanvas(), q = map.getPadding();
     const x0 = q.left || 0, x1 = c.clientWidth - (q.right || 0), y0 = q.top || 0, y1 = c.clientHeight - (q.bottom || 0), mx = (x1 - x0) * 0.1, my = (y1 - y0) * 0.1;
@@ -427,6 +430,7 @@ export function addTransitLayers(map, { onPick = () => {}, onStop = null, dark =
   window.addEventListener("transit-live", onLive);
 
   const api = {
+    moved() { if (!dead) map.getSource("tr-veh")?.setData(vehGeo()); },
     update() { if (dead) return; if (corId) paintCorridor(); apply(); setVehicles(); follow(); },
     select(item) {
       sel = item ? parseItem(item) : {};

@@ -135,7 +135,7 @@ const llKey = (ll) => `${ll[1].toFixed(2)},${ll[0].toFixed(2)}`;
 export const weather = (ll, ctx) => get(`wx:${llKey(ll)}`, () => json("https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
   latitude: ll[1], longitude: ll[0], timezone: "auto", forecast_days: 7,
   current: "temperature_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,is_day",
-  hourly: "temperature_2m,precipitation_probability,weather_code,wind_gusts_10m",
+  hourly: "temperature_2m,precipitation_probability,weather_code,wind_gusts_10m,precipitation,snowfall",   // precipitation, snowfall: the rain line and background (civic-wxfx.js)
   daily: "temperature_2m_max,temperature_2m_min,sunrise,sunset,daylight_duration,precipitation_sum,weather_code",
 })), ctx);
 // moisture aloft for the atmospheric-river estimate (a separate, slower call so the weather tile isn't held up)

@@ -52,4 +52,5 @@
 .civ-r95-spark path { fill: none; stroke: var(--r95, var(--accent)); stroke-width: 1.8; vector-effect: non-scaling-stroke; }
 
 /* the picked bus's Follow toggle (civic-follow.js), above its card in the drawer */
-.civ-trfollow { display: flex; justify-content: flex-end; margin: 0 0 6px; }
+.civ-trfollow { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 6px; }
+.civ-trfollow .civ-follow-hint { margin: 0; }

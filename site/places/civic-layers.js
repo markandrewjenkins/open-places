@@ -16,6 +16,8 @@ import { livePart, hubSetFor } from "../src/shared/livehub.js";
 import { icon } from "./civic-icons.js";
 import { NATURE_STAGES } from "./civic-stage-nature.js";   // Seasons & nature, Outdoors (their own maps)
 import { CIVIC_STAGES } from "./civic-stage-civic.js";     // Growth, Water & power, Climate, Hazards, national pages
+import { fxLayer } from "./civic-wxfx.js";                 // the weather pages' faint rain / snow / fog / wind background
+import { noticesLayer } from "./civic-mod-local.js";      // City Hall and police-station markers with their notices (civic-map-notices.js)
 
 const fc = (features) => ({ type: "FeatureCollection", features });
 const pt = (ll, properties) => ({ type: "Feature", geometry: { type: "Point", coordinates: ll }, properties });
@@ -48,6 +50,9 @@ const METRO_BOX = { crd: [[-123.6, 48.37], [-123.29, 48.69]], metrovan: [[-123.2
 // ================================================================== layer specs
 export const L = {};
 
+// Forecast and the Weather summary: what the weather is doing now, drawn faintly over the map (civic-wxfx.js)
+L.wxfx = { id: "wxfx", title: "Weather now", passive: true, custom: fxLayer };
+
 L.place = { id: "place", title: "Place", kind: "circle", passive: true, color: "var(--accent)",
   data: (ctx) => fc([pt(ctx.place.ll, { title: ctx.place.name, r: 6.5 })]) };
 
@@ -75,7 +80,7 @@ L.roads = { id: "roads", title: "Road events", icon: "car", color: "var(--m-road
     return fc(c.data.map((e) => ({ e, ll: R.evLL(e) })).filter((x) => x.ll && (wide ? TRF.inCRDBox(x.ll) : km(x.ll, ctx.place.ll) <= r)).map(({ e, ll }) => {
       const closed = R.evClosed(e);
       return pt(ll, { id: e.id, title: `${R.hwy(R.evRoad(e))} · ${closed ? "Closed" : evType(e)}`, body: firstLine(e.description), sev: closed ? 3 : e.severity === "MAJOR" ? 2 : 0, icon: RS.signId(e),
-        meta: `DriveBC · ${String(e.severity || "").toLowerCase()}${e.updated ? ` · updated ${rel(Date.parse(e.updated))}` : ""}`, href: "#getting-around/roads" });
+        meta: `${RS.signNote(e)} · DriveBC${e.updated ? ` · updated ${rel(Date.parse(e.updated))}` : ""}`, href: "#getting-around/roads" });
     }));
   } };
 
@@ -101,13 +106,8 @@ L.quakes = { id: "quakes", title: "Earthquakes", icon: "activity", color: "var(-
 L.bigquakes = { id: "bigquakes", title: "Earthquakes", icon: "globe", color: "var(--m-bigquakes, var(--accent))", kind: "circle", optional: true,
   data: (ctx) => { const d = safe(() => bigquakes.need(ctx)); const list = d?.qs || d?.list || []; return list.length ? fc(list.filter((q) => q.ll).map((q) => pt(q.ll, { title: `M${(+q.mag).toFixed(1)}`, body: q.place, r: 3 + q.mag * 1.4, href: "#hazard/quakes/world" }))) : null; } };
 
-L.police = { id: "police", title: "Police agencies", icon: "shield", color: "var(--m-crime, var(--accent))", kind: "circle", optional: true,
-  data: (ctx) => {
-    if (!inCRD(ctx)) return null;
-    const d = safe(() => crime.need(ctx)); if (!d?.near) return null;
-    return fc(d.near.filter((a) => a.ll).map((a) => { const n = d.wk7.filter((x) => x.agency === a.id).length;
-      return pt(a.ll, { id: a.id, title: a.name, body: n ? `${n} news release${n > 1 ? "s" : ""} in the last 7 days` : "No news releases in the last 7 days", r: 4 + Math.min(6, n), meta: `${a.km.toFixed(0)} km away`, href: "#safety/crime" }); }));
-  } };
+// Notices: City Notices' and Public Safety's markers on the Civic Summary (on) and the Overview (off); a click opens a popup
+L.notices = noticesLayer;
 
 // aircraft (the Overview's layer): the Air Traffic page's own layer and shared, smoothed feed (src/air/layer.js: one feed
 // per 0.05° cell, 22 nm, counted within 40 km, the same feed the Air Traffic tile and page use, so the numbers agree).
@@ -213,7 +213,6 @@ export const STAGES = {
   trails: { layout: "map", layers: ["trails"], dz: -0.8 },
   quakes: { layout: "map", layers: ["quakes"], dz: -3 },
   bigquakes: { layout: "panel", layers: [] },
-  crime: { layout: "map", layers: ["police"], dz: -1 },
   lnotices: { layout: "panel", layers: [] },
   ...NATURE_STAGES,
   ...CIVIC_STAGES,
@@ -231,9 +230,9 @@ export function specs(ids, { optionalOn = null } = {}) {
 }
 /** the Overview's layers for a place (level focus: what's around this place, plus warnings that cover it) */
 export function overviewLayers(ctx) {
-  const ids = ["warnings", "roads", "quakes", "aircraft", "ferries", "cams", "trails", "police"].filter((id) => {
+  const ids = ["warnings", "roads", "quakes", "aircraft", "ferries", "cams", "trails", "notices"].filter((id) => {
     if (id === "ferries") return ferries.applies(ctx);
-    if (id === "police") return crime.applies(ctx);
+    if (id === "notices") return crime.applies(ctx);   // Public Safety reaches every CRD municipality; City Notices only Langford
     if (["roads", "cams", "trails"].includes(id)) return isBC(ctx);
     return true;
   });
@@ -241,7 +240,8 @@ export function overviewLayers(ctx) {
 }
 /** a topic Summary's layers: the union of its live leaves' layers */
 export function summaryLayers(leaves) {
-  const ids = [...new Set(leaves.flatMap((l) => stageOf(l).layers).filter((x) => typeof x === "string"))];
+  // plus a leaf's summaryLayers (ids for the Summary only: City Notices and Public Safety draw their own markers on their pages)
+  const ids = [...new Set(leaves.flatMap((l) => [...stageOf(l).layers, ...(l.summaryLayers || [])]).filter((x) => typeof x === "string"))];
   return specs(ids);
 }
 

@@ -18,6 +18,7 @@ import { file, get as cached, ecccAlerts, nwsCount, km, provinceOf, countryOf, f
 import { color } from "./civic-stage.js";
 import { water, grid, enso, outlook, unusual, ar, arSeries, tsunami, hazards, bigquakes, natalerts, wx, aq, ferry, bike, ttc, waterwaysNext } from "./civic-modules.js";
 import { radarLayer, radarPanel } from "./civic-mod-weather.js";
+import { rainPanel } from "./civic-wxfx.js";   // Forecast: the rain line at the top
 import { parentView, arNowPanel, ensoNowPanel } from "./civic-mod-hazards.js";
 import * as TR from "../src/blink/transit.js";
 import "./civic-stage-civic.css";
@@ -349,8 +350,8 @@ export const CIVIC_STAGES = {
       credit: isUS(ctx) ? "NWS active alerts (public domain), live" : "ECCC weather alerts via MSC GeoMet (Open Government Licence – Canada), live",
       legend: isUS(ctx) ? null : swatches("Map", [["var(--bad)", "warning"], ["var(--warn)", "watch / advisory"], ["var(--s3)", "statement"]]) })] },
 
-  weather: { layout: "map", pane: "none", layers: [{ id: "wx-radar", custom: radarLayer }, "warnings"], view: (ctx) => ({ center: ctx.place.ll, zoom: 7.4 }),
-    panels: (ctx) => [{ id: "radar", title: "Rain Radar", place: "left", el: radarPanel(ctx) },
+  weather: { layout: "map", pane: "none", layers: [{ id: "wx-radar", custom: radarLayer }, "warnings", "wxfx"], view: (ctx) => ({ center: ctx.place.ll, zoom: 7.4 }),
+    panels: (ctx) => [rainPanel(ctx), { id: "radar", title: "Rain Radar", place: "left", el: radarPanel(ctx) },
       modPanel(wx, ctx, { id: "wx", title: "Next Three Days", h: 230, credit: "Open-Meteo forecast (CC BY 4.0), live", lede: `Temperature (top, °C) and chance of precipitation (bottom), ${ctx.place.name}. Shaded: night.` })] },
   air: { layout: "map", pane: "none", layers: [AQ_PTS, AQ_LBL], view: (ctx) => ({ center: ctx.place.ll, zoom: 8.6 }),
     panels: (ctx) => { const n = nearestStation(ctx);

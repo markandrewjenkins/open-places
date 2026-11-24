@@ -32,7 +32,7 @@ function tuFor(v, repaint) {
   return n;
 }
 
-export function vehicleCard(key, { links = true } = {}) {
+export function vehicleCard(key, { links = true, follow = false } = {}) {   // follow: Open Places' click-again-to-follow wording
   const host = el("div", { class: "tr-vcard", "data-key": key });
   let timer = 0;
   const stop = () => { clearInterval(timer); timer = 0; window.removeEventListener("transit-live", paint); };
@@ -61,7 +61,7 @@ export function vehicleCard(key, { links = true } = {}) {
       td?.stops?.length > 1 ? el("ol", { class: "tr-vstops" }, ...td.stops.filter((x) => x.time && x.time >= now - 30).slice(1, 5).map((x) =>
         el("li", {}, el("span", {}, stopName(v, x.stop_id) || `stop ${x.stop_id}`), el("b", {}, x.skipped ? "skipped" : fTime(x.time, T.region.tz))))) : null,
       v.occupancy != null ? dNote(`Occupancy as reported: ${OCCUPANCY[v.occupancy] || "unknown"}.`) : null,
-      dNote(`It is drawn where it last reported and moves only when the next report arrives (nothing is predicted in between). The sprite faces its reported heading, else along its route. ${pathTxt} Click it again to clear the selection. Live from the agency's open GTFS-Realtime feed through the relay, refreshed every 20 seconds.${v.agency === "victoria" ? " BC Transit is the source; this page is independent and not endorsed by BC Transit." : ""}`),
+      dNote(`${follow ? "It is drawn where it last reported; while you follow it, it is moved on between reports by its speed and heading (an estimate)." : "It is drawn where it last reported and moves only when the next report arrives (nothing is predicted in between)."} The sprite faces its reported heading, else along its route. ${pathTxt} ${follow ? "Click it again to follow it; Esc clears the selection." : "Click it again to clear the selection."} Live from the agency's open GTFS-Realtime feed through the relay, refreshed every 20 seconds.${v.agency === "victoria" ? " BC Transit is the source; this page is independent and not endorsed by BC Transit." : ""}`),
       links ? el("div", { class: "tr-links" }, nextId && T.stops.length ? dLink(href("next", "board", `${v.agency}:${nextId}`), `Departures at ${nextName || "its next stop"}`) : null,
         r ? dLink(href("network", "routes", `${r.agency}:${r.id}`), `Route ${r.name} in the timetable`) : null) : null,
     ));

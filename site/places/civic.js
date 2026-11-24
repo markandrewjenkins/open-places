@@ -691,24 +691,60 @@ document.addEventListener("click", (e) => { if (!srcPop.hidden && !srcPop.contai
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !srcPop.hidden) { srcPop.hidden = true; upd.setAttribute("aria-expanded", "false"); upd.focus(); } });
 setInterval(() => { if (!document.hidden) paintUpdated(); }, 15e3);
 
+// a warning the viewer has hidden (× on it, or the bell): the bar stops turning red and keeps a "1 warning hidden · Show"
+// chip. Remembered per warning in this browser; a new or upgraded warning (another id, level or title) shows again.
+const WARN_KEY = "op-hidden-warnings";
+const warnKey = (x) => `${x.id || ""}|${x.sev}|${x.title}`;
+let hiddenWarn = (() => { try { return new Set(JSON.parse(localStorage.getItem(WARN_KEY) || "[]")); } catch { return new Set(); } })();
+function setWarnHidden(keys, hide) {
+  for (const k of keys) hide ? hiddenWarn.add(k) : hiddenWarn.delete(k);
+  try { localStorage.setItem(WARN_KEY, JSON.stringify([...hiddenWarn].slice(-50))); } catch { /* private window */ }
+  paintAlerts();
+}
+/** one row of alerts: what doesn't fit collapses into "+N more" (to the Alerts page) instead of a second line */
+function fitAlertList(list) {
+  if (!list) return;
+  list.querySelector(":scope > .civ-al-more")?.remove();
+  const kids = [...list.children]; kids.forEach((k) => { k.hidden = false; });
+  if (list.scrollWidth <= list.clientWidth + 1) return;
+  const more = el("a", { class: "civ-al-more", href: "#now/alerts", title: "Every alert on the Alerts page" });
+  list.append(more);
+  for (let i = kids.length - 1, n = 1; i >= 0; i--, n++) {
+    kids[i].hidden = true; more.textContent = `+${n} more`;
+    if (list.scrollWidth <= list.clientWidth + 1) break;
+  }
+}
+addEventListener("resize", () => fitAlertList(strip.querySelector(".civ-al-list")));
 function paintAlerts() {
-  const a = collectAlerts(ctx), items = focusAlerts(a.items), top = items[0];
+  const a = collectAlerts(ctx), all = focusAlerts(a.items);
+  const warns = all.filter((x) => x.sev >= 3), hid = warns.filter((x) => hiddenWarn.has(warnKey(x)));
+  const items = all.filter((x) => !hid.includes(x)), top = items[0];
   const state = !items.length ? "clear" : top.sev >= 3 ? "warning" : "active";
   strip.dataset.state = state;
+  root.dataset.warn = state === "warning" ? "on" : hid.length ? "hidden" : "";
   const chip = (x) => tagAlert(el("a", { class: "civ-al-i", href: x.href, "data-sev": x.sev, title: [x.title, x.where, x.src].filter(Boolean).join(" · ") },
     el("i", { class: "civ-sev", "data-sev": x.sev }), el("b", {}, x.title), x.where ? el("span", {}, x.where) : null), x);
-  const head = el("a", { class: "civ-al-k", href: "#now/alerts", title: "Alerts" }, items.length ? `Alerts · ${items.length}` : "Alerts");
+  const head = el("a", { class: "civ-al-k", href: "#now/alerts", title: "Alerts" }, all.length ? `Alerts · ${all.length}` : "Alerts");
   let body;
-  if (state === "clear") body = [el("span", { class: "civ-al-clear" }, a.loading ? "Checking alerts…" : `All clear for ${ctx.place.anywhere ? "this spot" : ctx.place.short}`)];
+  if (state === "clear") body = [el("span", { class: "civ-al-clear" }, a.loading ? "Checking alerts…" : hid.length ? "No other alerts" : `All clear for ${ctx.place.anywhere ? "this spot" : ctx.place.short}`)];
   else if (state === "warning") {
     body = [tagAlert(el("a", { class: "civ-al-top", href: top.href }, el("i", { class: "civ-sev", "data-sev": 3 }), el("b", {}, top.title),
       el("span", {}, [top.where, top.until ? `until ${fWhen(top.until)}` : null, top.src].filter(Boolean).join(" · "))), top),
+    el("button", { type: "button", class: "civ-al-hide", title: "Hide this warning: the bar stops turning red (the bell brings it back)", "aria-label": `Hide ${top.title}`,
+      onclick: () => setWarnHidden([warnKey(top)], true) }, "×"),
     el("div", { class: "civ-al-list" }, ...items.slice(1).map(chip))];
   } else body = [el("div", { class: "civ-al-list" }, ...items.map(chip))];
+  if (hid.length) body.unshift(el("button", { type: "button", class: "civ-al-hidden", title: hid.map((x) => x.title).join(" · "), onclick: () => setWarnHidden(hid.map(warnKey), false) },
+    `${hid.length} warning${hid.length === 1 ? "" : "s"} hidden · `, el("u", {}, "Show")));
+  // the bell: always in the bar while there is a warning, shown or hidden, to hide them all or bring them back
+  const bell = warns.length ? el("button", { type: "button", class: "civ-al-bell", "aria-pressed": String(!hid.length),
+    title: hid.length ? "Warnings hidden: show them again" : "Warnings on: hide them (the bar stops turning red)",
+    onclick: () => setWarnHidden(warns.map(warnKey), !hid.length) }, icon("bell", { size: 13 }), el("span", {}, hid.length ? "Warnings off" : "Warnings on")) : null;
   const nw = feed?.latest(10 * 60e3);
   const fresh = nw && (nw.dist ?? 0) <= 1 ? tagAlert(el("a", { class: "civ-al-new", href: nw.href || "#overview", "data-level": nw.level, title: [nw.title, nw.body].filter(Boolean).join(" · ") },
     el("em", {}, "New"), el("b", {}, nw.title), el("time", { class: "civ-fd-w", datetime: new Date(nw.t).toISOString() }, rel(nw.t))), nw) : null;
-  strip.replaceChildren(head, ...(fresh ? [fresh] : []), ...body, el("span", { class: "civ-al-sp" }), upd);
+  strip.replaceChildren(head, ...(fresh ? [fresh] : []), ...body, el("span", { class: "civ-al-sp" }), ...(bell ? [bell] : []), upd);
+  if (!mobile()) requestAnimationFrame(() => fitAlertList(strip.querySelector(".civ-al-list")));
   paintUpdated();
   seedState(a);
   requestAnimationFrame(() => root.style.setProperty("--cx-top", `${$("#civ-head").offsetHeight}px`));
@@ -991,7 +1027,7 @@ function checkSwitch() {
   if (!cand) swDismissed = null;
   else if (cand.id === swDismissed) cand = null;
   else swDismissed = null;
-  const back = farFromHome(m, g);
+  const back = farFromHome(m);
   if (!cand && !back) return hideSwitch();
   const name = ctx.place.anywhere ? "this spot" : ctx.place.name;
   const recentre = back ? el("button", { type: "button", class: "civ-swp-home", title: `Back to ${name}'s view on this page`, onclick: () => { hideSwitch(); stage.home(); } },
@@ -1003,17 +1039,15 @@ function checkSwitch() {
   swp.classList.toggle("civ-swp-only", !cand);
   swp.hidden = false;
 }
-/** "Recentre on <place>": only after a long pan. The place (its outline's box, or its centre) is wholly off the map, the
- *  centre is more than 1.5 map-widths from it, and the map is no more than 2 zoom steps out from the page's own view
- *  (so zooming out, or a short pan, never shows it) */
-function farFromHome(m, g) {
+/** "Recentre on <place>": after a deliberate pan of a screen or two. The place's centre is off the map, the map's centre
+ *  is more than 0.75 map-widths from it, and the map is no more than 3 zoom steps out from the page's own view (zooming
+ *  out a little never shows it: the place stays in view) */
+function farFromHome(m) {
   const v = stage.view; if (!v) return false;
-  if (m.getZoom() < (v.zoom ?? 10) - 2) return false;
-  const b = m.getBounds(), ctr = m.getCenter(), w = km([b.getWest(), ctr.lat], [b.getEast(), ctr.lat]);
-  let bb = null; const walk = (c) => { if (typeof c[0] === "number") { bb = bb ? [Math.min(bb[0], c[0]), Math.min(bb[1], c[1]), Math.max(bb[2], c[0]), Math.max(bb[3], c[1])] : [c[0], c[1], c[0], c[1]]; } else for (const x of c) walk(x); };
-  if (g) walk(g.coordinates); else bb = [...ctx.place.ll, ...ctx.place.ll];
-  const off = bb[2] < b.getWest() || bb[0] > b.getEast() || bb[3] < b.getSouth() || bb[1] > b.getNorth();
-  return off && km([ctr.lng, ctr.lat], ctx.place.ll) > 1.5 * w;
+  if (m.getZoom() < (v.zoom ?? 10) - 3) return false;
+  const b = m.getBounds(), ctr = m.getCenter(), w = km([b.getWest(), ctr.lat], [b.getEast(), ctr.lat]), [x, y] = ctx.place.ll;
+  const off = x < b.getWest() || x > b.getEast() || y < b.getSouth() || y > b.getNorth();
+  return off && km([ctr.lng, ctr.lat], ctx.place.ll) > 0.75 * w;
 }
 stage.onMove(checkSwitch);
 

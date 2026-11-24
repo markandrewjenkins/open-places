@@ -371,6 +371,8 @@ def main():
     species_keys = [k for k in SPECIES if k in present.index]
     species_index = {k: i for i, k in enumerate(species_keys)}
     photos = pick_photos(inat)
+    from pipelines.common.tree_photos import tree_overrides      # whole-tree example photos (shown first; close-ups second)
+    trees_ph = tree_overrides("ftree")
     build_trees(trees, species_index)
 
     cities = {}
@@ -406,7 +408,7 @@ def main():
                         "forecast": forecast.get(s) if s in good else None, "skill": skill.loc[s].to_dict() if s in skill.index else None,
                         "sd": float(np.std(list(hist.values()))) if hist else None}
     species = [{"key": k, "i": species_index[k], **SPECIES[k], "colour": HUES[SPECIES[k]["hue"]],
-                "photo": photos.get(k) or photos.get(k.split()[0]),
+                "photo": photos.get(k) or photos.get(k.split()[0]), **({"tree": trees_ph[k]} if k in trees_ph else {}),
                 "count": {ck: int(((trees.city.isin(c["tree_cities"])) & (trees.key == k)).sum()) for ck, c in CITIES.items()}}
                for k in species_keys]
     sight = {}

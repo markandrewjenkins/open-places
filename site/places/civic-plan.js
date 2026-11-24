@@ -45,8 +45,20 @@ export function photoStrip(list) {
     el("figcaption", {}, ok.length > 1 ? "Example photos · " : "Example photo · ", ...ok.flatMap(({ ph, label }, i) => [i ? " · " : "", `${label.toLowerCase()}: `,
       ph.page ? el("a", { href: ph.page, target: "_blank", rel: "noopener" }, credit(ph)) : credit(ph)])));
 }
+/** the whole tree first and large, its close-ups (leaves, bark, flowers…) as a small row after it, credited together;
+ *  without a tree photo the first close-up is shown as before */
+export function photoSet(tree, parts = [], alt = "") {
+  const ps = parts.filter((x) => x?.ph);
+  if (!tree) return ps.length === 1 ? photoFig(ps[0].ph, alt || ps[0].label) : photoStrip(ps);
+  const img = (ph, a, cls) => el("img", { class: cls, src: ph.src, alt: `Example photo: ${a}`, loading: "lazy", decoding: "async", referrerpolicy: "no-referrer" });
+  const cr = (ph, label) => [`${label}: `, ph.page ? el("a", { href: ph.page, target: "_blank", rel: "noopener" }, credit(ph)) : credit(ph)];
+  return el("figure", { class: "ow-photo pl-set" },
+    img(tree, alt || "the whole tree", "pl-main"),
+    ps.length ? el("div", { class: "pl-parts" }, ...ps.map(({ ph, label }) => el("span", {}, img(ph, label), el("b", {}, label)))) : null,
+    el("figcaption", {}, ps.length ? "Example photos · " : "Example photo · ", ...cr(tree, "tree"), ...ps.flatMap(({ ph, label }) => [" · ", ...cr(ph, label.toLowerCase())])));
+}
 /** a small square thumbnail for a legend row (credited in its tooltip) */
-export const thumb = (ph, label = "") => (ph ? el("img", { class: "pl-th", src: ph.small, alt: "", loading: "lazy", decoding: "async", referrerpolicy: "no-referrer",
+export const thumb = (ph, label = "", cls = "") => (ph ? el("img", { class: `pl-th ${cls}`.trim(), src: ph.small, alt: "", loading: "lazy", decoding: "async", referrerpolicy: "no-referrer",
   title: `Example photo${label ? ` of ${label}` : ""}: ${credit(ph)}` }) : el("span", { class: "pl-th pl-th0" }));
 
 // ================================================================== route planning

@@ -35,6 +35,7 @@ import * as C from "./civic-charts.js";
 import { relayURL } from "../src/shared/relay.js";
 import { float } from "./civic-float.js";
 import { noticeMap, groupNotices } from "./civic-map-notices.js";
+import { icon } from "./civic-icons.js";
 import "./civic-mod-local.css";
 import { redactHeadline, NAMES_NOTE } from "../src/shared/redact-names.js";
 
@@ -202,7 +203,7 @@ const lnStage = {
 /** the parts of the lnotices module (civic-modules.js spreads these into mod()) */
 export function notices(K) {
   return {
-    need: noticesNeed, status: noticesStatus, stage: lnStage,
+    need: noticesNeed, status: noticesStatus, stage: lnStage, summaryLayers: ["notices"],
     source: (ctx) => { const d = noticesNeed(ctx); return `City of Langford · eSCRIBE${d && !d.err && !d.liveMeet ? " (snapshot)" : ""}`; },
     badge: (d) => `${d.count}`,
     tileKpis: (d) => [[`${d.count}`, d.count === 1 ? "notice this week" : "notices this week"], [d.council ? inDays(d.council.t).replace(/^in /, "") : "—", d.council ? `to council, ${fDow(d.council.t)}` : "no council date posted"]],
@@ -394,7 +395,7 @@ function sourcesPanel(d) {
 
 export function police(K) {
   return {
-    need: policeNeed, status: policeStatus,
+    need: policeNeed, status: policeStatus, summaryLayers: ["notices"],
     source: (ctx) => { const d = policeNeed(ctx); return `${d && !d.err ? jurName(d) : "Local police"} · other agencies${d && !d.err && !d.live ? " (snapshot)" : ""} · StatCan CSI`; },
     badge: (d) => `${d.wk7.length}`,
     stage: {
@@ -420,6 +421,35 @@ export function police(K) {
     }),
   };
 }
+
+// ================================================================== NOTICES on other maps (Civic Summary, Overview)
+// The same markers as the two pages (City Hall, police stations, notices at their own spot), as one layer chip, "Notices".
+// A click opens the marker's newest notices in a map popup with a link into the full page, that marker selected there.
+const POP_N = 5;
+function noticePopup(g, { glyph, kind, color, page, pageTitle, pageMap }) {
+  const items = g.items.slice().sort((a, b) => b.t - a.t);
+  const go = el("a", { class: "civ-popa", href: page }, `Open ${pageTitle} →`);
+  go.addEventListener("click", () => pageMap.select(g.key));
+  return el("div", { class: "civ-popc nm-pop", style: `--lc: ${color}` },
+    el("div", { class: "civ-popk" }, icon(glyph, { size: 13 }), kind),
+    el("b", { class: "civ-popt" }, g.name),
+    el("p", { class: "civ-popm" }, `${items.length} ${items.length === 1 ? "notice" : "notices"}${g.sub ? ` · ${g.sub}` : ""}`),
+    el("div", { class: "nm-pop-list" }, ...items.slice(0, POP_N).map((x) =>
+      el("a", { class: "nm-pop-row", href: x.link, target: "_blank", rel: "noopener", title: `${x.title} (opens the original)` }, el("span", {}, x.title), el("small", {}, fD(x.t))))),
+    items.length > POP_N ? el("p", { class: "civ-popm" }, `and ${items.length - POP_N} more`) : null,
+    go);
+}
+const sumLn = noticeMap({ id: "sum-ln", color: LN_COLOR, glyph: "landmark",
+  auto: (ctx) => { if (ctx.place?.id !== "langford") return []; const d = noticesNeed(ctx); return d && !d.err ? lnGroups(d, ctx) : null; },
+  popup: (g) => noticePopup(g, { glyph: "landmark", kind: "City Notices", color: LN_COLOR, page: "#civic/lnotices", pageTitle: "City Notices", pageMap: lnMap }),
+  onPick: () => sumPs.clear() });
+const sumPs = noticeMap({ id: "sum-ps", color: PS_COLOR, glyph: "shield",
+  auto: (ctx) => { if (!PS_PLACES.includes(ctx.place?.id)) return []; const d = policeNeed(ctx); return d && !d.err ? d.groups : null; },
+  popup: (g) => noticePopup(g, { glyph: "shield", kind: "Public Safety", color: PS_COLOR, page: "#civic/crime", pageTitle: "Public Safety", pageMap: psMap }),
+  onPick: () => sumLn.clear() });
+/** the layer chip (civic-layers.js L.notices): on by default on the Civic Summary, off on the Overview */
+export const noticesLayer = { id: "notices", title: "Notices", icon: "megaphone", color: LN_COLOR, optional: true, rerun: true,
+  custom(map, ctx) { const a = sumPs.layer.custom(map, ctx), b = sumLn.layer.custom(map, ctx); return () => { a?.(); b?.(); }; } };
 
 // ================================================================== EARTHQUAKES: USGS + Natural Resources Canada
 const NRCAN = "https://earthquakescanada.nrcan.gc.ca/fdsnws/event/1/query";

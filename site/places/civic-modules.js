@@ -21,7 +21,7 @@ import { hubSetFor, hubAirCovers } from "../src/shared/livehub.js";   // which p
 import { REGIONS, UNCOVERED, SPOTLIGHT_PLACES, regionForPlace, regionAt } from "../src/blink/regions.js";
 import * as TR from "../src/blink/transit.js";
 import { fetchPoint, nearestAirports, typeInfo, airborne, callsign, fAlt, distKm as airKm, glyphPath, kindOf, kindColor, sizeOf, rareOf, closestApproach, compass as airCompass, lookupRoute, routeFits } from "../src/air/feed.js";
-import { followButton, followTick, stopFollow } from "./civic-follow.js";   // Follow the selected aircraft (Air Traffic page)
+import { followButton, followHint, toggleFollow, stopFollow } from "./civic-follow.js";   // Focus & follow the selected aircraft (Air Traffic page)
 import { addTrail, remember, historyOf, relayTrack, mergeTracks, greatCircle, ahead as aheadOf } from "./civic-trail.js";   // its wake + probable route
 import { airFeed, feedText as airFeedText, feedReason as airFeedReason, addAirLayers, feedStrip as airStrip, overheadList as airList, aircraftCard as airCard, idOf as airId } from "../src/air/layer.js";   // Air traffic: shared feed + map layer
 import * as R from "./civic-mod-roads.js";   // Traffic (events, cameras) + Malahat (DriveBC)
@@ -1088,6 +1088,19 @@ function airFly() {
   const ll = airStage.layer.where(airStage.sel); if (!ll) return;
   airStage.fly = false; m.easeTo({ center: ll, zoom: Math.max(m.getZoom(), 11), duration: 900 });
 }
+/** the follow options for an aircraft (civic-follow.js): where it is drawn now (dead-reckoned along its track between
+ *  reports), when it last reported, and a quick redraw of the aircraft layer so the glyph moves with the map */
+function airFollow(id) {
+  const a = airStage.layer?.aircraft().find((x) => airId(x) === id);
+  return { map: airStage.map, key: `air:${id}`, name: a ? callsign(a) : id, minZoom: 10.5, where: () => airStage.layer?.where(id) || null,
+    seen: () => { const x = airStage.layer?.aircraft().find((y) => airId(y) === id); return x ? Date.now() - (x.age ?? 0) * 1000 : null; },
+    redraw: () => airStage.layer?.update(), redrawMs: 250, lostMs: 90000, giveUpMs: 300000 };
+}
+/** a click on an aircraft (map, list, airport card): select it; on the selected one, focus and follow it (or stop) */
+function airClick(id, ctx, opts) {
+  if (id && id === airStage.sel && airStage.map) toggleFollow(airFollow(id));
+  else airPick(id, ctx, opts);
+}
 /** { line, label, text } or null: the selected aircraft's probable route: a great circle to the destination its callsign's
  *  usual route names (adsbdb.com, looked up for the selected aircraft only and never stored; trusted only when the aircraft
  *  is near that route, routeFits), else 5 minutes along its track */
@@ -1119,7 +1132,10 @@ function airStageLayer(map, ctx) {
     color: () => cssVar("--m-airtraffic") || "#8b7cf6", ink: () => cssVar("--ink-2") || "#9aa6b8", halo: () => cssVar("--surface") || "rgba(0,0,0,0.6)", above: ["air-ac", "air-parked"], popupClass: "civ-pop", onPick: (p) => airPickApt(p.icao || p.iata || p.code, ctx) });
   airStage.apt.select(airStage.poi);
   airStage.layer = addAirLayers(map, { feed, rangeKm: AIR_KM, filter: (a) => a.km == null || a.km <= R, beforeId: map.getLayer("st-place-p") ? "st-place-p" : undefined,
-    onSelect: (a) => airPick(airId(a), ctx) });
+    onSelect: (a) => airClick(airId(a), ctx) });
+  // Esc deselects (and so stops following), unless the user is typing
+  const onKey = (e) => { if (e.key === "Escape" && airStage.sel && !/input|textarea|select/i.test(e.target?.tagName || "")) airPick(null, ctx); };
+  addEventListener("keydown", onKey);
   airStage.layer.select(airStage.sel);
   // the selected aircraft's wake (this session's fixes and the relay's last 90 min) and its probable route, under the aircraft
   const trail = addTrail(map, "air-trail", { beforeId: () => (map.getLayer("air-sele") ? "air-sele" : "st-place-p") }), set = hubSetFor(ctx.place);
@@ -1134,12 +1150,12 @@ function airStageLayer(map, ctx) {
     trail.set({ past, ahead: next?.line, label: next?.label });
   };
   airStage.wake = wake;
-  const fly = () => { const flying = airStage.fly; airFly(); note(); wake(); if (!flying) followTick(); };
+  const fly = () => { airFly(); note(); wake(); };
   feed.on(fly); setTimeout(fly, 800);
   const tick = setInterval(() => { if (!document.hidden && airStage.sel) wake(); }, 2000);   // the wake keeps up with the moving aircraft
   // the hub paces adsb.lol to its daily allowance whatever the page asks; 10 s only while this page is open
   feed.setEvery(10000);
-  return () => { feed.off(fly); clearInterval(tick); trail.remove(); stopFollow("air:"); if (airStage.wake === wake) airStage.wake = null;
+  return () => { feed.off(fly); clearInterval(tick); trail.remove(); stopFollow("air:"); removeEventListener("keydown", onKey); if (airStage.wake === wake) airStage.wake = null;
     feed.setEvery(30000); airStage.layer?.destroy(); airStage.layer = null; airStage.apt?.destroy(); airStage.apt = null; airStage.map = null; };
 }
 function airStagePanel(ctx) {
@@ -1154,13 +1170,14 @@ function airStagePanel(ctx) {
   return el("div", { class: "civ-fp-body" },
     d.fs ? airStrip(d.fs) : el("p", { class: "note" }, d.kind === DATA ? `Last logged poll, ${hhmm(d.asOf)}: the live feed is connecting or retrying.` : "Live aircraft need the relay; retrying."),
     sel ? el("div", { class: "air-selcard" }, airCard(sel, { place: ctx.place.short }),
-      airStage.map ? el("div", { class: "air-selfollow" }, followButton({ map: airStage.map, key: `air:${airId(sel)}`, name: callsign(sel), where: () => airStage.layer?.where(airId(sel)) || null })) : null,
+      airStage.map ? el("div", { class: "air-selfollow" }, followButton(airFollow(airId(sel)))) : null,
+      airStage.map ? followHint(`air:${airId(sel)}`) : null,
       (() => { const pr = airProbable(sel); return pr ? el("p", { class: "air-next" }, el("b", {}, "Probable route "), `${pr.text} (inferred)`) : null; })(),
       el("button", { type: "button", class: "air-selx", title: "Clear the selection", "aria-label": "Clear the selection", onclick: () => airPick(null, ctx) }, "×"))
       : airStage.sel ? el("p", { class: "note" }, `Aircraft ${airStage.sel} isn't in the live feed right now.`) : null,
-    apt ? el("div", { class: "air-selcard" }, airportCard(apt, wide, { onClose: () => airPickApt(null, ctx), onPick: (a) => airPick(airId(a), ctx, { fly: true }), idOf: airId, sel: airStage.sel, color: (a) => kindColor(a.kind || "other") }))
+    apt ? el("div", { class: "air-selcard" }, airportCard(apt, wide, { onClose: () => airPickApt(null, ctx), onPick: (a) => airClick(airId(a), ctx, { fly: true }), idOf: airId, sel: airStage.sel, color: (a) => kindColor(a.kind || "other") }))
       : airStage.poi && (local || world) ? el("p", { class: "note" }, `Airport ${airStage.poi} isn't in the airport list.`) : null,
-    apt ? null : airList(wide.filter(airborne), { limit: sel ? 5 : 8, selected: airStage.sel, onPick: (a) => airPick(airId(a), ctx, { fly: true }), range: R }),
+    apt ? null : airList(wide.filter(airborne), { limit: sel ? 5 : 8, selected: airStage.sel, onPick: (a) => airClick(airId(a), ctx, { fly: true }), range: R }),
     el("p", { class: "note" }, `${d.kind === LIVE ? `${airSrc(d)} through the relay` : "adsb.lol, logged"} · within ${Math.round(R)} km · select an airport for its traffic · airports © OpenStreetMap (ODbL), OurAirports (public domain)`));
 }
 const airWord = (d) => (d?.fs?.level === "down" ? "feed down" : d?.fs?.level === "delayed" ? "delayed" : "live");

@@ -5,7 +5,7 @@
 // "All ships | BC Ferries" focus switch (BC Ferries: the ferries stay bright and named, the rest dim, the map fits them),
 // a compact legend with counts, and either the selected ship's card or the nearest ships.
 // Selection lives in the URL (#getting-around/waterways/<mmsi>): an alert about one ship links there, and the page
-// eases to it, rings it and shows its card. Clicking the selected ship (on the map, in the list or the alert) again clears it.
+// eases to it, rings it and shows its card. Clicking the selected ship again (map or list) focuses on it and follows it; × or Esc clears it.
 // Harbours and port terminals (civic-poi.js PORTS) are markers too: a click opens the port's card (what it is, who runs
 // it, ships at or near it, ships bound for it by AIS destination) in the same panel (#getting-around/waterways/port-<id>).
 //
@@ -13,8 +13,9 @@
 // src/ships/vesselinfo.js), else the class's drawn side profile (src/ships/profiles.js), a one-line plain explanation
 // of the class, and its operator / owner when known.
 //
-// The selected ship gets a white ring, a "Follow" toggle on its card (civic-follow.js: the map recentres on it at each
-// update until the user drags the map) and its wake: a fading line along where it has been (this session's positions and
+// The selected ship gets a white ring; clicking it again (or the card's "Focus & follow") flies to it and tracks it
+// (civic-follow.js: the map glides with its dead-reckoned position until the user drags the map, clicks it again or
+// presses Stop; Esc or the card's × deselects) and its wake: a fading line along where it has been (this session's positions and
 // the relay's last 90 min, civic-trail.js) with a dashed "probable route" ahead: a ferry's route line, else a great circle
 // to the port its AIS destination names (src/ships/destination.js), else 15 minutes along its course.
 //
@@ -30,7 +31,7 @@ import { vesselFigure, operatorRows, loadVesselInfo, useWhaleFleet } from "../sr
 import { FLEET as WHALE_FLEET } from "./civic-whaleboats.js";
 import { PORTS, PORT, addPoiLayer, portCard } from "./civic-poi.js";   // harbours and terminals
 import { destination } from "../src/ships/destination.js";   // AIS destination text → "Vancouver, BC (CAVAN)" (UN/LOCODE)
-import { followButton, followTick, stopFollow, addRing, setRing, removeRing } from "./civic-follow.js";   // Follow + the white ring
+import { followButton, followHint, toggleFollow, stopFollow, following, glider, addRing, setRing, removeRing } from "./civic-follow.js";   // Focus & follow + the white ring
 import { addTrail, remember, historyOf, relayTrack, mergeTracks, greatCircle, ahead } from "./civic-trail.js";   // the wake + probable route
 import { hubSetFor } from "../src/shared/livehub.js";
 import "./civic-mod-sea.css";
@@ -58,6 +59,29 @@ function vessels(ctx) {
     const h = hdgOf(s), isFer = fer.has(String(s.mmsi));
     return { s, id: String(s.mmsi), cls: classOf(s, s.known, { ferry: isFer }), age, moving, pos: moving ? reckon(s, age) : [s.lon, s.lat], rot: h ?? 0, fer: isFer };
   }).filter((v) => v.age < MAX_AGE_S);
+}
+
+/** one ship's position now, or null: dead-reckoned from its report by speed and course while it moves (as vessels()
+ *  draws it), and for the followed ship blended into each new report (civic-follow.js glider), so it never snaps */
+const G = { id: null, g: null };
+function shipAt(id) {
+  const s = aisShips().find((x) => String(x.mmsi) === id); if (!s || s.lat == null) return null;
+  const age = aisAge(s), moving = !PARKED_NAV.has(s.nav) && s.sog >= 0.5 && s.sog <= 60 && age < 240;
+  if (G.id !== id) { G.id = id; G.g = glider({ maxS: 240, blendMs: 2500 }); }
+  G.g.fix({ lon: s.lon, lat: s.lat, t: s.rep ?? Date.now() - age * 1000, kmh: moving ? s.sog * 1.852 : null, deg: s.cog ?? s.hdg });
+  return G.g.at();
+}
+/** the follow options for a ship (civic-follow.js): where it is now, when it last reported, and a quick marker redraw */
+function shipFollow(id) {
+  const s = aisShips().find((x) => String(x.mmsi) === id);
+  return { map: S.h?.map, key: `ship:${id}`, name: titleCase(s?.name) || `MMSI ${id}`, minZoom: 12, where: () => shipAt(id),
+    seen: () => { const q = aisShips().find((x) => String(x.mmsi) === id); return q ? Date.now() - aisAge(q) * 1000 : null; },
+    redraw: () => S.h?.quick?.(), redrawMs: 500, lostMs: 300000, giveUpMs: 900000 };
+}
+/** a click on a ship (map or list): select it; on the selected one, focus and follow it (or stop following) */
+function clickShip(id, opts) {
+  if (id && id === S.sel && S.h?.map) toggleFollow(shipFollow(id));
+  else pick(id, opts);
 }
 
 // ------------------------------------------------------------------ selection (URL-backed)
@@ -104,7 +128,9 @@ function seaLayer(map, ctx) {
   S.ctx = ctx; startAIS(ctx); syncRoute(); loadVesselInfo();
   const P = "sea", ids = { halo: `${P}-halo`, ships: `${P}-ships`, lbl: `${P}-lbl` };
   let alive = true;
-  const geo = () => ({ type: "FeatureCollection", features: vessels(ctx).map((v) => ({ type: "Feature", geometry: { type: "Point", coordinates: v.pos },
+  // the followed ship is drawn exactly where the map is following it (shipAt), so marker and map move together
+  const posOf = (v) => (G.id === v.id && following(`ship:${v.id}`) ? shipAt(v.id) || v.pos : v.pos);
+  const geo = () => ({ type: "FeatureCollection", features: vessels(ctx).map((v) => ({ type: "Feature", geometry: { type: "Point", coordinates: posOf(v) },
     properties: { id: v.id, img: `shipc-${v.cls}`, rot: Math.round(v.rot), sz: classSize(v.cls, v.s.len || v.s.known?.[1]), fer: v.fer ? 1 : 0,
       op: (v.age > FADE_S ? 0.45 : 1) * (S.focus && !v.fer ? 0.22 : 1), name: titleCase(v.s.name) || `MMSI ${v.id}` } })) });
   const lblFilter = () => ["any", ["==", ["get", "id"], S.sel || ""], ["all", ["==", ["get", "fer"], 1], ["boolean", S.focus]]];
@@ -150,7 +176,7 @@ function seaLayer(map, ctx) {
     if (S.fly && S.sel) {
       const v = vessels(ctx).find((x) => x.id === S.sel);
       if (v) { S.fly = false; map.easeTo({ center: v.pos, zoom: Math.max(map.getZoom(), 11.5), duration: 900 }); }
-    } else followTick();
+    }
   }
   // every ship's reported positions, for the wake of whichever is selected next
   const note = () => { for (const s of aisShips()) if (s.lat != null && s.lon != null) remember(`ship:${s.mmsi}`, s.lon, s.lat, Date.now() / 1000 - aisAge(s)); };
@@ -164,7 +190,10 @@ function seaLayer(map, ctx) {
     const b = f.reduce((bb, v) => bb.extend(v.pos), new maplibregl.LngLatBounds(f[0].pos, f[0].pos));
     map.fitBounds(b, { padding: 70, maxZoom: 11, duration: 700 });
   }
-  const onClick = (e) => { const id = e.features?.[0]?.properties?.id; if (id) pick(String(id)); };
+  const onClick = (e) => { const id = e.features?.[0]?.properties?.id; if (id) clickShip(String(id)); };
+  // Esc deselects (and so stops following), unless the user is typing
+  const onKey = (e) => { if (e.key === "Escape" && S.sel && !/input|textarea|select/i.test(e.target?.tagName || "")) pick(null); };
+  addEventListener("keydown", onKey);
   // the stage clears the cursor on each mousemove that misses its own layers (civic-stage.js): set it on every move here
   const onMove = () => { map.getCanvas().style.cursor = "pointer"; }, onLeave = () => { map.getCanvas().style.cursor = ""; };
   map.on("click", ids.ships, onClick); map.on("mousemove", ids.ships, onMove); map.on("mouseleave", ids.ships, onLeave);
@@ -172,9 +201,11 @@ function seaLayer(map, ctx) {
   if (map.getStyle()?.layers?.length) add(); else map.once("load", add);
   const off = onAIS(() => { note(); paint(); });
   const tick = setInterval(() => { if (!document.hidden) paint(); }, 5000);
-  S.h = { paint, fitFerries, map };
+  // while following: the ships (all reckoned to now) and the wake redrawn often, so the marker moves with the map
+  const quick = () => { if (!alive || !map.getSource(ids.ships)) return; map.getSource(ids.ships).setData(geo()); wake(); };
+  S.h = { paint, fitFerries, map, quick };
   return () => {
-    alive = false; off(); clearInterval(tick); ports.destroy(); trail.remove(); stopFollow("ship:");
+    alive = false; off(); clearInterval(tick); ports.destroy(); trail.remove(); stopFollow("ship:"); removeEventListener("keydown", onKey);
     map.off("click", ids.ships, onClick); map.off("mousemove", ids.ships, onMove); map.off("mouseleave", ids.ships, onLeave); map.off("style.load", add);
     for (const l of [ids.lbl, ids.ships]) if (map.getLayer(l)) map.removeLayer(l);
     removeRing(map, ids.halo);
@@ -211,8 +242,9 @@ export function shipCard(v, ctx) {
     el("div", { class: "air-card-h sea-card-h" },
       el("img", { src: classURI(v.cls, dark), alt: "", height: 26, style: { transform: `rotate(${Math.round(h ?? 0)}deg)` } }),
       el("b", {}, titleCase(s.name) || "Unnamed vessel"), el("span", {}, c.name),
-      S.h?.map ? followButton({ map: S.h.map, key: `ship:${v.id}`, name: titleCase(s.name) || `MMSI ${v.id}`, where: () => vessels(S.ctx || ctx).find((x) => x.id === v.id)?.pos || null }) : null,
-      el("button", { type: "button", class: "sea-x", title: "Clear the selection", "aria-label": "Clear the selection", onclick: () => pick(v.id) }, "×")),
+      S.h?.map ? followButton(shipFollow(v.id)) : null,
+      el("button", { type: "button", class: "sea-x", title: "Clear the selection (Esc)", "aria-label": "Clear the selection", onclick: () => pick(null) }, "×")),
+    S.h?.map ? followHint(`ship:${v.id}`) : null,
     vesselFigure(s, { drawing: vesselProfileURI(c.id, { dark }), label: c.name }),   // that very vessel, or the class drawing
     el("p", { class: "sea-about" }, c.about),
     el("dl", {},
@@ -251,7 +283,7 @@ function seaPanel(ctx) {
     el("li", { title: `${c.name}: ${c.about}`, class: c.name.length > 24 ? "wide" : null }, el("img", { src: classURI(c.id, dark), alt: "" }), el("span", {}, c.name), el("b", {}, `${by.get(c.id)}`))));
   const list = el("ol", { class: "air-list sea-list" }, ...(S.focus ? near.filter((v) => v.fer) : near).slice(0, 7).map((v) => {
     const d = km(v.pos, ctx.place.ll);
-    return el("li", { class: v.id === S.sel ? "on" : "" }, el("button", { type: "button", title: "Show on the map", onclick: () => pick(v.id, { fly: true }) },
+    return el("li", { class: v.id === S.sel ? "on" : "" }, el("button", { type: "button", title: v.id === S.sel ? "Click again to follow" : "Show on the map", onclick: () => clickShip(v.id, { fly: true }) },
       el("i", { style: { background: CLASS[v.cls].color } }),
       el("span", { class: "air-n" }, el("b", {}, titleCase(v.s.name) || `MMSI ${v.id}`), el("small", {}, CLASS[v.cls].name)),
       el("span", { class: "air-a" }, el("b", {}, v.s.sog >= 0.5 ? `${v.s.sog.toFixed(1)} kn` : "stopped"), el("small", {}, `${d < 10 ? d.toFixed(1) : Math.round(d)} km`))));

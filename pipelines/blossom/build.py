@@ -77,6 +77,8 @@ def write_trees(trees: pd.DataFrame) -> None:
                  for lon, lat, g, ck, s, city, dbh, ht, addr, rf in zip(trees.lon, trees.lat, trees.group, trees.cultivar, trees.street,
                                                                         trees.city, trees.dbh_cm, trees.height_m, trees.address, refs)]
     photos = json.loads(PHOTOS.read_text(encoding="utf-8")) if PHOTOS.exists() else {}
+    from pipelines.common.tree_photos import tree_overrides      # whole-tree example photos (shown first; close-ups second)
+    trees_ph = tree_overrides("btree", photos)
     catalogue = {}
     for k, (name, grp, tier, colour, form, habit, note, _) in CULTIVARS.items():
         d = trees[trees.cultivar == k]
@@ -88,7 +90,8 @@ def write_trees(trees: pd.DataFrame) -> None:
                 sub = dc[dc.street == st]
                 best[city] = {"street": st, "n": n, "lon": round(float(sub.lon.median()), 5), "lat": round(float(sub.lat.median()), 5)}
         catalogue[k] = {"name": name, "group": grp, "tier": tier, "colour": colour, "form": form, "habit": habit, "note": note,
-                        "counts": d.city.value_counts().to_dict(), "best_street": best, "photo": photos.get(k)}
+                        "counts": d.city.value_counts().to_dict(), "best_street": best, "photo": photos.get(k),
+                        **({"tree": trees_ph[k]} if k in trees_ph else {})}
     best_streets = []
     for (city, street), d in trees[trees.street.fillna("") != ""].groupby(["city", "street"]):
         if len(d) < 12:

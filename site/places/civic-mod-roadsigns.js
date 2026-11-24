@@ -46,6 +46,17 @@ export function evTone(e, live = true) {
   return s === "MAJOR" ? "major" : s === "MODERATE" ? "moderate" : "minor";
 }
 export const signId = (e, live = true) => `${evKind(e)}-${evTone(e, live)}`;
+const COLOUR = { minor: "yellow", moderate: "orange", major: "red" };
+/** what the sign's colour means, for the popup: "Major construction (red sign)", "Minor construction (orange sign)",
+ *  "Scheduled, not in effect now (grey sign)", "Road closed (red sign)" */
+export function signNote(e, live = true) {
+  const kind = evKind(e), tone = evTone(e, live);
+  if (tone === "off") return "Scheduled, not in effect now (grey sign)";
+  if (kind === "closure") return "Road closed (red sign)";
+  if (kind === "works") return tone === "major" ? "Major construction (red sign)" : `${tone === "moderate" ? "Moderate" : "Minor"} construction (orange sign)`;
+  const what = { incident: "incident", conditions: "road conditions", event: "event" }[kind] || "event";
+  return `${tone === "major" ? "Major" : tone === "moderate" ? "Moderate" : "Minor"} ${what} (${COLOUR[tone] || "yellow"} sign)`;
+}
 
 // ------------------------------------------------------------------ the drawings (24 x 24, SVG path data)
 const C10 = "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0Z";

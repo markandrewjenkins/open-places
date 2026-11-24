@@ -5,6 +5,12 @@
 .pl-strip > div span { position: relative; display: block; min-width: 0; }
 .pl-strip img { height: 92px; }
 .pl-strip > div b { position: absolute; left: 4px; bottom: 4px; padding: 1px 5px; border-radius: 4px; font: 600 10px/1.4 var(--fig); color: #fff; background: rgba(0, 0, 0, .55); }
+.pl-set img.pl-main { height: 170px; max-height: none; }
+.pl-parts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin-top: 4px; }
+.pl-parts span { position: relative; display: block; min-width: 0; }
+.pl-parts img { height: 54px; max-height: none; }
+.pl-parts b { position: absolute; left: 3px; bottom: 3px; padding: 0 4px; border-radius: 3px; font: 600 9.5px/1.45 var(--fig); color: #fff; background: rgba(0, 0, 0, .55); }
+.pl-th.sm { width: 18px; height: 18px; border-radius: 50%; }
 .pl-th { width: 26px; height: 26px; border-radius: 5px; object-fit: cover; display: block; background: var(--grid); box-shadow: 0 0 0 1px var(--border); }
 .pl-th0 { background: none; box-shadow: none; }
 /* legend rows with a thumbnail */

@@ -14,7 +14,7 @@ import { icon } from "./civic-icons.js";
 import { float } from "./civic-float.js";
 import { boatsLayer, whaleBoats, boatsState, boatLine, FLEET } from "./civic-whaleboats.js";
 import { whaleCanvas, whaleImage } from "./civic-whale-icons.js";
-import { photo, photoFig, thumb, planPanel, planAttach, planMode, planTop, PICK } from "./civic-plan.js";
+import { photo, photoSet, thumb, planPanel, planAttach, planMode, planTop, PICK } from "./civic-plan.js";
 import "./civic-stage-nature.css";
 
 // ================================================================== shared bits
@@ -275,7 +275,7 @@ function blossomPlan(ctx) {
 function groupPhotos(b, cv) {
   const cs = b.region.tree_cities || [], out = {};
   for (const [, c] of Object.entries(cv).sort((x, y) => d3.sum(cs, (k) => y[1].counts?.[k] || 0) - d3.sum(cs, (k) => x[1].counts?.[k] || 0)))
-    if (c.photo && !out[c.group]) out[c.group] = { ph: photo(c.photo), name: c.name };
+    if ((c.tree || c.photo) && !out[c.group]) out[c.group] = { ph: photo(c.tree || c.photo), name: c.name };
   return out;
 }
 
@@ -354,7 +354,7 @@ const blossomStage = {
           c.colour ? `${c.colour}${c.form ? `, ${c.form.toLowerCase()}` : ""}${c.habit && !/^varies$/i.test(c.habit) ? `; ${c.habit.toLowerCase()}` : ""}.` : null,
           c.tier ? el("p", { class: "civ-popb" }, el("b", { style: `color: var(--bt-${c.tier})` }, `${c.tier} tier`), `: ${b.m.tiers?.[c.tier] || ""}.`) : null,
           meta(`${where}${src.name && !CROWD.includes(p.city) ? ` · ${src.name}` : ""}${p.dbh >= 5 ? ` · ${Math.round(p.dbh)} cm trunk` : ""}${p.ht ? ` · ${p.ht} m tall` : ""}`),
-          photoFig(photo(c.photo), `${c.name || p.c} in bloom`), srcLine], href, link);
+          photoSet(photo(c.tree), [{ ph: photo(c.photo), label: "Blossom" }], `${c.name || p.c} in bloom`), srcLine], href, link);
     },
   }); const offPlan = planAttach("blossom", map); return () => { offPlan(); off(); }; },
   panels: (ctx) => {
@@ -548,7 +548,7 @@ const foliageStage = {
             [el("p", { class: "civ-popb" }, el("i", { class: "nt-dot", style: `background:${fColour(f, p.sp)}` }), el("b", {}, now), ` on ${fDate(fDate0(f.d, f.y))} (${Math.round(Math.max(0, t - b) * 100)}% in colour, ${Math.round(b * 100)}% bare; modelled).`),
               `Peak colour around ${fDate(fDate0(f.peakOf(p.sp), f.y))}. ${sp.note || ""}`,
               meta(`${cap(sp.key)}${p.cn && p.cn.toLowerCase() !== sp.common.toLowerCase() ? ` · listed as ${p.cn}` : ""}${p.dbh ? ` · ${p.dbh} cm trunk` : ""}`),
-              meta(where), photoFig(photo(sp.photo), `${sp.common} in fall colour`), srcLine], href, link);
+              meta(where), photoSet(photo(sp.tree), [{ ph: photo(sp.photo), label: "Leaves" }], `${sp.common} in fall colour`), srcLine], href, link);
         }
         const h = (hist.get(p.id) || []).slice().sort((a, b) => b[1] - a[1]);
         const top = h.slice(0, 3).map(([sp, n]) => `${n} ${f.F.species[sp].common.toLowerCase()} (${STAGE[f.stage(sp)].toLowerCase()})`).join(", ");
@@ -574,7 +574,7 @@ const foliageStage = {
       sub("Tiers"),
       tierBar("foliage", f.F.tiers, (t) => d3.sum(Object.entries(f.c.species_counts), ([sp, n]) => (f.F.species[+sp]?.tier === t ? n : 0))),
       sub("Main Trees"),
-      rows(top.map(([sp, n], i) => [i + 1, f.F.species[sp].common, `${STAGE[f.stage(sp)]} · peak ${fDate(fDate0(f.peakOf(sp), f.y))}`, null, `${f0(n)} trees`, thumb(photo(f.F.species[sp].photo), `${f.F.species[sp].common} in fall colour`)])),
+      rows(top.map(([sp, n], i) => [i + 1, f.F.species[sp].common, `${STAGE[f.stage(sp)]} · peak ${fDate(fDate0(f.peakOf(sp), f.y))}`, null, `${f0(n)} trees`, thumb(photo(f.F.species[sp].tree || f.F.species[sp].photo), `${f.F.species[sp].common} in fall colour`)])),
       cred(`Trees: ${f.c.credit}${f.k === "victoria" ? "; crowd-sourced trees (OpenStreetMap, iNaturalist) are outlined" : ""}.${NO_TREES[f.k] ? ` ${NO_TREES[f.k]}` : ""} Weather: ECCC (OGL-Canada). Satellite: MODIS (NASA). Model: Open Places, run ${f.F.generated.slice(0, 10)}. Thumbnails: example photos (iNaturalist, Wikimedia Commons; author and licence on hover).`),
       foot(`${f0(f.c.n_trees)} mapped trees · ${f.y} season`)) },
       { id: "nt-fplan", title: "Plan a Route", place: "right", el: planPanel("foliage", foliagePlan(ctx)) },

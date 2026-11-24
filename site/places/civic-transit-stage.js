@@ -11,14 +11,14 @@
 import "../src/blink/transit.css";
 import "./civic-transit-stage.css";
 import { el } from "../src/shared/ui.js";
-import { T, loadCore, loadAllStops, startVehicles, setPoint, routes, allVehicles, agencies, meta, loadAlerts, alertActive, badge, clockOf } from "../src/blink/tcommon.js";
+import { T, loadCore, loadAllStops, startVehicles, setPoint, routes, allVehicles, agencies, meta, loadAlerts, alertActive, badge, clockOf, histOf } from "../src/blink/tcommon.js";
 import { addTransitLayers, rKey, vKey, placeOf, headOf, speedOf, vivid } from "../src/blink/tlayers.js";
 import { vehicleCard, vehicleTitle } from "../src/blink/tcards.js";
 import { speedCard } from "../src/blink/speed.js";
 import { departuresList } from "../src/blink/tnext.js";
-import { followButton, followTick, stopFollow, addRing, setRing, removeRing } from "./civic-follow.js";   // the white ring + Follow on a picked bus
+import { followButton, followHint, following, toggleFollow, stopFollow, glider, addRing, setRing, removeRing } from "./civic-follow.js";   // the white ring + Focus & follow
 
-const S = { core: null, L: null, mode: "", drawer: null, deps: null, r95: null, ag: null, pk: "", title: "", open: false, item: null, speed: null, map: null };
+const S = { core: null, L: null, mode: "", drawer: null, deps: null, r95: null, ag: null, pk: "", title: "", open: false, item: null, speed: null, map: null, clickKey: null, clickAt: 0, glide: null, gKey: null };
 const isDark = () => (document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches);
 
 /** first use: point the shared transit state at this place, load the network, start the vehicle poll */
@@ -40,7 +40,7 @@ export const R95_BOX = [[-123.512, 48.417], [-123.363, 48.466]];
 // board and an open card are moved into the new frame, not rebuilt.
 function setDrawer(title, body) {
   S.title = title; S.open = !!body;
-  if (S.drawer) S.drawer.replaceChildren(...(body ? [body, el("div", { class: "civ-fp-foot" }, el("span", {}, "Click it again on the map to deselect"), el("button", { type: "button", class: "civ-open civ-x", onclick: () => pick(null) }, "Close ×"))] : []));
+  if (S.drawer) S.drawer.replaceChildren(...(body ? [body, el("div", { class: "civ-fp-foot" }, el("span", {}, S.item?.startsWith("v:") ? "Click it again to follow · Esc clears" : "Click it again on the map to deselect"), el("button", { type: "button", class: "civ-open civ-x", onclick: () => pick(null) }, "Close ×"))] : []));
   frame();
 }
 function frame() {
@@ -59,7 +59,42 @@ function ring() {
   if (!m.getLayer(RING)) addRing(m, { id: RING, source: "tr-veh", filter: ringFilter(), beforeId: "tr-veh", radius: ["interpolate", ["linear"], ["zoom"], 10, 11, 13, 15, 16, 21] });
   else setRing(m, RING, ringFilter());
 }
-const busAt = (item) => { const v = allVehicles().find((x) => vKey(x) === item); return v && v.lat != null ? [v.lon, v.lat] : null; };
+// ------------------------------------------------------------------ Focus & follow a bus (civic-follow.js)
+// Buses report every ~20 s and tlayers draws each at its last report, so the followed bus is glided between reports:
+// dead-reckoned from its report by its reported speed and bearing (else the speed and direction between its last two
+// reports, tcommon.js histOf), blended into each new report, and drawn there (tlayers' `at` hook) as the map follows.
+const R = Math.PI / 180;
+function motionOf(v) {
+  const rep = speedOf(v)?.kmh, brg = v.bearing != null && v.bearing !== "" && !Number.isNaN(+v.bearing) ? +v.bearing : null;
+  const h = histOf(v), a = h[h.length - 2], b = h[h.length - 1];
+  let kmh = null, deg = null;
+  if (a && b && b.ts > a.ts && b.ts - a.ts <= 120) {
+    const kx = 111.32 * Math.cos(b.lat * R), dx = (b.lon - a.lon) * kx, dy = (b.lat - a.lat) * 110.57, km = Math.hypot(dx, dy);
+    kmh = (km / (b.ts - a.ts)) * 3600; deg = km > 0.005 ? (Math.atan2(dx, dy) / R + 360) % 360 : null;
+  }
+  return { kmh: rep ?? kmh, deg: brg ?? deg };
+}
+const busOf = (item) => allVehicles().find((x) => vKey(x) === item && x.lat != null) || null;
+function busAt(item) {
+  const v = busOf(item); if (!v) return null;
+  if (S.gKey !== item || !S.glide) { S.glide = glider({ maxS: 25, blendMs: 1800 }); S.gKey = item; }
+  const m = motionOf(v);
+  S.glide.fix({ lon: v.lon, lat: v.lat, t: (v.ts ? v.ts * 1000 : Date.now()), kmh: m.kmh != null && m.kmh < 120 ? m.kmh : null, deg: m.deg });
+  return S.glide.at();
+}
+function busFollow(item) {
+  const t = vehicleTitle(item);
+  return { map: S.map, key: `bus:${item}`, name: t?.title || "the bus", minZoom: 14, where: () => busAt(item),
+    seen: () => { const v = busOf(item); return v?.ts ? v.ts * 1000 : null; }, redraw: () => S.L?.moved(), redrawMs: 300, lostMs: 120000, giveUpMs: 600000 };
+}
+/** tlayers' onPick: a second click on the picked bus focuses and follows it (or stops); while following, clicks on
+ *  route lines are ignored (only a vehicle click, ×, Esc, Stop or a drag changes things) */
+function mapPick(item) {
+  const hit = S.clickKey && Date.now() - S.clickAt < 600 ? S.clickKey : null;
+  if (S.item?.startsWith("v:") && hit === S.item) { toggleFollow(busFollow(S.item)); return; }
+  if (following("bus:") && !hit) return;
+  pick(item);
+}
 function pick(item) {
   if (S.item && S.item !== item) stopFollow(`bus:${S.item}`);
   S.item = item; S.speed = null;
@@ -71,8 +106,8 @@ function pick(item) {
   if (item.startsWith("v:")) {
     const t = vehicleTitle(item);
     setDrawer(t?.title || "Vehicle", el("div", { class: "civ-trveh" },
-      S.map ? el("div", { class: "civ-trfollow" }, followButton({ map: S.map, key: `bus:${item}`, name: t?.title || "the bus", where: () => busAt(item) })) : null,
-      vehicleCard(item, { links: false })));
+      S.map ? el("div", { class: "civ-trfollow" }, followHint(`bus:${item}`), followButton(busFollow(item))) : null,
+      vehicleCard(item, { links: false, follow: true })));
   }
   else { const r = routes().find((x) => rKey(x) === item); setDrawer(r ? `Route ${r.name}${r.l && r.l !== r.name ? ` · ${r.l}` : ""}` : "Route", el("p", { class: "note" }, "This route is drawn bright on the map; its buses are the ones still in full colour.")); }
 }
@@ -90,11 +125,20 @@ export function transitLayer(mode) {
   return (map, ctx) => {
     prime(ctx);
     S.mode = mode;
-    const L = addTransitLayers(map, { onPick: (item) => pick(item), dark: isDark, follow: true });
+    // which vehicle a click is on (registered before tlayers' own handlers, so it runs first): mapPick tells a second
+    // click on the picked bus from a click on its route line
+    const onClickRec = (e) => { const f = map.getLayer("tr-veh") ? map.queryRenderedFeatures(e.point, { layers: ["tr-veh"] })[0] : null; S.clickKey = f?.properties?.key || null; S.clickAt = Date.now(); };
+    map.on("click", onClickRec);
+    // the followed bus is drawn where it is gliding to (busAt); tlayers' own edge-pan rests while we follow
+    const L = addTransitLayers(map, { onPick: mapPick, dark: isDark, follow: () => !following("bus:"),
+      at: (v, key) => (S.gKey === key && following(`bus:${key}`) && S.glide ? S.glide.at() : null) });
     S.L = L; S.map = map;
-    // the ring follows the fleet's layers (re-added after a style change) and each refresh; a followed bus is recentred
-    const onLive = () => { ring(); followTick(); }, onStyle = () => setTimeout(ring, 0);
+    // the ring follows the fleet's layers (re-added after a style change) and each refresh
+    const onLive = () => ring(), onStyle = () => setTimeout(ring, 0);
     addEventListener("transit-live", onLive); map.on("style.load", onStyle); map.on("idle", ring);
+    // Esc deselects (and so stops following), unless the user is typing
+    const onKey = (e) => { if (e.key === "Escape" && S.item && !/input|textarea|select/i.test(e.target?.tagName || "")) pick(null); };
+    addEventListener("keydown", onKey);
     const onHash = () => { const s = speedFromHash(); if (s && s !== S.speed) speed(s); };
     S.core?.then(() => {
       if (S.L !== L) return;
@@ -108,6 +152,7 @@ export function transitLayer(mode) {
     addEventListener("hashchange", onHash);
     return () => {
       removeEventListener("hashchange", onHash); removeEventListener("transit-live", onLive); map.off("style.load", onStyle); map.off("idle", ring);
+      map.off("click", onClickRec); removeEventListener("keydown", onKey);
       stopFollow("bus:"); removeRing(map, RING);
       try { L.destroy(); } catch { /* gone with the style */ } if (S.L === L) { S.L = null; S.map = null; }
     };

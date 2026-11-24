@@ -10,7 +10,7 @@ import { el } from "../src/shared/ui.js";
 import { file, get, MONTHS } from "./civic-data.js";
 import { color, circleFeature } from "./civic-stage.js";
 import { mount, whenFile, live, NT } from "./civic-stage-nature.js";
-import { photo, photoStrip, thumb, planPanel, planAttach } from "./civic-plan.js";
+import { photo, photoSet, thumb, planPanel, planAttach } from "./civic-plan.js";
 import "./civic-stage-wild.css";
 
 const { fc, pt, f0, ago, card, meta, tag, lead, sub, rows, cred, foot, body, wait, surf, ink, focus, floated, treeKind, treeSource } = NT;
@@ -43,10 +43,14 @@ const oaksModel = (ctx) => file("oaks/oaks.json", ctx).data;
 // example photos (oaks/photos.json, from pipelines/common/tree_photos.py): each phase row's thumbnail, and the card's strip
 const OPH = (ctx) => file("oaks/photos.json", ctx || {}).data?.photos || {};
 const PH_OF = { "Leaf-out": "oak-leaves", Acorns: "oak-acorns", "Leaf-fall": "oak-fall", Flowers: "arb-flowers", "Bark peels": "arb-bark", "Red berries": "arb-berries" };
+// the whole tree: an open-grown Garry oak in leaf (mid-April to mid-November) or bare (the rest), and a mature arbutus
+const bareNow = (m) => m >= 10.5 || m < 3.4;
+const treePhoto = (sp, m, ctx) => { const P = OPH(ctx || OK.ctx); return photo(sp === "oak" ? (bareNow(m) && P["oak-tree-bare"]) || P["oak-tree"] : P["arb-tree"]); };
 function cardPhotos(sp, m) {
   const P = OPH(OK.ctx), get = (k, label) => ({ ph: photo(P[k]), label });
-  return sp === "oak" ? photoStrip([m >= 9.5 && m < 11.5 ? get("oak-fall", "Fall leaves") : get("oak-leaves", "Leaves"), get("oak-bark", "Bark"), get("oak-acorns", "Acorns")])
-    : photoStrip([get("arb-leaves", "Leaves"), get("arb-bark", "Bark"), m >= 2.5 && m < 5.5 ? get("arb-flowers", "Flowers") : get("arb-berries", "Berries")]);
+  const parts = sp === "oak" ? [m >= 9.5 && m < 11.5 ? get("oak-fall", "Fall leaves") : get("oak-leaves", "Leaves"), get("oak-bark", "Bark"), get("oak-acorns", "Acorns")]
+    : [get("arb-leaves", "Leaves"), get("arb-bark", "Bark"), m >= 2.5 && m < 5.5 ? get("arb-flowers", "Flowers") : get("arb-berries", "Berries")];
+  return photoSet(treePhoto(sp, m), parts, sp === "oak" ? `a mature Garry oak${bareNow(m) ? " in winter" : ""}` : "a mature arbutus");
 }
 const wkMonth = (w) => { const d = new Date(2026, 0, 1 + (w - 1) * 7 + 3); return monthNow(d); };
 const camasPhase = (d) => d?.camas?.n ? ["Camas in flower", [[wkMonth(d.camas.p10), wkMonth(d.camas.p90) + 0.25]], "camas in flower", "camas in flower in the meadows", "Camas"] : null;
@@ -75,7 +79,7 @@ function oaksLeft(d, ctx) {
     el("div", { class: "nt-seg", role: "group", "aria-label": "Show trees" },
       el("button", { type: "button", "aria-pressed": String(OK.sp === "all"), onclick: () => setSp("all") }, "All"),
       ...Object.entries(SPC).map(([sp, [label, c]]) => el("button", { type: "button", "aria-pressed": String(OK.sp === sp), style: `--tc:${c}`, title: OK.sp === sp ? "Click again for both" : `Only ${label.toLowerCase()}s`, onclick: () => setSp(sp) },
-        ICONS[sp] ? el("img", { class: "ow-ic", src: ICONS[sp], alt: "" }) : el("i", { style: `background:${c}` }), label, el("b", {}, f0(n(sp))))),
+        ICONS[sp] ? el("img", { class: "ow-ic", src: ICONS[sp], alt: "" }) : el("i", { style: `background:${c}` }), treePhoto(sp, m, ctx) ? thumb(treePhoto(sp, m, ctx), sp === "oak" ? "a Garry oak" : "an arbutus", "sm") : null, label, el("b", {}, f0(n(sp))))),
       el("button", { type: "button", "aria-pressed": String(OK.meadows), style: "--tc: var(--ow-mead)", title: "Garry oak meadow and woodland habitat (BC Sensitive Ecosystems Inventory)",
         onclick: () => { OK.meadows = !OK.meadows; live.oaks?.redraw(); paintOaks(); } }, el("i", { style: "background: var(--ow-mead); border-radius: 2px" }), "Oak Meadows")),
     sub("Garry Oak"), ...PHASES.oak.map((p) => row("oak", p, "var(--ow-oak)")),

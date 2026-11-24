@@ -1,0 +1,20 @@
+/* Open Places: the weather pages' background effect and the Forecast page's rain line (civic-wxfx.js) */
+.wxfx { position: absolute; left: 0; top: 0; pointer-events: none; }
+
+.rx { --rx: var(--ink-3, var(--muted)); }
+.rx[data-state="now"] { --rx: var(--accent-2, var(--accent)); }
+.rx[data-state="soon"] { --rx: var(--warn); }
+.rx[data-state="dry"] { --rx: var(--live, var(--good)); }
+.civ-fpanel:has(> .rx[data-state="now"]), .civ-fpanel:has(> .rx[data-state="soon"]) { border-color: color-mix(in oklab, var(--rx) 55%, var(--border)); box-shadow: inset 3px 0 0 var(--rx); }
+.civ-fpanel:has(> .rx[data-state="now"]) { --rx: var(--accent-2, var(--accent)); }
+.civ-fpanel:has(> .rx[data-state="soon"]) { --rx: var(--warn); }
+.rx-line { display: flex; align-items: center; gap: 8px; margin: 2px 0 2px; font-size: 1.12rem; font-weight: 650; line-height: 1.25; color: var(--ink); }
+.rx-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--rx); box-shadow: 0 0 0 3px color-mix(in oklab, var(--rx) 22%, transparent); }
+.rx-sub { margin: 0 0 8px 17px; font-size: 0.8rem; color: var(--muted); }
+.rx-bars { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; height: 46px; margin: 0 0 4px; }
+.rx-b { position: relative; display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; padding-bottom: 14px;
+  background: color-mix(in oklab, var(--ink) 5%, transparent); border-radius: 3px; }
+.rx-b i { display: block; width: 100%; border-radius: 3px 3px 0 0; background: color-mix(in oklab, var(--accent-2, var(--accent)) 55%, var(--muted)); }
+.rx-b[data-wet="true"] i { background: var(--accent-2, var(--accent)); }
+.rx-b[data-snow="true"] i { background: color-mix(in oklab, var(--ink) 60%, var(--accent-2, var(--accent))); }
+.rx-b small { position: absolute; left: 0; bottom: 0; font-size: 0.66rem; color: var(--muted); white-space: nowrap; }

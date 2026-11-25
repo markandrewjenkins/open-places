@@ -14,9 +14,10 @@
 // Harbours and port terminals (civic-poi.js PORTS) are markers too: a click opens the port's card (what it is, who runs
 // it, ships at or near it, ships bound for it by AIS destination) in the same panel (#getting-around/waterways/port-<id>).
 //
-// The ship card leads with a photo of that exact vessel when Wikidata has an openly licensed one (credited;
-// src/ships/vesselinfo.js), else the class's drawn side profile (src/ships/profiles.js), a one-line plain explanation
-// of the class, and its operator / owner when known.
+// The ship card leads with a photo of that exact vessel when Wikidata or Wikimedia Commons has an openly licensed one
+// (credited; looked up only when the card opens, src/ships/vesselinfo.js), else an example photo of its class (marked
+// "Example"), else the class's drawn side profile (src/ships/profiles.js); then a one-line plain explanation of the
+// class, and its operator / owner when known.
 //
 // The selected ship gets a white ring; a double-click (or the card's "Focus & follow") flies to it and tracks it
 // (civic-follow.js: the map glides with its dead-reckoned position until the user drags the map, right-clicks or
@@ -293,7 +294,7 @@ export function shipCard(v, ctx) {
       S.h?.map ? followButton(shipFollow(v.id)) : null,
       el("button", { type: "button", class: "sea-x", title: "Clear the selection (Esc)", "aria-label": "Clear the selection", onclick: () => pick(null) }, "×")),
     S.h?.map ? followHint(`ship:${v.id}`) : null,
-    vesselFigure(s, { drawing: vesselProfileURI(c.id, { dark }), label: c.name }),   // that very vessel, or the class drawing
+    vesselFigure(s, { drawing: vesselProfileURI(c.id, { dark }), label: c.name, cls: c.id }),   // that very vessel, else an example of its class, else the drawing
     el("p", { class: "sea-about" }, c.about),
     el("dl", {},
       ...row("Type", s.type ? `${type} (AIS ${s.type})` : `${c.name} (${type})`),
@@ -308,7 +309,7 @@ export function shipCard(v, ctx) {
       ...row("Where", `${d < 10 ? d.toFixed(1) : Math.round(d)} km ${compass(bearing(ctx.place.ll, v.pos))} of ${ctx.place.short}`),
       ...row("Last report", `${ago(v.age)}${v.moving && v.age > 20 ? ` (moved on since by its speed and ${v.s.cog != null ? "course" : v.s.hdg != null ? "heading" : "track"}: an estimate${v.age > v.m.capS ? `, held after ${Math.round(v.m.capS)} s` : ""})` : ""}`)),
     f && v.fer ? el("p", { class: "sea-links" }, el("a", { href: `${o.hash}/${encodeURIComponent(v.id)}` }, `In ${o.name} →`)) : null,
-    el("p", { class: "air-note" }, `AIS from aisstream.io via the relay; not for navigation. MMSI ${s.mmsi}; flag from its MMSI${dest?.known ? "; port names from UN/LOCODE (UNECE)" : ""}; operator from Wikidata (CC0) or the fleet's public name.`));
+    el("p", { class: "air-note" }, `AIS from aisstream.io via the relay; not for navigation. MMSI ${s.mmsi}; flag from its MMSI${dest?.known ? "; port names from UN/LOCODE (UNECE)" : ""}; operator from Wikidata (CC0) or the fleet's public name; photo from Wikimedia Commons as credited.`));
 }
 
 // ------------------------------------------------------------------ the left panel

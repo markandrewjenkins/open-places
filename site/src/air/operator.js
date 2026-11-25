@@ -7,6 +7,7 @@
 //   loadAirlines() → Promise
 //   operatorOf(a) → { text, sub } | null   sync; airline names appear once the file has loaded
 //   operatorEl(a) → <span>                 fills itself in when the airline names arrive
+//   airlineOf(a) → Promise<{ code, name } | null>   the airline behind an airline callsign (photo.js: its livery)
 //   regCountry(hex) → "Canada" | ""        the state an ICAO 24-bit address is allocated to
 import { el } from "../shared/ui.js";
 
@@ -35,6 +36,13 @@ const BLOCKS = [
   [0x899000, 0x8993ff, "Taiwan"], [0x8a0000, 0x8affff, "Indonesia"], [0xa00000, 0xafffff, "United States"], [0xc00000, 0xc3ffff, "Canada"],
   [0xc80000, 0xc87fff, "New Zealand"], [0xe00000, 0xe3ffff, "Argentina"], [0xe40000, 0xe7ffff, "Brazil"], [0xe80000, 0xe80fff, "Chile"],
 ];
+/** the airline behind an airline callsign ("ACA810" → { code: "ACA", name: "Air Canada" }), once the names have loaded; else null */
+export async function airlineOf(a) {
+  const m = /^([A-Z]{3})\d/.exec(String(a?.flight || "").trim().toUpperCase());
+  if (!m || a.mil) return null;
+  const n = (await loadAirlines())?.[m[1]];
+  return n ? { code: m[1], name: n[0] } : null;
+}
 export function regCountry(hex) {
   const n = parseInt(String(hex || "").replace(/^~/, ""), 16);
   if (!Number.isFinite(n) || /^~/.test(hex || "")) return "";

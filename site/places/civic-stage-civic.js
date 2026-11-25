@@ -351,7 +351,7 @@ export const CIVIC_STAGES = {
       credit: isUS(ctx) ? "NWS active alerts (public domain), live" : "ECCC weather alerts via MSC GeoMet (Open Government Licence – Canada), live",
       legend: isUS(ctx) ? null : swatches("Map", [["var(--bad)", "warning"], ["var(--warn)", "watch / advisory"], ["var(--s3)", "statement"]]) })] },
 
-  weather: { layout: "map", pane: "none", layers: [{ id: "wx-radar", custom: radarLayer }, "warnings", "wxfx"], view: (ctx) => ({ center: ctx.place.ll, zoom: 7.4 }),
+  weather: { layout: "map", pane: "none", layers: [{ id: "wx-radar", custom: radarLayer }, "warnings"], view: (ctx) => ({ center: ctx.place.ll, zoom: 7.4 }),
     panels: (ctx) => [rainPanel(ctx), { id: "radar", title: "Rain Radar", place: "left", el: radarPanel(ctx) },
       modPanel(wx, ctx, { id: "wx", title: "Next Three Days", h: 230, credit: "Open-Meteo forecast (CC BY 4.0), live", lede: `Temperature (top, °C) and chance of precipitation (bottom), ${ctx.place.name}. Shaded: night.` })] },
   air: { layout: "map", pane: "none", layers: [AQ_PTS, AQ_LBL], view: (ctx) => ({ center: ctx.place.ll, zoom: 8.6 }),

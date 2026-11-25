@@ -18,8 +18,9 @@ import "../src/shared/basemap.js";   // dark basemap labels match the light styl
 import "maplibre-gl/dist/maplibre-gl.css";
 import { initTheme, initSkin, el, cssVar } from "../src/shared/ui.js";
 import { createConsole, rovingTabs } from "../src/shared/console.js";
-import { PLACES, LEVELS, LIT, byId, childrenOf, chainOf, anywhere, placeFromParam, TODAY, monthF, km, nearestLit, boundaryOf, hasBoundary, inGeom, tzOf } from "./civic-data.js";
-import { ALL, BASICS, SPECIALS, TOPICS, TOPIC_ALIAS, nodeFor, score, inSeason, collectAlerts } from "./civic-modules.js";
+import { PLACES, LEVELS, LIT, byId, childrenOf, chainOf, anywhere, placeFromParam, TODAY, monthF, km, nearestLit, boundaryOf, hasBoundary, inGeom, tzOf, weather } from "./civic-data.js";
+import { wxHint } from "./civic-wxfx.js";   // the rail's Weather icon follows the weather now
+import { ALL, BASICS, SPECIALS, TOPICS, TOPIC_ALIAS, nodeFor, score, inSeason, collectAlerts, busyLevel } from "./civic-modules.js";
 import { createGlobe } from "./civic-globe.js";
 import { createAlerts, rel, tagAlert, newLeft, isImportant, alertKey, alertWhen } from "./civic-alerts.js";
 import { createSound } from "./civic-sound.js";
@@ -121,6 +122,28 @@ const about = {
     comingLater())),
 };
 
+// the Weather icon in the rail follows the weather now (civic-wxfx.js wxHint); a quiet hint on every page
+let railWxIc = "";
+function railWx(c) {
+  const w = weather(c.place.ll, c).data, h = w && wxHint(w), box = document.querySelector('.cx-group[data-topic="weather"] .civ-rail-ic');
+  if (!h || !box || h.ic === railWxIc) return;
+  railWxIc = h.ic; box.replaceChildren(icon(h.ic, { size: 17 })); box.dataset.wx = h.ic;
+}
+
+/** the rail's badges: Weather (temperature, icon follows the weather), Getting Around (a five-tier rating), Right Now (n alerts) */
+function railBadge(t, c) {
+  const b = LEAF.get(t.badgeFrom).badge(c), pill = document.querySelector(`.cx-group[data-topic="${t.id}"] .cx-badge`);
+  if (t.id === "weather") railWx(c);
+  if (t.id === "getting-around") {
+    let L = null; try { L = busyLevel(c); } catch { /* data not ready */ }
+    if (pill) { if (L) pill.dataset.lvl = L.lv; else delete pill.dataset.lvl; }
+    if (L) return [L.label, L.tip];
+    return "";
+  }
+  if (t.id === "now" && /^\d+$/.test(String(b ?? ""))) return `${b} alert${+b === 1 ? "" : "s"}`;
+  return /^0 ?min$/.test(String(b ?? "")) ? "now" : b;
+}
+
 // ------------------------------------------------------------------ topics → console modules, leaves → sub-topics
 const LEAF = new Map(ALL.map((m) => [m.id, m]));
 const TOPIC_OF = new Map(TOPICS.flatMap((t) => t.leaves.map((l) => [l.id, t])));
@@ -186,7 +209,7 @@ const topicModules = TOPICS.map((t, i) => ({
   subs: [{ id: SUM, title: "Summary", html: () => summaryHtml(t), view: (host, c) => paintSummary(t, host, c), rows: "minmax(0, 1fr)" },
     ...t.leaves.map((l) => ({ id: l.id, title: l.tileTitle || l.title, html: () => leafHtml(l), rows: "minmax(0, 1fr)", view: (host, c, r) => renderLeaf(l, host, c, r) }))],
   kpis: (c) => (c.route?.sub === SUM ? summaryKpis(t, c) : LEAF.get(c.route?.sub)?.kpis(c) || []),
-  badge: t.badgeFrom ? (c) => { const b = LEAF.get(t.badgeFrom).badge(c); return /^0 ?min$/.test(String(b ?? "")) ? "now" : b; } : undefined,
+  badge: t.badgeFrom ? (c) => railBadge(t, c) : undefined,
   // the console calls tile() on every overview render (data, resize, route): the first topic paints every live tile
   tile: i === 0 ? (_, c) => paintTiles(c) : undefined,
 }));

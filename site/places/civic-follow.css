@@ -24,3 +24,8 @@
 .civ-follow-tip span { color: var(--muted, var(--ink-2)); font-weight: 450; font-size: 11.5px; }
 @keyframes civ-follow-beat { 50% { opacity: 0.45; } }
 @media (prefers-reduced-motion: reduce) { .civ-follow-pill i { animation: none; } }
+/* leaving / left the observation area: a short notice above the pill */
+.civ-follow-note { position: absolute; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 6; max-width: min(520px, calc(100% - 32px));
+  padding: 8px 14px; border-radius: 10px; font-size: 13px; line-height: 1.35; color: var(--ink, #111); background: var(--surface, #fff);
+  border: 1px solid #e0a030; box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.45); transition: opacity 0.5s; pointer-events: none; }
+.civ-follow-note.out { opacity: 0; }

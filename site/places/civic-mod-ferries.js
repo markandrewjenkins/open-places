@@ -422,7 +422,7 @@ export function ferryCard(x, op = "bc", o = {}) {
       o.follow ? followButton(o.follow) : null,
       o.onClose ? el("button", { type: "button", class: "fer-x", title: "Clear the selection (Esc)", "aria-label": "Clear the selection", onclick: o.onClose }, "×") : null),
     o.follow ? followHint(o.follow.key) : null,
-    vesselFigure(s, { drawing: vesselProfileURI(cls, { dark: !!o.dark }), label: cls === "ferry-s" ? "Small ferry" : "Large ferry" }),   // that very vessel, or the drawing
+    vesselFigure(s, { drawing: vesselProfileURI(cls, { dark: !!o.dark }), label: cls === "ferry-s" ? "Small ferry" : "Large ferry", cls }),   // that very vessel, else an example ferry, else the drawing
     el("dl", {}, ...rows.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, v)]), ...operatorRows(s)),
     el("a", { class: "fer-open", href: seaHref(s) }, "On the Sea Traffic map →"),
     el("p", { class: "fer-fine" }, `Worked out from AIS position, speed and course; ETA is distance over speed, not a ${op === "bc" ? "BC Ferries" : "WSF"} timetable. MMSI ${s.mmsi}. Photo and operator: Wikidata and Wikimedia Commons.`));

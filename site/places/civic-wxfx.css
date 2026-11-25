@@ -1,5 +1,4 @@
-/* Open Places: the weather pages' background effect and the Forecast page's rain line (civic-wxfx.js) */
-.wxfx { position: absolute; left: 0; top: 0; pointer-events: none; }
+/* Open Places: the weather pages' rail hint and the Forecast page's rain line (civic-wxfx.js) */
 
 .rx { --rx: var(--ink-3, var(--muted)); }
 .rx[data-state="now"] { --rx: var(--accent-2, var(--accent)); }

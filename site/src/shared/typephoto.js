@@ -6,7 +6,8 @@
 //   loadTypePhotos() → Promise           starts the one load (cards call it themselves)
 //   typeFigure({ set, key, drawing, label }) → <figure>
 //       set: "aircraft" | "vessels"; key: designator or class id; drawing: data URI of the fallback profile;
-//       label: what the drawing shows ("Turboprop airliner"). A figure made before the file arrives upgrades in place.
+//       label: what the drawing shows ("Turboprop airliner"). A figure made before the file arrives upgrades in place,
+//       unless a live photo (livephoto.js) has locked it; fig.base() restores the example or drawing.
 import { el } from "./ui.js";
 import "./typephoto.css";
 
@@ -27,7 +28,7 @@ function drawn(fig, drawing, label) {
 function photo(fig, p, drawing, label) {
   const img = el("img", { class: "tf-ph", src: p.thumb, alt: `Example of the type: ${p.title}`, loading: "lazy", decoding: "async", referrerpolicy: "no-referrer" });
   // Wikimedia's thumbnail servers now and then refuse one request: try once more, then keep the drawing for this file
-  img.onerror = () => { if (img.dataset.retried) { failed.add(p.thumb); drawn(fig, drawing, label); } else { img.dataset.retried = "1"; setTimeout(() => { img.src = `${p.thumb}#retry`; }, 2500); } };
+  img.onerror = () => { if (fig.dataset.lock) return; if (img.dataset.retried) { failed.add(p.thumb); drawn(fig, drawing, label); } else { img.dataset.retried = "1"; setTimeout(() => { img.src = `${p.thumb}#retry`; }, 2500); } };
   const lic = p.licence_url ? el("a", { href: p.licence_url, target: "_blank", rel: "noopener license" }, p.licence) : p.licence;
   fig.replaceChildren(img, el("figcaption", { title: `${p.title}. Example photo of the type, not this one. ${p.author}, ${p.licence}, via Wikimedia Commons.` },
     el("span", {}, `Example ${p.title} · `), lic, " · ", el("a", { href: p.page, target: "_blank", rel: "noopener" }, p.author && p.author !== "unknown author" ? p.author : "author on Wikimedia Commons")));   // the licence before the author, so a long name can't push it out of sight
@@ -35,10 +36,18 @@ function photo(fig, p, drawing, label) {
 }
 export function typeFigure({ set, key, drawing, label = "" }) {
   const fig = el("figure", { class: "type-fig" });
-  const show = () => { const p = key && photoFor(set, key); if (p?.thumb && !failed.has(p.thumb)) photo(fig, p, drawing, label); else if (drawing) drawn(fig, drawing, label); else fig.remove(); };
+  // a live photo of the very aircraft or vessel (livephoto.js showPhoto) locks the figure: the type example arriving
+  // later must not replace it; fig.base() puts the example (or drawing) back when that photo fails to load
+  const show = () => {
+    if (fig.dataset.lock) return;
+    const p = key && photoFor(set, key);
+    fig.hidden = !(p?.thumb && !failed.has(p.thumb)) && !drawing;
+    if (!fig.hidden) { if (drawing && (!p?.thumb || failed.has(p.thumb))) drawn(fig, drawing, label); else photo(fig, p, drawing, label); } else fig.replaceChildren();
+  };
+  fig.base = () => { delete fig.dataset.lock; if (DATA) show(); else if (drawing) drawn(fig, drawing, label); };
   if (DATA) show();
   else {
-    if (drawing) drawn(fig, drawing, label);
+    if (drawing) drawn(fig, drawing, label); else fig.hidden = true;
     waiting.add(show); loadTypePhotos();
   }
   return fig;

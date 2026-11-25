@@ -26,7 +26,11 @@
 //   followGestures(map, spec) → off()   the shared click / double-click / right-click / hover handling (see there)
 //   followTip(key) → "Double-click to follow" | "Right-click to stop"   (for a module that draws its own tooltip)
 //   opts: { map, key, name, where() → [lon, lat] | null, seen() → ms | null, minZoom, redraw(), redrawMs = 400,
-//           lostMs = 120000, giveUpMs = 600000 }   (lostMs / giveUpMs may be functions, asked each tick)
+//           lostMs = 120000, giveUpMs = 600000, area() }   (lostMs / giveUpMs may be functions, asked each tick)
+//   area() → { center: [lon, lat], km } | { box: [w, s, e, n] } | null: the observation area (Air Traffic: the feed's circle;
+//       ships and ferries: the relay's AIS box by default). Heading for its edge within about 90 s (or nearly on it), the
+//       pill says "Leaving the observation area in about 1 min" and a notice shows once; once outside, following stops
+//       with a notice (beyond the area there is nothing to follow, for now).
 //   glider() → { fix({ lon, lat, t, kmh, deg }), at(ms) → [lon, lat] }   dead reckoning with a short blend at each new
 //       report (for feeds whose positions don't move between reports, e.g. buses)
 //   addRing(map, { id, source, filter, beforeId, radius }) / setRing(map, id, filter) / removeRing(map, id)
@@ -34,7 +38,10 @@ import { el } from "../src/shared/ui.js";
 import "./civic-follow.css";
 
 const TICK_MS = 200;
-const F = { key: null, o: null, pill: null, timer: 0, hold: 0, lastLL: null, lostAt: 0, redrawAt: 0, off: [], btns: new Set(), hints: new Set() };
+// ships and ferries: the relay's AIS area (workers/bct-relay/src/ais.js AIS_AREAS.salish)
+const AIS_BOX = [-124.8, 46.95, -122.15, 49.45];
+const WARN_S = 90;
+const F = { key: null, o: null, pill: null, timer: 0, hold: 0, lastLL: null, lostAt: 0, redrawAt: 0, off: [], btns: new Set(), hints: new Set(), hist: [], warned: false, wasIn: false };
 
 export const following = (key) => !!F.key && (key == null || F.key === key);
 export function followTick() { /* the loop recentres continuously; kept so modules can still call it on a refresh */ }
@@ -61,8 +68,37 @@ export function stopFollow(key) {
   clearInterval(F.timer);
   for (const off of F.off) off();
   F.pill?.remove();
-  Object.assign(F, { key: null, o: null, pill: null, timer: 0, hold: 0, lastLL: null, lostAt: 0, off: [] });
+  Object.assign(F, { key: null, o: null, pill: null, timer: 0, hold: 0, lastLL: null, lostAt: 0, off: [], hist: [], warned: false, wasIn: false });
   syncButtons();
+}
+
+/** km from ll to the area's edge: positive inside, negative outside */
+function edgeKm(a, [lon, lat]) {
+  const kx = 111.32 * Math.cos((lat * Math.PI) / 180);
+  if (a.box) { const [w, s, e, n] = a.box; return Math.min((lat - s) * 110.57, (n - lat) * 110.57, (lon - w) * kx, (e - lon) * kx); }
+  const [cl, ca] = a.center, h = Math.sin(((lat - ca) * Math.PI) / 360) ** 2 + Math.cos((ca * Math.PI) / 180) * Math.cos((lat * Math.PI) / 180) * Math.sin(((lon - cl) * Math.PI) / 360) ** 2;
+  return a.km - 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+/** a short notice over the map (leaving soon / left the area); goes after a few seconds */
+function notice(map, text) {
+  const n = el("div", { class: "civ-follow-note", role: "status" }, text);
+  map.getContainer().append(n);
+  setTimeout(() => n.classList.add("out"), 6000); setTimeout(() => n.remove(), 6600);
+}
+/** the observation area check, each tick: → "warn" text | "out" | null */
+function areaCheck(o, ll, now) {
+  let a = null; try { a = o.area ? o.area() : /^(ship|ferry):/.test(o.key) ? { box: AIS_BOX } : null; } catch { a = null; }
+  if (!a) return null;
+  const d = edgeKm(a, ll);
+  if (d > 0) F.wasIn = true;
+  if (d <= 0) return F.wasIn ? "out" : null;
+  // closing speed on the edge from the last ~30 s of samples (one every 2 s)
+  if (!F.hist.length || now - F.hist[F.hist.length - 1].t >= 2000) { F.hist.push({ t: now, d }); while (F.hist.length > 16) F.hist.shift(); }
+  const h0 = F.hist[0], dt = (now - h0.t) / 1000, rate = dt >= 6 ? (h0.d - d) / dt : 0;   // km/s towards the edge
+  const eta = rate > 0 ? d / rate : Infinity;
+  if (eta > WARN_S && d > 0.3) return null;
+  const m = Math.max(1, Math.round(eta / 60));
+  return eta < 45 || !isFinite(eta) ? "Leaving the observation area in under a minute" : `Leaving the observation area in about ${m} min`;
 }
 
 function tick() {
@@ -76,7 +112,13 @@ function tick() {
   const seen = o.seen?.() || null, lost = !ok || (seen && now - seen > ms(o.lostMs, 120000));
   // the pill: following, or lost signal (then stop after a while)
   if (lost) { F.lostAt ||= now; const last = seen || F.lostAt; F.pill?.setLabel(`Lost signal · last seen ${agoTxt(now - last)}`, true); if (now - F.lostAt > ms(o.giveUpMs, 600000)) { stopFollow(); return; } }
-  else { F.lostAt = 0; F.pill?.setLabel(`Following ${o.name}`, false); }
+  else {
+    F.lostAt = 0;
+    const leave = ok ? areaCheck(o, ll, now) : null;
+    if (leave === "out") { notice(map, `${o.name} left the observation area, so following stopped.`); stopFollow(); return; }
+    if (leave && !F.warned) { F.warned = true; notice(map, `${o.name} is about to leave the observation area; following will stop there.`); }
+    F.pill?.setLabel(leave ? `${o.name} · ${leave}` : `Following ${o.name}`, !!leave);
+  }
   if (o.redraw && now - F.redrawAt >= (o.redrawMs ?? 400)) { F.redrawAt = now; try { o.redraw(); } catch { /* the module's layer went away */ } }
   if (!ok || now < F.hold) return;
   F.lastLL = ll;

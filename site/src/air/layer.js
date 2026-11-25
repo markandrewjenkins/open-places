@@ -29,7 +29,8 @@
 //         tick = 1000              ms between position updates (0: the caller calls update())
 //       The layer ids are `${prefix}-ac` (airborne/taxiing), `${prefix}-parked`, `${prefix}-sel`, `${prefix}-rare`,
 //       `${prefix}-hear`, `${prefix}-lbl`, `${prefix}-vt` (trails); feature property `id` is idOf(a).
-//   aircraftCard(a, { place, image = true }) → HTMLElement   one aircraft: map glyph and callsign, type photo or drawing (typeImage), operator (operator.js),
+//   aircraftCard(a, { place, image = true }) → HTMLElement   one aircraft: map glyph and callsign, photo (this airframe, else its type in its
+//                                    airline's livery, else its type: photo.js / typephoto.js) or drawing (typeImage), operator (operator.js),
 //                                    type, kind, height, speed, phase, distance
 //   overheadList(list, { limit = 8, selected, onPick, range }) → HTMLElement   compact "overhead now" list
 //   feedStrip(state) → HTMLElement   "LIVE · updated 8 s ago" / "DELAYED · …" / "FEED DOWN · …"
@@ -47,6 +48,7 @@ import { airCover, COVER_NOTE, COVER_SHORT, everyText } from "../shared/aircover
 import { typeFigure } from "../shared/typephoto.js";
 import { familyOf, FAMILIES, profileURI } from "./profiles.js";
 import { operatorEl } from "./operator.js";
+import { aircraftPhoto } from "./photo.js";
 
 export const idOf = (a) => a.hex || `p${a.lat},${a.lon}`;
 const PH = { climbing: "↑", descending: "↓", level: "→", ground: "·" };
@@ -285,13 +287,16 @@ export function feedStrip(s) {
 }
 /** the note for a place without live aircraft (the Air surfaces show it instead of a feed state) */
 export const coverNote = () => el("p", { class: "air-note air-cover" }, COVER_NOTE);
-/** an example photo of its type (Wikimedia Commons, credited), else a drawing of its type family; null when unknown */
+/** a photo of this very aircraft (Planespotters.net), else of its type in its airline's livery (Wikimedia Commons; both
+ *  looked up live for the open card only, photo.js), else an example photo of its type (build-time Commons table), else a
+ *  drawing of its type family; every photo credited. Hidden while there is nothing to show. */
 export function typeImage(a) {
   const fam = familyOf(a);
-  if (!fam && !a.type) return null;
   const root = document.documentElement.dataset.theme, dark = root ? root === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-  return typeFigure({ set: "aircraft", key: String(a.type || "").toUpperCase(), label: fam ? FAMILIES[fam] : "",
+  const fig = typeFigure({ set: "aircraft", key: String(a.type || "").toUpperCase(), label: fam ? FAMILIES[fam] : "",
     drawing: fam ? profileURI(fam, { dark, accent: (KIND[a.kind] || KIND.other).hex }) : "" });
+  aircraftPhoto(a, fig);
+  return fig;
 }
 export function aircraftCard(a, { place = "the centre", image = true } = {}) {
   const row = (k, v) => [el("dt", {}, k), el("dd", {}, v)];
@@ -310,7 +315,7 @@ export function aircraftCard(a, { place = "the centre", image = true } = {}) {
       ...(a.pass && a.pass.d < 2.5 && a.pass.t < 900 ? row("Next pass", `${fKm(a.pass.d)} from ${place} in ${Math.floor(a.pass.t / 60)}:${String(Math.floor(a.pass.t % 60)).padStart(2, "0")}`) : []),
       ...(a.rare ? row("Rare", a.rare.name) : []),
       ...(a.age > 45 ? row("Last report", `${agoS(a.age)} (position estimated since)`) : [])),
-    el("p", { class: "air-note" }, "Type from a crowd-sourced database (adsb.lol, ODbL); airline from the callsign (OpenFlights, ODbL); country from the ICAO address block; height is barometric."));
+    el("p", { class: "air-note" }, "Type from a crowd-sourced database (adsb.lol, ODbL); airline from the callsign (OpenFlights, ODbL); country from the ICAO address block; height is barometric. Photo: Planespotters.net or Wikimedia Commons, as credited."));
 }
 export function overheadList(list, { limit = 8, selected = "", onPick, onFollow, range } = {}) {
   const L = [...list].filter((a) => range == null || a.km <= range).sort((a, b) => (a.km ?? 0) - (b.km ?? 0));

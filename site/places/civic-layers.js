@@ -4,7 +4,7 @@
 // Reads other modules' exports only; owners can replace any entry by giving their module a `stage` (see STAGES below).
 import { el } from "../src/shared/ui.js";
 import { get as cached, ecccAlerts, nwsPoint, inGeom, km, provinceOf, countryOf, chainOf } from "./civic-data.js";
-import { roads, quakes, crime, ferries, airtraffic, transit, route95, trails, malahat, waterways, bigquakes, airWatch } from "./civic-modules.js";
+import { roads, quakes, crime, ferries, airtraffic, transit, route95, trails, malahat, waterways, bigquakes, airWatch, airMapKm } from "./civic-modules.js";
 import * as R from "./civic-mod-roads.js";
 import * as TRF from "./civic-mod-traffic.js";   // Traffic: bus-speed colouring, camera buttons, the Malahat inset
 import * as RS from "./civic-mod-roadsigns.js";   // road-event signs (works, closure, incident, conditions) by severity
@@ -18,7 +18,6 @@ import { livePart, hubSetFor } from "../src/shared/livehub.js";
 import { icon } from "./civic-icons.js";
 import { NATURE_STAGES } from "./civic-stage-nature.js";   // Seasons & nature, Outdoors (their own maps)
 import { CIVIC_STAGES } from "./civic-stage-civic.js";     // Growth, Water & power, Climate, Hazards, national pages
-import { fxLayer } from "./civic-wxfx.js";                 // the weather pages' faint rain / snow / fog / wind background
 import { noticesLayer } from "./civic-mod-local.js";      // City Hall and police-station markers with their notices (civic-map-notices.js)
 
 const fc = (features) => ({ type: "FeatureCollection", features });
@@ -52,8 +51,6 @@ const METRO_BOX = { crd: [[-123.6, 48.37], [-123.29, 48.69]], metrovan: [[-123.2
 // ================================================================== layer specs
 export const L = {};
 
-// Forecast and the Weather summary: what the weather is doing now, drawn faintly over the map (civic-wxfx.js)
-L.wxfx = { id: "wxfx", title: "Weather now", passive: true, custom: fxLayer };
 
 L.place = { id: "place", title: "Place", kind: "circle", passive: true, color: "var(--accent)",
   data: (ctx) => fc([pt(ctx.place.ll, { title: ctx.place.name, r: 6.5 })]) };
@@ -132,7 +129,7 @@ L.aircraft = { id: "aircraft", title: "Aircraft", icon: "plane", color: "var(--m
     const every = () => layer.feed?.every?.() || 30;
     const gest = followGestures(map, { layers: ["opair-ac", "opair-parked"], prefix: "air:", selected: () => sel, select: (id) => open(id), deselect: close,
       name: (id) => { const a = find(id); return a ? `${callsign(a)}${a.tname ? ` · ${a.tname}` : ""}` : id; },
-      follow: (id) => ({ map, key: `air:${id}`, name: (find(id) && callsign(find(id))) || id, minZoom: 10.5, where: () => layer.where(id),
+      follow: (id) => ({ map, key: `air:${id}`, name: (find(id) && callsign(find(id))) || id, minZoom: 10.5, where: () => layer.where(id), area: () => ({ center: ctx.place.ll, km: airMapKm(ctx.place) }),
         seen: () => { const a = find(id); return a ? Date.now() - (a.age ?? 0) * 1000 : null; },
         redraw: () => { layer.update(); const ll = layer.where(id); if (ll && pop) pop.setLngLat(ll); }, redrawMs: 250,
         lostMs: () => Math.max(90000, (every() * 2.5 + 30) * 1000), giveUpMs: () => Math.max(300000, every() * 5000) }) });

@@ -29,6 +29,7 @@ import { airFeed, feedText as airFeedText, feedReason as airFeedReason, addAirLa
 import * as R from "./civic-mod-roads.js";   // Traffic (events, cameras) + Malahat (DriveBC)
 import { busSummary, crdWide, inCRDBox, crdCams, NEAR_KM } from "./civic-mod-traffic.js";   // Traffic: bus speeds, Greater Victoria-wide events and cameras
 import * as RS from "./civic-mod-roadsigns.js";   // road-event signs (Vehicle Traffic: map, strip, list)
+import { wxHint } from "./civic-wxfx.js";   // the rail's Weather badge: temperature and a hover line
 import { rainCard } from "./civic-mod-weather.js";   // Rain Map card in Forecast
 import { trailsDef } from "./civic-mod-trails.js";   // Parks & Trails (BC Parks advisories, parks map)
 import { bikeDef } from "./civic-mod-bike.js";   // Biking (OSM bike network, riding conditions, parking and repair)
@@ -389,7 +390,7 @@ export const wx = mod({
   id: "weather", xBig: true, title: "Forecast", tileTitle: "Forecast", scale: "basic", eyebrow: "The basics", heading: "Forecast", need: wxNeed,
   status: () => ({ kind: LIVE, text: "Live", long: "Open-Meteo forecast API (CC BY 4.0), called from the browser" }),
   source: () => "Open-Meteo",
-  badge: (w) => `${Math.round(w.current.temperature_2m)}°`,
+  badge: (w) => { const h = wxHint(w); return h ? [h.temp, h.tip] : `${Math.round(w.current.temperature_2m)}°`; },   // the rail: temperature, hover for conditions
   tileKpis: (w) => [[`${Math.round(w.current.temperature_2m)}°`, WMO[w.current.weather_code] || "—"], [`${Math.round(w.daily.temperature_2m_max[0])}° / ${Math.round(w.daily.temperature_2m_min[0])}°`, "high / low"],
     [hm(w.daily.daylight_duration[0]), `daylight · sets ${hhmm(w.daily.sunset[0])}`]],
   kpis: (w) => [["Now", `${Math.round(w.current.temperature_2m)}°`, WMO[w.current.weather_code]], ["Feels like", `${Math.round(w.current.apparent_temperature)}°`],
@@ -589,6 +590,27 @@ const roadNeed = (ctx) => {
 };
 const roadSign = (x) => ({ x: x.km, kind: RS.evKind(x.e), tone: RS.evTone(x.e), title: `${R.hwy(evRoad(x.e))} · ${Math.round(x.km)} km`, note: evClosed(x.e) ? "closed" : `${RS.KIND_LABEL[RS.evKind(x.e)].toLowerCase()} · ${String(x.e.severity || "unknown").toLowerCase()} severity` });
 const roadsrc = (p) => inherit(p, "roadsrc");
+/** the rail's Getting Around rating, five tiers: bus speeds across the region's measured road stretches (slow counts
+ *  half, congested whole), raised a step for incidents or closures within 25 km and another for a closure or major one
+ *  (DriveBC). Outside Greater Victoria only the road events count; with neither, null (the rail falls back). */
+const BUSY = ["Quiet", "Light", "Moderate", "Busy", "Heavy"];
+export function busyLevel(ctx) {
+  let d = null; try { d = roadNeed(ctx); } catch { /* not ready */ }
+  const bus = busSummary(ctx), why = [];
+  let lv = null;
+  if (bus && bus.measured >= 5) {
+    const b = (bus.slow * 0.5 + bus.congested) / bus.measured;
+    lv = b < 0.08 ? 0 : b < 0.15 ? 1 : b < 0.25 ? 2 : b < 0.4 ? 3 : 4;
+    why.push(`buses slow or congested on ${bus.slow + bus.congested} of ${bus.measured} measured road stretches`);
+  }
+  if (d?.ev) {
+    const near = d.ev.filter((x) => x.km <= 25 && (x.e?.event_type === "INCIDENT" || R.evClosed(x.e || {})));
+    const big = near.filter((x) => R.evClosed(x.e) || x.e.severity === "MAJOR").length;
+    lv = Math.min(4, (lv ?? 0) + (near.length ? 1 : 0) + (big ? 1 : 0));
+    why.push(near.length ? `${near.length} incident${near.length === 1 ? "" : "s"} or closure${near.length === 1 ? "" : "s"} within 25 km${big ? `, ${big} major or closed` : ""} (DriveBC)` : "no incidents or closures within 25 km (DriveBC)");
+  }
+  return lv == null ? null : { lv, label: BUSY[lv], tip: `${BUSY[lv]}: ${why.join("; ")}` };
+}
 const evN = (d) => (d.ev ? `${d.ev.length}` : d.evErr ? "—" : "…");
 const evArea = (d) => (d.wide ? "in Greater Victoria" : "within 40 km");
 const nearTxt = (d, xs) => (d.wide && d.p.level === "muni" ? ` · ${xs.length} near ${d.p.short || d.p.name}` : "");
@@ -1021,12 +1043,13 @@ export const route95 = mod({
 // drop out, scaled to that clock, and the status says "Delayed" / "Feed down" from the newest report's age.
 const AIR_NM = 22, AIR_KM = 40;
 const airIsCRD = (p) => chainOf(p).some((n) => n.id === "crd");
-/** the feed's circle (nm): in Greater Victoria the relay's hub already holds every aircraft within 46 nm of 48.5,-123.5,
- *  so the feed takes the widest circle around the place that fits inside it (no extra upstream calls: livehub.js cuts it
- *  from the same snapshot); elsewhere in a zone up to 40 nm (cut from the zone's snapshot, also free), else 22 nm (a
- *  city, or nothing). Tiles and alerts still count within AIR_KM. */
-const airNmFor = (lat, lon, place) => { if (!hubSetFor(place)) return airCoverNm(lat, lon, 40, AIR_NM); for (let nm = 40; nm > AIR_NM; nm -= 2) if (hubAirCovers(lat, lon, nm)) return nm; return AIR_NM; };
-const airMapKm = (p) => airNmFor(p.ll[1], p.ll[0], p) * 1.852;
+/** the feed's circle (nm): inside a relay zone (Victoria & Vancouver, Phoenix) up to 70 nm round the place, so Greater
+ *  Victoria's page reaches Vancouver, Nanaimo and Bellingham. It is cut from the zone's one shared snapshot
+ *  (/air/point.json, no extra adsb.lol calls; the hub's 46 nm circle is too small for it). A city, or nothing: 22 nm.
+ *  Tiles and alerts still count within AIR_KM. */
+const AIR_WIDE_NM = 70;
+const airNmFor = (lat, lon) => airCoverNm(lat, lon, AIR_WIDE_NM, AIR_NM);
+export const airMapKm = (p) => airNmFor(p.ll[1], p.ll[0], p) * 1.852;
 let airW = null;   // { key, feed, seen }: one live feed, for the place on screen; dropped 2 min after nobody asks
 export function airWatch(lat, lon, crd, ctx) {
   const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
@@ -1113,6 +1136,7 @@ function airFly() {
 function airFollow(id) {
   const a = airStage.layer?.aircraft().find((x) => airId(x) === id);
   return { map: airStage.map, key: `air:${id}`, name: a ? callsign(a) : id, minZoom: 10.5, where: () => airStage.layer?.where(id) || null,
+    area: () => (airStage.ctx ? { center: airStage.ctx.place.ll, km: airMapKm(airStage.ctx.place) } : null),   // the feed's circle: leaving it ends the follow
     seen: () => { const x = airStage.layer?.aircraft().find((y) => airId(y) === id); return x ? Date.now() - (x.age ?? 0) * 1000 : null; },
     // the zone can refresh only every ~4 min (every_s): "lost signal" waits for two and a half clocks, at least 90 s
     redraw: () => airStage.layer?.update(), redrawMs: 250, lostMs: () => Math.max(90000, (airEveryS() * 2.5 + 30) * 1000), giveUpMs: () => Math.max(300000, airEveryS() * 5000) };
@@ -1149,7 +1173,7 @@ function airProbable(a) {
 function airStageLayer(map, ctx) {
   const [lon, lat] = ctx.place.ll, R = airMapKm(ctx.place), feed = airWatch(lat, lon, airIsCRD(ctx.place), ctx);
   airStage.layer?.destroy(); airStage.apt?.destroy();
-  airStage.map = map; airSyncRoute(ctx);
+  airStage.map = map; airStage.ctx = ctx; airSyncRoute(ctx);
   airStage.apt = addAirfields(map, { prefix: "apt", center: [lon, lat], km: R + 20, beforeId: ["air-vte", "air-vt", "air-hear", "air-parked", "st-place-p"],
     color: () => cssVar("--m-airtraffic") || "#8b7cf6", ink: () => cssVar("--ink-2") || "#9aa6b8", halo: () => cssVar("--surface") || "rgba(0,0,0,0.6)", above: ["air-ac", "air-parked"], popupClass: "civ-pop", onPick: (p) => airPickApt(p.icao || p.iata || p.code, ctx) });
   airStage.apt.select(airStage.poi);
@@ -1240,6 +1264,17 @@ function airRadar(host, d) {
  *  aerodrome), with the place itself; null until the airport list has loaded, or with no such airport */
 function airViewBox(ctx) {
   const p = ctx.place, [lon, lat] = p.ll, R = airMapKm(p), crd = airIsCRD(p);
+  // a zone's wide circle (Greater Victoria's reaches Vancouver): frame the place and every large airport in it, 12 km margin
+  if (R > 100) {
+    const w = file("air/world.json", ctx).data; if (!w) return null;
+    const ix = Object.fromEntries(w.fields.map((f, i) => [f, i]));
+    const big = w.rows.filter((r) => r[ix.size] === "L" && Math.abs(r[ix.lat] - lat) < 1.5 && airKm(lat, lon, r[ix.lat], r[ix.lon]) <= R);
+    if (big.length) {
+      const pts = [[lon, lat], ...big.map((r) => [r[ix.lon], r[ix.lat]])], xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+      const m = 12 / 110.57, mx = 12 / (111.32 * Math.cos((lat * Math.PI) / 180));
+      return [[Math.min(...xs) - mx, Math.min(...ys) - m], [Math.max(...xs) + mx, Math.max(...ys) + m]];
+    }
+  }
   const ap = (crd ? file("air/airports.json", ctx) : file("air/world.json", ctx)).data;
   if (!ap) return null;
   let rows;

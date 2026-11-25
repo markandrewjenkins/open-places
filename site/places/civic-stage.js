@@ -249,6 +249,7 @@ export function createStage({ ctx, isDark }) {
       map.addLayer({ id: "cv-dim", type: "fill", source: "cv-mask", paint: { "fill-color": "#000", "fill-opacity": isDark() ? 0.13 : 0.05 } }, before);
       addAreaLayers(map, "cv", "cv", tint, { label: false, before });
       map.setPaintProperty("cv-al", "line-opacity", 0.8);
+      map.setPaintProperty("cv-af", "fill-opacity", 0.02);   // a faint wash: the dotted line carries the area (Air Traffic's circle spans most of the map)
       // the name (every page shows it at its own zoom, so not the area labels' minzoom): a town-sized area gets it just
       // above its northernmost point (a ragged municipal line can't carry text); a big one (a province, a country) along
       // its outline, repeated, so some of it is always on screen

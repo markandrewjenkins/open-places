@@ -6,8 +6,8 @@
    "credit": "BC Transit (GTFS and GTFS-Realtime), under the BC Transit GTFS Data Terms of Use. Not endorsed by BC Transit.",
    "terms": "https://www.bctransit.com/open-data/terms-of-use",
    "tz": "America/Vancouver",
-   "version": "202611260/20261125 21:00:00/20261126 04:00:00",
-   "feed_start": "20261124",
+   "version": "202611270/20261126 21:00:00/20261127 04:00:00",
+   "feed_start": "20261125",
    "feed_end": "20270103",
    "bbox": [
     -123.75,
@@ -30,7 +30,7 @@
     "stops": 481590
    },
    "static_only": false,
-   "built": "2026-11-26T23:03+00:00"
+   "built": "2026-11-27T22:37+00:00"
   },
   "nanaimo": {
    "name": "BC Transit · Nanaimo",
@@ -1243,17 +1243,17 @@
    "credit": "Data provided by MassDOT / MBTA under the MassDOT Developers License Agreement.",
    "terms": "https://www.mass.gov/files/documents/2017/10/27/develop_license_agree_0.pdf",
    "tz": "America/New_York",
-   "version": "Fall 2026, 2026-11-25T15:33:25+00:00, version D",
-   "feed_start": "20261118",
+   "version": "Fall 2026, 2026-11-27T21:14:36+00:00, version D",
+   "feed_start": "20261120",
    "feed_end": "20261212",
    "bbox": [
-    -71.391,
+    -71.377,
     42.12,
     -70.856,
     42.573
    ],
    "routes": 186,
-   "stops": 7303,
+   "stops": 7284,
    "modes": [
     "bus",
     "ferry",
@@ -1267,11 +1267,11 @@
     "sun": "2026-12-06"
    },
    "bytes": {
-    "network": 191412,
-    "stops": 1198343
+    "network": 191413,
+    "stops": 1196075
    },
    "static_only": false,
-   "built": "2026-11-25T23:22+00:00"
+   "built": "2026-11-27T22:37+00:00"
   },
   "sacrt": {
    "name": "SacRT",
@@ -1344,7 +1344,7 @@
    "credit": "Route and arrival data used in this product or service is provided by permission of TransLink. TransLink assumes no responsibility for the accuracy or currency of the Data used in this product or service.",
    "terms": "https://www.translink.ca/about-us/doing-business-with-translink/app-developer-resources/gtfs/gtfs-data",
    "tz": "America/Vancouver",
-   "version": "26SEP_20261120",
+   "version": "26SEP_20261127",
    "feed_start": "20260907",
    "feed_end": "20270103",
    "bbox": [
@@ -1354,7 +1354,7 @@
     49.37
    ],
    "routes": 238,
-   "stops": 8747,
+   "stops": 8748,
    "modes": [
     "bus",
     "ferry",
@@ -1362,18 +1362,18 @@
     "subway"
    ],
    "days": {
-    "weekday": "2026-11-20",
-    "sat": "2026-11-21",
-    "sun": "2026-11-22"
+    "weekday": "2026-11-27",
+    "sat": "2026-12-05",
+    "sun": "2026-11-29"
    },
    "bytes": {
-    "network": 201814,
-    "stops": 1691964
+    "network": 201796,
+    "stops": 1692381
    },
    "static_only": true,
-   "built": "2026-11-20T22:07+00:00"
+   "built": "2026-11-27T22:37+00:00"
   }
  },
- "generated": "2026-11-26T23:03+00:00",
+ "generated": "2026-11-27T22:37+00:00",
  "note": "Built by pipelines/blink/static.py from each agency's open GTFS. bbox = [west, south, east, north]."
 }
